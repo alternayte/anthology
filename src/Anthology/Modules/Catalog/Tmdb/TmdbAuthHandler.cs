@@ -4,7 +4,10 @@ namespace Anthology.Modules.Catalog;
 
 public sealed class TmdbAuthHandler(IOptions<TmdbOptions> options) : DelegatingHandler
 {
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken ct
+    )
     {
         var uri = request.RequestUri!;
         var separator = string.IsNullOrEmpty(uri.Query) ? "?" : "&";

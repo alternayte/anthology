@@ -11,8 +11,7 @@ namespace Anthology.Modules.Catalog.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "catalog");
+            migrationBuilder.EnsureSchema(name: "catalog");
 
             migrationBuilder.CreateTable(
                 name: "titles",
@@ -25,27 +24,27 @@ namespace Anthology.Modules.Catalog.Migrations
                     name = table.Column<string>(type: "text", nullable: false),
                     year = table.Column<int>(type: "integer", nullable: true),
                     poster_path = table.Column<string>(type: "text", nullable: true),
-                    overview = table.Column<string>(type: "text", nullable: true)
+                    overview = table.Column<string>(type: "text", nullable: true),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_titles", x => x.title_id);
-                });
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_titles_external_id",
                 schema: "catalog",
                 table: "titles",
                 column: "external_id",
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "titles",
-                schema: "catalog");
+            migrationBuilder.DropTable(name: "titles", schema: "catalog");
         }
     }
 }

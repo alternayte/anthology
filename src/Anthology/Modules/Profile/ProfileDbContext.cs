@@ -2,7 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Anthology.Modules.Profile;
 
-public sealed class ProfileDbContext(DbContextOptions<ProfileDbContext> options) : DbContext(options)
+public sealed class ProfileDbContext(DbContextOptions<ProfileDbContext> options)
+    : DbContext(options)
 {
     public DbSet<UserProfile> Profiles => Set<UserProfile>();
 

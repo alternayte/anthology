@@ -8,5 +8,5 @@ public enum MediaType
     Episode,
     Book,
     Game,
-    Music
+    Music,
 }

@@ -6,23 +6,48 @@ namespace Anthology.Modules.Catalog;
 public static class GetTitle
 {
     public record TitleDetailDto(
-        Guid TitleId, string Name, int? Year, string? PosterPath, string? BackdropPath,
-        string? Overview, MediaType MediaType);
+        Guid TitleId,
+        string Name,
+        int? Year,
+        string? PosterPath,
+        string? BackdropPath,
+        string? Overview,
+        MediaType MediaType
+    );
 
     public sealed record TvShowDetailDto(
-        Guid TitleId, string Name, int? Year, string? PosterPath, string? BackdropPath,
-        string? Overview, TvShowData ShowData, List<SeasonDto> Seasons)
-        : TitleDetailDto(TitleId, Name, Year, PosterPath, BackdropPath, Overview, MediaType.TvShow);
+        Guid TitleId,
+        string Name,
+        int? Year,
+        string? PosterPath,
+        string? BackdropPath,
+        string? Overview,
+        TvShowData ShowData,
+        List<SeasonDto> Seasons
+    ) : TitleDetailDto(TitleId, Name, Year, PosterPath, BackdropPath, Overview, MediaType.TvShow);
 
-    public sealed record SeasonDto(Guid TitleId, string Name, int SeasonNumber, List<EpisodeDto> Episodes);
+    public sealed record SeasonDto(
+        Guid TitleId,
+        string Name,
+        int SeasonNumber,
+        List<EpisodeDto> Episodes
+    );
 
-    public sealed record EpisodeDto(Guid TitleId, string Name, int SeasonNumber, int EpisodeNumber, string? AirDate, string? StillPath);
+    public sealed record EpisodeDto(
+        Guid TitleId,
+        string Name,
+        int SeasonNumber,
+        int EpisodeNumber,
+        string? AirDate,
+        string? StillPath
+    );
 
     public sealed class Handler(CatalogDbContext db)
     {
         public async Task<Result<TitleDetailDto>> Handle(Guid titleId, CancellationToken ct)
         {
-            var title = await db.Titles.AsNoTracking()
+            var title = await db
+                .Titles.AsNoTracking()
                 .FirstOrDefaultAsync(t => t.TitleId == titleId, ct);
 
             if (title is null)
@@ -32,14 +57,21 @@ public static class GetTitle
                 return await BuildTvShowDto(title, ct);
 
             return new TitleDetailDto(
-                title.TitleId, title.Name, title.Year, title.PosterPath, title.BackdropPath,
-                title.Overview, title.MediaType);
+                title.TitleId,
+                title.Name,
+                title.Year,
+                title.PosterPath,
+                title.BackdropPath,
+                title.Overview,
+                title.MediaType
+            );
         }
 
         private async Task<TvShowDetailDto> BuildTvShowDto(Title show, CancellationToken ct)
         {
             // Load seasons
-            var seasonRows = await db.Titles.AsNoTracking()
+            var seasonRows = await db
+                .Titles.AsNoTracking()
                 .Where(t => t.ParentTitleId == show.TitleId && t.MediaType == MediaType.Season)
                 .OrderBy(t => t.SortOrder)
                 .ToListAsync(ct);
@@ -47,8 +79,11 @@ public static class GetTitle
             var seasonIds = seasonRows.Select(s => s.TitleId).ToList();
 
             // Load all episodes for all seasons in one query
-            var episodeRows = await db.Titles.AsNoTracking()
-                .Where(t => t.MediaType == MediaType.Episode && seasonIds.Contains(t.ParentTitleId!.Value))
+            var episodeRows = await db
+                .Titles.AsNoTracking()
+                .Where(t =>
+                    t.MediaType == MediaType.Episode && seasonIds.Contains(t.ParentTitleId!.Value)
+                )
                 .OrderBy(t => t.SortOrder)
                 .ToListAsync(ct);
 
@@ -56,38 +91,51 @@ public static class GetTitle
                 .GroupBy(e => e.ParentTitleId!.Value)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            var seasons = seasonRows.Select(season =>
-            {
-                var seasonData = season.GetMediaData<SeasonData>();
-                var episodes = episodesBySeasonId.TryGetValue(season.TitleId, out var eps) ? eps : [];
+            var seasons = seasonRows
+                .Select(season =>
+                {
+                    var seasonData = season.GetMediaData<SeasonData>();
+                    var episodes = episodesBySeasonId.TryGetValue(season.TitleId, out var eps)
+                        ? eps
+                        : [];
 
-                var episodeDtos = episodes
-                    .OrderBy(e => e.SortOrder)
-                    .Select(ep =>
-                    {
-                        var epData = ep.GetMediaData<EpisodeData>();
-                        return new EpisodeDto(
-                            ep.TitleId,
-                            ep.Name,
-                            epData?.SeasonNumber ?? 0,
-                            epData?.EpisodeNumber ?? ep.SortOrder ?? 0,
-                            epData?.AirDate,
-                            epData?.StillPath);
-                    })
-                    .ToList();
+                    var episodeDtos = episodes
+                        .OrderBy(e => e.SortOrder)
+                        .Select(ep =>
+                        {
+                            var epData = ep.GetMediaData<EpisodeData>();
+                            return new EpisodeDto(
+                                ep.TitleId,
+                                ep.Name,
+                                epData?.SeasonNumber ?? 0,
+                                epData?.EpisodeNumber ?? ep.SortOrder ?? 0,
+                                epData?.AirDate,
+                                epData?.StillPath
+                            );
+                        })
+                        .ToList();
 
-                return new SeasonDto(
-                    season.TitleId,
-                    season.Name,
-                    seasonData?.SeasonNumber ?? season.SortOrder ?? 0,
-                    episodeDtos);
-            }).ToList();
+                    return new SeasonDto(
+                        season.TitleId,
+                        season.Name,
+                        seasonData?.SeasonNumber ?? season.SortOrder ?? 0,
+                        episodeDtos
+                    );
+                })
+                .ToList();
 
             var showData = show.GetMediaData<TvShowData>() ?? new TvShowData(0, 0);
 
             return new TvShowDetailDto(
-                show.TitleId, show.Name, show.Year, show.PosterPath, show.BackdropPath,
-                show.Overview, showData, seasons);
+                show.TitleId,
+                show.Name,
+                show.Year,
+                show.PosterPath,
+                show.BackdropPath,
+                show.Overview,
+                showData,
+                seasons
+            );
         }
     }
 }

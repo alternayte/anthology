@@ -29,11 +29,7 @@ public sealed class FeedbackResolverTests
     [Fact]
     public void Excluded_set_contains_only_hidden_and_seen()
     {
-        var rows = new[]
-        {
-            (A, FeedbackSignal.Hidden, T0),
-            (B, FeedbackSignal.Seen, T0),
-        };
+        var rows = new[] { (A, FeedbackSignal.Hidden, T0), (B, FeedbackSignal.Seen, T0) };
 
         var resolved = FeedbackResolver.Resolve(rows);
 
@@ -57,18 +53,16 @@ public sealed class FeedbackResolverTests
     [Fact]
     public void Empty_input_resolves_to_empty()
     {
-        FeedbackResolver.Resolve(Array.Empty<(Guid, FeedbackSignal, DateTimeOffset)>())
-            .Should().BeEmpty();
+        FeedbackResolver
+            .Resolve(Array.Empty<(Guid, FeedbackSignal, DateTimeOffset)>())
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]
     public void Promoted_set_contains_only_more_like_this()
     {
-        var rows = new[]
-        {
-            (A, FeedbackSignal.MoreLikeThis, T0),
-            (B, FeedbackSignal.Hidden, T0),
-        };
+        var rows = new[] { (A, FeedbackSignal.MoreLikeThis, T0), (B, FeedbackSignal.Hidden, T0) };
 
         var resolved = FeedbackResolver.Resolve(rows);
 

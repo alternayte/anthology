@@ -15,14 +15,16 @@ namespace Anthology.Modules.Tracking.Migrations
                 schema: "tracking",
                 table: "library_items",
                 type: "integer",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<int>(
                 name: "parts_total",
                 schema: "tracking",
                 table: "library_items",
                 type: "integer",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
@@ -31,12 +33,14 @@ namespace Anthology.Modules.Tracking.Migrations
             migrationBuilder.DropColumn(
                 name: "parts_completed",
                 schema: "tracking",
-                table: "library_items");
+                table: "library_items"
+            );
 
             migrationBuilder.DropColumn(
                 name: "parts_total",
                 schema: "tracking",
-                table: "library_items");
+                table: "library_items"
+            );
         }
     }
 }

@@ -14,7 +14,5 @@ public sealed class OpenLibraryOptions : IOptions<OpenLibraryOptions>
     public OpenLibraryOptions Value => this;
 
     public static string ResolveCoverBaseUrl(string? coverBaseUrl) =>
-        string.IsNullOrWhiteSpace(coverBaseUrl)
-            ? DefaultCoverBaseUrl
-            : coverBaseUrl.TrimEnd('/');
+        string.IsNullOrWhiteSpace(coverBaseUrl) ? DefaultCoverBaseUrl : coverBaseUrl.TrimEnd('/');
 }

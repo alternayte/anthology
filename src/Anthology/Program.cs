@@ -2,18 +2,18 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Anthology.Kernel;
+using Anthology.Modules.Admin;
 using Anthology.Modules.Catalog;
 using Anthology.Modules.Identity;
 using Anthology.Modules.Profile;
-using Anthology.Modules.Admin;
 using Anthology.Modules.Recommendations;
 using Anthology.Modules.Tracking;
 using Anthology.Workers;
 using Deedbox;
 using FluentValidation;
-using Npgsql;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,7 +22,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
+    o.SerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower)
+    );
 });
 
 // ProblemDetails + global exception handler
@@ -36,14 +38,20 @@ builder.Services.AddOpenApi();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Shared connection for module DbContexts
-builder.Services.AddScoped(_ =>
-    new NpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped(_ => new NpgsqlConnection(
+    builder.Configuration.GetConnectionString("DefaultConnection")
+));
 
 // Event store: Deedbox owns its schema, streams, projections and background runner
 builder.Services.AddDeedbox(deedbox =>
 {
-    deedbox.UsePostgres(sp => sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!)
-        .ConfigureJson(o => o.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower)))
+    deedbox
+        .UsePostgres(sp =>
+            sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!
+        )
+        .ConfigureJson(o =>
+            o.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower))
+        )
         .AddTracking();
     if (builder.Environment.IsDevelopment())
         deedbox.ApplySchemaOnStartup();
@@ -58,18 +66,20 @@ builder.Services.AddCatalogModule(builder.Configuration);
 builder.Services.AddTrackingModule(builder.Configuration);
 builder.Services.AddProfileModule(builder.Configuration);
 builder.Services.AddRecommendationsModule(builder.Configuration);
-builder.Services.AddHostedService(sp =>
-    new EmbeddingWorker(
-        sp.GetRequiredService<IServiceScopeFactory>(),
-        sp.GetRequiredService<IHttpClientFactory>().CreateClient("EmbeddingApi"),
-        sp.GetRequiredService<IOptions<EmbeddingOptions>>(),
-        sp.GetRequiredService<ILogger<EmbeddingWorker>>()));
+builder.Services.AddHostedService(sp => new EmbeddingWorker(
+    sp.GetRequiredService<IServiceScopeFactory>(),
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("EmbeddingApi"),
+    sp.GetRequiredService<IOptions<EmbeddingOptions>>(),
+    sp.GetRequiredService<ILogger<EmbeddingWorker>>()
+));
 
 // Command handler scanning + decoration via Scrutor
-builder.Services.Scan(s => s.FromAssemblyOf<Program>()
-    .AddClasses(c => c.AssignableTo(typeof(ICommandHandler<,>)))
-    .AsImplementedInterfaces()
-    .WithScopedLifetime());
+builder.Services.Scan(s =>
+    s.FromAssemblyOf<Program>()
+        .AddClasses(c => c.AssignableTo(typeof(ICommandHandler<,>)))
+        .AsImplementedInterfaces()
+        .WithScopedLifetime()
+);
 builder.Services.Decorate(typeof(ICommandHandler<,>), typeof(ValidationDecorator<,>));
 
 // Build-time OpenAPI generation runs this entry point; background services and Deedbox's startup check need a database.
@@ -149,7 +159,8 @@ static SeedCommandOptions ParseSeedArgs(string[] args)
                 lists = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries);
                 break;
             case "--media-types" when i + 1 < args.Length:
-                mediaTypes = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries)
+                mediaTypes = args[++i]
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(s => Enum.Parse<MediaType>(s, ignoreCase: true))
                     .ToArray();
                 break;

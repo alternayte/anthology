@@ -15,7 +15,8 @@ namespace Anthology.Modules.Tracking.Migrations
                 schema: "tracking",
                 table: "library_items",
                 type: "text",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
@@ -24,7 +25,8 @@ namespace Anthology.Modules.Tracking.Migrations
             migrationBuilder.DropColumn(
                 name: "poster_path",
                 schema: "tracking",
-                table: "library_items");
+                table: "library_items"
+            );
         }
     }
 }

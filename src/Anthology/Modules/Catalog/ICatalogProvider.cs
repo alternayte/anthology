@@ -6,7 +6,8 @@ public record CatalogSearchResult(
     string Name,
     int? Year,
     string? PosterUrl,
-    string? Overview);
+    string? Overview
+);
 
 public record TitleWithCredits(Title Title, IReadOnlyList<TitleCredit> Credits);
 

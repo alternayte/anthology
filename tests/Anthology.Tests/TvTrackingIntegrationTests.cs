@@ -10,22 +10,29 @@ using Xunit;
 
 namespace Anthology.Tests;
 
-public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
-    : IClassFixture<WebAppFixture>
+public sealed class TvTrackingIntegrationTests(WebAppFixture fixture) : IClassFixture<WebAppFixture>
 {
     private async Task<HttpClient> CreateAuthenticatedClientAsync()
     {
         var client = fixture.Factory.CreateClient();
         var email = $"test-{Guid.NewGuid():N}@example.com";
         var password = "TestPassword123";
-        await client.PostAsJsonAsync("/api/identity/register",
-            new { Email = email, Password = password }, TestContext.Current.CancellationToken);
-        await client.PostAsJsonAsync("/api/identity/login",
-            new { Email = email, Password = password }, TestContext.Current.CancellationToken);
+        await client.PostAsJsonAsync(
+            "/api/identity/register",
+            new { Email = email, Password = password },
+            TestContext.Current.CancellationToken
+        );
+        await client.PostAsJsonAsync(
+            "/api/identity/login",
+            new { Email = email, Password = password },
+            TestContext.Current.CancellationToken
+        );
         return client;
     }
 
-    private async Task<(Guid ShowId, Guid Episode1Id, Guid Episode2Id)> SeedTvShowAsync(string showName = "Breaking Bad")
+    private async Task<(Guid ShowId, Guid Episode1Id, Guid Episode2Id)> SeedTvShowAsync(
+        string showName = "Breaking Bad"
+    )
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var catalogDb = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
@@ -37,7 +44,7 @@ public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
             MediaType = MediaType.TvShow,
             Name = showName,
             Year = 2008,
-            Overview = "A chemistry teacher becomes a drug lord."
+            Overview = "A chemistry teacher becomes a drug lord.",
         };
         catalogDb.Titles.Add(show);
 
@@ -49,7 +56,7 @@ public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
             Name = $"{showName} Season 1",
             Year = 2008,
             ParentTitleId = show.TitleId,
-            SortOrder = 1
+            SortOrder = 1,
         };
         catalogDb.Titles.Add(season);
 
@@ -61,7 +68,7 @@ public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
             Name = "Pilot",
             Year = 2008,
             ParentTitleId = season.TitleId,
-            SortOrder = 1
+            SortOrder = 1,
         };
         catalogDb.Titles.Add(episode1);
 
@@ -73,7 +80,7 @@ public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
             Name = "Cat's in the Bag",
             Year = 2008,
             ParentTitleId = season.TitleId,
-            SortOrder = 2
+            SortOrder = 2,
         };
         catalogDb.Titles.Add(episode2);
 
@@ -88,15 +95,18 @@ public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
         var (showId, episode1Id, _) = await SeedTvShowAsync();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/tracking/items/{episode1Id}/want", new { },
-            TestContext.Current.CancellationToken);
+            $"/api/tracking/items/{episode1Id}/want",
+            new { },
+            TestContext.Current.CancellationToken
+        );
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var scope = fixture.Factory.Services.CreateScope();
         var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
 
-        var showRow = await trackingDb.LibraryItems.AsNoTracking()
+        var showRow = await trackingDb
+            .LibraryItems.AsNoTracking()
             .FirstOrDefaultAsync(li => li.TitleId == showId, TestContext.Current.CancellationToken);
 
         showRow.Should().NotBeNull();
@@ -113,21 +123,28 @@ public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
         var (showId, episode1Id, _) = await SeedTvShowAsync();
 
         await client.PostAsJsonAsync(
-            $"/api/tracking/items/{episode1Id}/want", new { },
-            TestContext.Current.CancellationToken);
+            $"/api/tracking/items/{episode1Id}/want",
+            new { },
+            TestContext.Current.CancellationToken
+        );
 
         await client.PostAsJsonAsync(
-            $"/api/tracking/items/{episode1Id}/start", new { },
-            TestContext.Current.CancellationToken);
+            $"/api/tracking/items/{episode1Id}/start",
+            new { },
+            TestContext.Current.CancellationToken
+        );
 
         await client.PostAsJsonAsync(
-            $"/api/tracking/items/{episode1Id}/finish", new { Rating = (int?)null },
-            TestContext.Current.CancellationToken);
+            $"/api/tracking/items/{episode1Id}/finish",
+            new { Rating = (int?)null },
+            TestContext.Current.CancellationToken
+        );
 
         using var scope = fixture.Factory.Services.CreateScope();
         var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
 
-        var showRow = await trackingDb.LibraryItems.AsNoTracking()
+        var showRow = await trackingDb
+            .LibraryItems.AsNoTracking()
             .FirstOrDefaultAsync(li => li.TitleId == showId, TestContext.Current.CancellationToken);
 
         showRow.Should().NotBeNull();
@@ -145,20 +162,27 @@ public sealed class TvTrackingIntegrationTests(WebAppFixture fixture)
         foreach (var episodeId in new[] { episode1Id, episode2Id })
         {
             await client.PostAsJsonAsync(
-                $"/api/tracking/items/{episodeId}/want", new { },
-                TestContext.Current.CancellationToken);
+                $"/api/tracking/items/{episodeId}/want",
+                new { },
+                TestContext.Current.CancellationToken
+            );
             await client.PostAsJsonAsync(
-                $"/api/tracking/items/{episodeId}/start", new { },
-                TestContext.Current.CancellationToken);
+                $"/api/tracking/items/{episodeId}/start",
+                new { },
+                TestContext.Current.CancellationToken
+            );
             await client.PostAsJsonAsync(
-                $"/api/tracking/items/{episodeId}/finish", new { Rating = (int?)null },
-                TestContext.Current.CancellationToken);
+                $"/api/tracking/items/{episodeId}/finish",
+                new { Rating = (int?)null },
+                TestContext.Current.CancellationToken
+            );
         }
 
         using var scope = fixture.Factory.Services.CreateScope();
         var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
 
-        var showRow = await trackingDb.LibraryItems.AsNoTracking()
+        var showRow = await trackingDb
+            .LibraryItems.AsNoTracking()
             .FirstOrDefaultAsync(li => li.TitleId == showId, TestContext.Current.CancellationToken);
 
         showRow.Should().NotBeNull();

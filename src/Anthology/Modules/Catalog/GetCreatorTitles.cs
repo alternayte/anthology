@@ -6,31 +6,45 @@ namespace Anthology.Modules.Catalog;
 public static class GetCreatorTitles
 {
     public sealed record CreatorTitleDto(
-        Guid TitleId, string Name, int? Year, string? PosterPath, MediaType MediaType,
-        string SharedPerson, string SharedRole);
+        Guid TitleId,
+        string Name,
+        int? Year,
+        string? PosterPath,
+        MediaType MediaType,
+        string SharedPerson,
+        string SharedRole
+    );
 
     private sealed record RawRow(
-        Guid TitleId, string Name, int? Year, string? PosterPath, string MediaType,
-        string SharedPerson, string SharedRole);
+        Guid TitleId,
+        string Name,
+        int? Year,
+        string? PosterPath,
+        string MediaType,
+        string SharedPerson,
+        string SharedRole
+    );
 
-    private static readonly Dictionary<string, MediaType> MediaTypeMap =
-        Enum.GetValues<MediaType>().ToDictionary(
-            v => JsonNamingPolicy.SnakeCaseLower.ConvertName(v.ToString()),
-            v => v);
+    private static readonly Dictionary<string, MediaType> MediaTypeMap = Enum.GetValues<MediaType>()
+        .ToDictionary(v => JsonNamingPolicy.SnakeCaseLower.ConvertName(v.ToString()), v => v);
 
     public sealed class Handler(CatalogDbContext db)
     {
         public async Task<IReadOnlyList<CreatorTitleDto>> Handle(Guid titleId, CancellationToken ct)
         {
-            var source = await db.Titles.AsNoTracking()
+            var source = await db
+                .Titles.AsNoTracking()
                 .FirstOrDefaultAsync(t => t.TitleId == titleId, ct);
 
             if (source is null)
                 return [];
 
-            var mediaTypeStr = JsonNamingPolicy.SnakeCaseLower.ConvertName(source.MediaType.ToString());
+            var mediaTypeStr = JsonNamingPolicy.SnakeCaseLower.ConvertName(
+                source.MediaType.ToString()
+            );
 
-            var sql = @"
+            var sql =
+                @"
                 WITH ranked AS (
                     SELECT t.title_id, t.name, t.year, t.poster_path, t.media_type,
                            tc2.name AS shared_person, tc2.role AS shared_role,
@@ -53,14 +67,20 @@ public static class GetCreatorTitles
                          popularity DESC NULLS LAST
                 LIMIT 12";
 
-            var rows = await db.Database
-                .SqlQueryRaw<RawRow>(sql, titleId, mediaTypeStr)
+            var rows = await db
+                .Database.SqlQueryRaw<RawRow>(sql, titleId, mediaTypeStr)
                 .ToListAsync(ct);
 
             return rows.Select(r => new CreatorTitleDto(
-                r.TitleId, r.Name, r.Year, r.PosterPath,
-                MediaTypeMap.GetValueOrDefault(r.MediaType, Catalog.MediaType.Film),
-                r.SharedPerson, r.SharedRole)).ToList();
+                    r.TitleId,
+                    r.Name,
+                    r.Year,
+                    r.PosterPath,
+                    MediaTypeMap.GetValueOrDefault(r.MediaType, Catalog.MediaType.Film),
+                    r.SharedPerson,
+                    r.SharedRole
+                ))
+                .ToList();
         }
     }
 }

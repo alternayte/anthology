@@ -6,8 +6,12 @@ namespace Anthology.Modules.Tracking;
 
 public static class RateItem
 {
-    public sealed record Command(int Rating, DateTimeOffset At, Guid UserId = default, Guid TitleId = default)
-        : ICommand<Result<TrackedItemDto>>, ITrackingCommand;
+    public sealed record Command(
+        int Rating,
+        DateTimeOffset At,
+        Guid UserId = default,
+        Guid TitleId = default
+    ) : ICommand<Result<TrackedItemDto>>, ITrackingCommand;
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -17,7 +21,8 @@ public static class RateItem
         }
     }
 
-    public sealed class Handler(IEventStore store) : ICommandHandler<Command, Result<TrackedItemDto>>
+    public sealed class Handler(IEventStore store)
+        : ICommandHandler<Command, Result<TrackedItemDto>>
     {
         public Task<Result<TrackedItemDto>> Handle(Command command, CancellationToken ct) =>
             TrackedItem.Execute(store, command, ct);
