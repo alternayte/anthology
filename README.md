@@ -1,5 +1,15 @@
 # Anthology
 
+## Code formatting
+
+Format the C# code before you push:
+
+```
+dotnet tool restore && dotnet csharpier format .
+```
+
+CI fails when a file is not formatted.
+
 Self-hostable, event-sourced social media tracker. Films first, then TV, books, games, music.
 
 Also a pragmatic DDD reference codebase in .NET — real product, minimal abstraction.
