@@ -1,0 +1,41 @@
+version: 1
+identity:
+  product: factoree-test
+  linear:
+    teamKey: FAC
+bootstrap:
+  command: MISE_CONFIG_FILE=.factoree/mise.toml mise install &&
+    MISE_CONFIG_FILE=.factoree/mise.toml DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+    dotnet restore && (cd src/Anthology/ClientApp &&
+    MISE_CONFIG_FILE=../../../.factoree/mise.toml npm ci)
+  keyFiles:
+    - .factoree/mise.toml
+    - src/Anthology/ClientApp/package-lock.json
+  allowedDomains:
+    - api.nuget.org
+    - auth.docker.io
+    - builds.dotnet.microsoft.com
+    - ci.dot.net
+    - dot.net
+    - github.com
+    - mise-versions.jdx.dev
+    - mise.jdx.dev
+    - nodejs.org
+    - production.cloudfront.docker.com
+    - registry-1.docker.io
+    - registry.npmjs.org
+verify:
+  commands:
+    - name: build
+      run: MISE_CONFIG_FILE=.factoree/mise.toml
+        DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet build
+services:
+  compose: docker-compose.yml
+  profiles: []
+  seed: ./.factoree/seed.sh
+  waitTimeoutSeconds: 180
+docker: false
+sandbox:
+  allowedDomains: []
+secrets:
+  require: []
