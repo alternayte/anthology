@@ -58,9 +58,12 @@ function RootLayout() {
               </>
             )}
           </div>
-          <div>
+          <div className="flex items-center gap-4">
             {user ? (
-              <button onClick={() => logout()} className="text-[0.8125rem] font-medium text-text-secondary hover:text-text-primary transition-colors">Sign out</button>
+              <>
+                <span className="text-[0.8125rem] font-medium text-text-secondary">{user.email}</span>
+                <button onClick={() => logout()} className="text-[0.8125rem] font-medium text-text-secondary hover:text-text-primary transition-colors">Sign out</button>
+              </>
             ) : (
               <Link to="/login" className="text-[0.8125rem] font-medium text-text-secondary hover:text-text-primary transition-colors">Sign in</Link>
             )}
