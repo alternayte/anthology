@@ -1,0 +1,33 @@
+version: 1
+identity:
+  product: factoree-test
+  linear:
+    teamKey: FAC
+bootstrap:
+  command: 'export MISE_CONFIG_FILE="$PWD/.factoree/mise.toml" && mise install &&
+    dotnet restore && (cd src/Anthology/ClientApp && npm ci)'
+  keyFiles:
+    - .factoree/mise.toml
+    - Anthology.slnx
+    - src/Anthology/Anthology.csproj
+    - tests/Anthology.Tests/Anthology.Tests.csproj
+    - src/Anthology/ClientApp/package.json
+    - src/Anthology/ClientApp/package-lock.json
+  allowedDomains:
+    - api.nuget.org
+    - builds.dotnet.microsoft.com
+    - ci.dot.net
+    - dot.net
+    - github.com
+    - mise-versions.jdx.dev
+    - mise.jdx.dev
+    - nodejs.org
+    - registry.npmjs.org
+verify:
+  commands:
+    - name: build
+      run: 'MISE_CONFIG_FILE="$PWD/.factoree/mise.toml" dotnet build Anthology.slnx'
+sandbox:
+  allowedDomains: []
+secrets:
+  require: []
