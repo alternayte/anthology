@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Pgvector.EntityFrameworkCore;
 using Refit;
 
@@ -52,9 +53,14 @@ public static class CatalogModule
         services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<IgdbProvider>());
 
         // MusicBrainz
+        services.Configure<MusicBrainzOptions>(configuration.GetSection(MusicBrainzOptions.Section));
         services.AddTransient<MusicBrainzUserAgentHandler>();
         services.AddRefitClient<IMusicBrainzApi>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://musicbrainz.org/ws/2"))
+            .ConfigureHttpClient((sp, c) =>
+            {
+                var options = sp.GetRequiredService<IOptions<MusicBrainzOptions>>().Value;
+                c.BaseAddress = MusicBrainzOptions.ResolveBaseUrl(options.BaseUrl);
+            })
             .AddHttpMessageHandler<MusicBrainzUserAgentHandler>();
         services.AddScoped<ICatalogProvider, MusicBrainzProvider>();
 
