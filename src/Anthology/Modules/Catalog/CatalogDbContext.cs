@@ -3,7 +3,8 @@ using Pgvector.EntityFrameworkCore;
 
 namespace Anthology.Modules.Catalog;
 
-public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options) : DbContext(options)
+public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
+    : DbContext(options)
 {
     public DbSet<Title> Titles => Set<Title>();
     public DbSet<TitleCredit> TitleCredits => Set<TitleCredit>();

@@ -10,12 +10,18 @@ public sealed class IgdbAuthHandler(IOptions<IgdbOptions> options) : DelegatingH
     private DateTimeOffset _expiresAt;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken ct
+    )
     {
         var token = await GetTokenAsync(ct);
         request.Headers.Remove("Client-ID");
         request.Headers.Add("Client-ID", options.Value.ClientId);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+            "Bearer",
+            token
+        );
         return await base.SendAsync(request, ct);
     }
 
@@ -33,7 +39,9 @@ public sealed class IgdbAuthHandler(IOptions<IgdbOptions> options) : DelegatingH
             using var http = new HttpClient();
             var response = await http.PostAsync(
                 $"{options.Value.TokenUrl}?client_id={options.Value.ClientId}&client_secret={options.Value.ClientSecret}&grant_type=client_credentials",
-                null, ct);
+                null,
+                ct
+            );
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<TwitchTokenResponse>(ct);
@@ -49,5 +57,6 @@ public sealed class IgdbAuthHandler(IOptions<IgdbOptions> options) : DelegatingH
 
     private sealed record TwitchTokenResponse(
         [property: JsonPropertyName("access_token")] string Access_Token,
-        [property: JsonPropertyName("expires_in")] int Expires_In);
+        [property: JsonPropertyName("expires_in")] int Expires_In
+    );
 }

@@ -7,16 +7,30 @@ public static class SearchTitles
     public sealed record Query(string Term, MediaType? MediaType);
 
     private static readonly MediaType[] TypeOrder =
-        [MediaType.Film, MediaType.TvShow, MediaType.Book, MediaType.Game, MediaType.Music];
+    [
+        MediaType.Film,
+        MediaType.TvShow,
+        MediaType.Book,
+        MediaType.Game,
+        MediaType.Music,
+    ];
 
-    public sealed class Handler(IEnumerable<ICatalogProvider> providers, ILogger<Handler>? logger = null)
+    public sealed class Handler(
+        IEnumerable<ICatalogProvider> providers,
+        ILogger<Handler>? logger = null
+    )
     {
         private static readonly TimeSpan ProviderTimeout = TimeSpan.FromSeconds(3);
 
-        public async Task<IReadOnlyList<CatalogSearchResult>> Handle(Query query, CancellationToken ct)
+        public async Task<IReadOnlyList<CatalogSearchResult>> Handle(
+            Query query,
+            CancellationToken ct
+        )
         {
             var matching = providers
-                .Where(p => query.MediaType is null || p.SupportedTypes.Contains(query.MediaType.Value))
+                .Where(p =>
+                    query.MediaType is null || p.SupportedTypes.Contains(query.MediaType.Value)
+                )
                 .ToList();
 
             var tasks = matching.Select(p => SearchWithTimeout(p, query.Term, ct));
@@ -29,7 +43,10 @@ public static class SearchTitles
         }
 
         private async Task<IReadOnlyList<CatalogSearchResult>> SearchWithTimeout(
-            ICatalogProvider provider, string term, CancellationToken ct)
+            ICatalogProvider provider,
+            string term,
+            CancellationToken ct
+        )
         {
             try
             {
@@ -37,10 +54,15 @@ public static class SearchTitles
                 cts.CancelAfter(ProviderTimeout);
                 return await provider.SearchAsync(term, cts.Token);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            catch (Exception ex)
+                when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
-                logger?.LogWarning(ex, "Provider {Provider} failed for term '{Term}'",
-                    provider.GetType().Name, term);
+                logger?.LogWarning(
+                    ex,
+                    "Provider {Provider} failed for term '{Term}'",
+                    provider.GetType().Name,
+                    term
+                );
                 return [];
             }
         }

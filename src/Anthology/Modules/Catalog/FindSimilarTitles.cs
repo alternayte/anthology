@@ -12,12 +12,26 @@ namespace Anthology.Modules.Catalog;
 public sealed class FindSimilarTitles(CatalogDbContext db)
 {
     public sealed record Row(
-        Guid TitleId, string Name, int? Year, string? PosterPath, string MediaType, string[]? Genres, double? Popularity);
+        Guid TitleId,
+        string Name,
+        int? Year,
+        string? PosterPath,
+        string MediaType,
+        string[]? Genres,
+        double? Popularity
+    );
 
     public async Task<IReadOnlyList<Row>> ByEmbedding(
-        Guid sourceId, Vector embedding, string mediaType, Guid[] excludeIds, int limit, CancellationToken ct)
+        Guid sourceId,
+        Vector embedding,
+        string mediaType,
+        Guid[] excludeIds,
+        int limit,
+        CancellationToken ct
+    )
     {
-        const string sql = @"
+        const string sql =
+            @"
             SELECT t.title_id, t.name, t.year, t.poster_path, t.media_type, t.genres, t.popularity
             FROM catalog.titles t
             WHERE t.title_id <> {0}
@@ -28,15 +42,23 @@ public sealed class FindSimilarTitles(CatalogDbContext db)
             ORDER BY t.embedding <=> {3}
             LIMIT {4}";
 
-        return await db.Database
-            .SqlQueryRaw<Row>(sql, sourceId, mediaType, excludeIds, embedding, limit)
+        return await db
+            .Database.SqlQueryRaw<Row>(sql, sourceId, mediaType, excludeIds, embedding, limit)
             .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<Row>> ByOverlap(
-        Guid sourceId, string[] genres, string[] keywords, string mediaType, Guid[] excludeIds, int limit, CancellationToken ct)
+        Guid sourceId,
+        string[] genres,
+        string[] keywords,
+        string mediaType,
+        Guid[] excludeIds,
+        int limit,
+        CancellationToken ct
+    )
     {
-        const string sql = @"
+        const string sql =
+            @"
             SELECT t.title_id, t.name, t.year, t.poster_path, t.media_type, t.genres, t.popularity
             FROM catalog.titles t
             WHERE t.title_id <> {0}
@@ -50,8 +72,16 @@ public sealed class FindSimilarTitles(CatalogDbContext db)
                 t.popularity DESC NULLS LAST
             LIMIT {5}";
 
-        return await db.Database
-            .SqlQueryRaw<Row>(sql, sourceId, genres, mediaType, excludeIds, keywords, limit)
+        return await db
+            .Database.SqlQueryRaw<Row>(
+                sql,
+                sourceId,
+                genres,
+                mediaType,
+                excludeIds,
+                keywords,
+                limit
+            )
             .ToListAsync(ct);
     }
 }

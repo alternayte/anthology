@@ -20,9 +20,13 @@ public sealed class EmbeddingWorkerTests
             "Interstellar",
             ["Science Fiction", "Drama"],
             ["space travel", "wormhole"],
-            "A team of explorers travel through a wormhole.");
+            "A team of explorers travel through a wormhole."
+        );
 
-        text.Should().Be("Interstellar. Science Fiction, Drama. space travel, wormhole. A team of explorers travel through a wormhole.");
+        text.Should()
+            .Be(
+                "Interstellar. Science Fiction, Drama. space travel, wormhole. A team of explorers travel through a wormhole."
+            );
     }
 
     [Fact]
@@ -36,10 +40,12 @@ public sealed class EmbeddingWorkerTests
     public async Task CallEmbeddingApiAsync_posts_to_base_url_from_configuration()
     {
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                [$"{EmbeddingOptions.Section}:BaseUrl"] = "http://fake:8080/v1"
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    [$"{EmbeddingOptions.Section}:BaseUrl"] = "http://fake:8080/v1",
+                }
+            )
             .Build();
         var options = configuration.GetSection(EmbeddingOptions.Section).Get<EmbeddingOptions>()!;
 
@@ -47,7 +53,10 @@ public sealed class EmbeddingWorkerTests
         using var http = new HttpClient(handler);
         var worker = CreateWorker(http, options);
 
-        var embedding = await worker.CallEmbeddingApiAsync("Interstellar", TestContext.Current.CancellationToken);
+        var embedding = await worker.CallEmbeddingApiAsync(
+            "Interstellar",
+            TestContext.Current.CancellationToken
+        );
 
         embedding.Should().HaveCount(3);
         handler.RequestUri.Should().Be(new Uri("http://fake:8080/v1/embeddings"));
@@ -57,10 +66,12 @@ public sealed class EmbeddingWorkerTests
     public async Task CallEmbeddingApiAsync_defaults_to_openai_endpoint_when_base_url_not_configured()
     {
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                [$"{EmbeddingOptions.Section}:Model"] = "text-embedding-3-small"
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    [$"{EmbeddingOptions.Section}:Model"] = "text-embedding-3-small",
+                }
+            )
             .Build();
         var options = configuration.GetSection(EmbeddingOptions.Section).Get<EmbeddingOptions>()!;
 
@@ -86,13 +97,17 @@ public sealed class EmbeddingWorkerTests
             Environment.SetEnvironmentVariable(variable, "http://fake:8080/v1");
 
             var configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    [$"{EmbeddingOptions.Section}:BaseUrl"] = "https://api.openai.com/v1"
-                })
+                .AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        [$"{EmbeddingOptions.Section}:BaseUrl"] = "https://api.openai.com/v1",
+                    }
+                )
                 .AddEnvironmentVariables()
                 .Build();
-            var options = configuration.GetSection(EmbeddingOptions.Section).Get<EmbeddingOptions>()!;
+            var options = configuration
+                .GetSection(EmbeddingOptions.Section)
+                .Get<EmbeddingOptions>()!;
 
             options.BaseUrl.Should().Be("http://fake:8080/v1");
 
@@ -116,8 +131,10 @@ public sealed class EmbeddingWorkerTests
     [InlineData("  ")]
     public void GetEmbeddingsEndpoint_falls_back_to_default_base_url(string? baseUrl)
     {
-        EmbeddingWorker.GetEmbeddingsEndpoint(baseUrl)
-            .Should().Be("https://api.openai.com/v1/embeddings");
+        EmbeddingWorker
+            .GetEmbeddingsEndpoint(baseUrl)
+            .Should()
+            .Be("https://api.openai.com/v1/embeddings");
     }
 
     [Theory]
@@ -136,17 +153,22 @@ public sealed class EmbeddingWorkerTests
         public Uri? RequestUri { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
         {
             RequestUri = request.RequestUri;
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(
-                    """{"data":[{"embedding":[0.1,0.2,0.3]}]}""",
-                    Encoding.UTF8,
-                    "application/json")
-            });
+            return Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{"data":[{"embedding":[0.1,0.2,0.3]}]}""",
+                        Encoding.UTF8,
+                        "application/json"
+                    ),
+                }
+            );
         }
     }
 }

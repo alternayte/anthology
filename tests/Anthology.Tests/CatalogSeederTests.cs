@@ -16,9 +16,13 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
     {
         using var s = CreateSeeder("import-test", MediaType.Film, discoverCount: 3);
 
-        await s.Seeder.SeedAsync(new SeedCommandOptions(Count: 10), TestContext.Current.CancellationToken);
+        await s.Seeder.SeedAsync(
+            new SeedCommandOptions(Count: 10),
+            TestContext.Current.CancellationToken
+        );
 
-        var seeded = await s.Db.Titles.AsNoTracking()
+        var seeded = await s
+            .Db.Titles.AsNoTracking()
             .Where(t => t.ExternalId.StartsWith("import-test-"))
             .ToListAsync(TestContext.Current.CancellationToken);
 
@@ -31,9 +35,13 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
     {
         using var s = CreateSeeder("count-test", MediaType.Film, discoverCount: 10);
 
-        await s.Seeder.SeedAsync(new SeedCommandOptions(Count: 3), TestContext.Current.CancellationToken);
+        await s.Seeder.SeedAsync(
+            new SeedCommandOptions(Count: 3),
+            TestContext.Current.CancellationToken
+        );
 
-        var seeded = await s.Db.Titles.AsNoTracking()
+        var seeded = await s
+            .Db.Titles.AsNoTracking()
             .Where(t => t.ExternalId.StartsWith("count-test-"))
             .CountAsync(TestContext.Current.CancellationToken);
 
@@ -45,18 +53,24 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
     {
         using var s = CreateSeeder("idempotent-test", MediaType.Film, discoverCount: 3);
 
-        s.Db.Titles.Add(new Title
-        {
-            TitleId = Guid.NewGuid(),
-            ExternalId = "idempotent-test-0",
-            MediaType = MediaType.Film,
-            Name = "Pre-existing Title"
-        });
+        s.Db.Titles.Add(
+            new Title
+            {
+                TitleId = Guid.NewGuid(),
+                ExternalId = "idempotent-test-0",
+                MediaType = MediaType.Film,
+                Name = "Pre-existing Title",
+            }
+        );
         await s.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await s.Seeder.SeedAsync(new SeedCommandOptions(Count: 10), TestContext.Current.CancellationToken);
+        await s.Seeder.SeedAsync(
+            new SeedCommandOptions(Count: 10),
+            TestContext.Current.CancellationToken
+        );
 
-        var seeded = await s.Db.Titles.AsNoTracking()
+        var seeded = await s
+            .Db.Titles.AsNoTracking()
             .Where(t => t.ExternalId.StartsWith("idempotent-test-"))
             .ToListAsync(TestContext.Current.CancellationToken);
 
@@ -74,16 +88,24 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
         var skipped = new FakeSeedableCatalogProvider("filter-skipped", MediaType.Book, 2, "igdb");
 
         var handler = new AddTitle.Handler(db, [wanted, skipped], null!);
-        var seeder = new CatalogSeeder([wanted, skipped], handler, db, NullLogger<CatalogSeeder>.Instance);
+        var seeder = new CatalogSeeder(
+            [wanted, skipped],
+            handler,
+            db,
+            NullLogger<CatalogSeeder>.Instance
+        );
 
         await seeder.SeedAsync(
             new SeedCommandOptions(Count: 10, Providers: ["tmdb"]),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
-        var wantedCount = await db.Titles.AsNoTracking()
+        var wantedCount = await db
+            .Titles.AsNoTracking()
             .Where(t => t.ExternalId.StartsWith("filter-wanted-"))
             .CountAsync(TestContext.Current.CancellationToken);
-        var skippedCount = await db.Titles.AsNoTracking()
+        var skippedCount = await db
+            .Titles.AsNoTracking()
             .Where(t => t.ExternalId.StartsWith("filter-skipped-"))
             .CountAsync(TestContext.Current.CancellationToken);
 
@@ -94,11 +116,20 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
     [Fact]
     public async Task SeedAsync_continues_when_a_title_fails_to_add()
     {
-        using var s = CreateSeeder("resilience-test", MediaType.Film, discoverCount: 3, failOnIndex: 1);
+        using var s = CreateSeeder(
+            "resilience-test",
+            MediaType.Film,
+            discoverCount: 3,
+            failOnIndex: 1
+        );
 
-        await s.Seeder.SeedAsync(new SeedCommandOptions(Count: 10), TestContext.Current.CancellationToken);
+        await s.Seeder.SeedAsync(
+            new SeedCommandOptions(Count: 10),
+            TestContext.Current.CancellationToken
+        );
 
-        var seeded = await s.Db.Titles.AsNoTracking()
+        var seeded = await s
+            .Db.Titles.AsNoTracking()
             .Where(t => t.ExternalId.StartsWith("resilience-test-"))
             .ToListAsync(TestContext.Current.CancellationToken);
 
@@ -106,40 +137,69 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
         seeded.Should().NotContain(t => t.ExternalId == "resilience-test-1");
     }
 
-    private SeederScope CreateSeeder(string prefix, MediaType mediaType, int discoverCount, int? failOnIndex = null)
+    private SeederScope CreateSeeder(
+        string prefix,
+        MediaType mediaType,
+        int discoverCount,
+        int? failOnIndex = null
+    )
     {
         var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-        var provider = new FakeSeedableCatalogProvider(prefix, mediaType, discoverCount, failOnIndex: failOnIndex);
+        var provider = new FakeSeedableCatalogProvider(
+            prefix,
+            mediaType,
+            discoverCount,
+            failOnIndex: failOnIndex
+        );
         var handler = new AddTitle.Handler(db, [provider], null!);
         var seeder = new CatalogSeeder([provider], handler, db, NullLogger<CatalogSeeder>.Instance);
         return new SeederScope(seeder, db, provider, scope);
     }
 
     private sealed class SeederScope(
-        CatalogSeeder seeder, CatalogDbContext db, FakeSeedableCatalogProvider provider, IServiceScope scope)
-        : IDisposable
+        CatalogSeeder seeder,
+        CatalogDbContext db,
+        FakeSeedableCatalogProvider provider,
+        IServiceScope scope
+    ) : IDisposable
     {
         public CatalogSeeder Seeder => seeder;
         public CatalogDbContext Db => db;
         public FakeSeedableCatalogProvider Provider => provider;
-        public void Deconstruct(out CatalogSeeder s, out CatalogDbContext d, out FakeSeedableCatalogProvider p)
+
+        public void Deconstruct(
+            out CatalogSeeder s,
+            out CatalogDbContext d,
+            out FakeSeedableCatalogProvider p
+        )
         {
-            s = seeder; d = db; p = provider;
+            s = seeder;
+            d = db;
+            p = provider;
         }
+
         public void Dispose() => scope.Dispose();
     }
 
     private sealed class FakeSeedableCatalogProvider(
-        string prefix, MediaType mediaType, int discoverCount, string? providerName = null, int? failOnIndex = null)
-        : ICatalogProvider, ISeedableProvider
+        string prefix,
+        MediaType mediaType,
+        int discoverCount,
+        string? providerName = null,
+        int? failOnIndex = null
+    ) : ICatalogProvider, ISeedableProvider
     {
         public string ProviderName => providerName ?? prefix;
-        public IReadOnlySet<MediaType> SupportedTypes { get; } = new HashSet<MediaType> { mediaType }.AsReadOnly();
+        public IReadOnlySet<MediaType> SupportedTypes { get; } =
+            new HashSet<MediaType> { mediaType }.AsReadOnly();
+
         public bool OwnsExternalId(string externalId) => externalId.StartsWith($"{prefix}-");
 
-        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<CatalogSearchResult>>([]);
+        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(
+            string term,
+            CancellationToken ct
+        ) => Task.FromResult<IReadOnlyList<CatalogSearchResult>>([]);
 
         public Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct)
         {
@@ -152,18 +212,26 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
                 ExternalId = externalId,
                 MediaType = mediaType,
                 Name = $"Title {externalId}",
-                Year = 2020
+                Year = 2020,
             };
             return Task.FromResult<TitleWithCredits?>(new TitleWithCredits(title, []));
         }
 
         public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
-            SeedOptions options, [EnumeratorCancellation] CancellationToken ct)
+            SeedOptions options,
+            [EnumeratorCancellation] CancellationToken ct
+        )
         {
             for (var i = 0; i < discoverCount; i++)
             {
                 yield return new CatalogSearchResult(
-                    $"{prefix}-{i}", mediaType, $"Title {i}", 2020, null, null);
+                    $"{prefix}-{i}",
+                    mediaType,
+                    $"Title {i}",
+                    2020,
+                    null,
+                    null
+                );
                 await Task.Yield();
             }
         }

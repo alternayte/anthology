@@ -1,14 +1,14 @@
+using Anthology.Modules.Catalog;
+using Anthology.Modules.Identity;
+using Anthology.Modules.Profile;
+using Anthology.Modules.Recommendations;
+using Anthology.Modules.Tracking;
 using Deedbox;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
-using Anthology.Modules.Catalog;
-using Anthology.Modules.Identity;
-using Anthology.Modules.Profile;
-using Anthology.Modules.Recommendations;
-using Anthology.Modules.Tracking;
 using Xunit;
 
 namespace Anthology.Tests.Fixtures;
@@ -28,21 +28,33 @@ public sealed class WebAppFixture : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
-        await RunScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-es.sql")));
+        await RunScriptAsync(
+            await File.ReadAllTextAsync(
+                Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-es.sql")
+            )
+        );
         await RunScriptAsync(PostgresSchema.Script());
-        await RunScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "migrate-es-to-deedbox.sql")));
+        await RunScriptAsync(
+            await File.ReadAllTextAsync(
+                Path.Combine(AppContext.BaseDirectory, "Fixtures", "migrate-es-to-deedbox.sql")
+            )
+        );
 
-        Factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureAppConfiguration((_, config) =>
+        Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration(
+                (_, config) =>
                 {
-                    config.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["ConnectionStrings:DefaultConnection"] = _container.GetConnectionString()
-                    });
-                });
-            });
+                    config.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["ConnectionStrings:DefaultConnection"] =
+                                _container.GetConnectionString(),
+                        }
+                    );
+                }
+            );
+        });
 
         using var scope = Factory.Services.CreateScope();
         var sp = scope.ServiceProvider;
@@ -71,7 +83,9 @@ public sealed class WebAppFixture : IAsyncLifetime
             if (status.Consumers.Count > 0 && status.Consumers.All(c => c.Status == "running"))
                 return;
             if (DateTime.UtcNow > deadline)
-                throw new TimeoutException($"Projections did not finish rebuilding: {string.Join(", ", status.Consumers)}");
+                throw new TimeoutException(
+                    $"Projections did not finish rebuilding: {string.Join(", ", status.Consumers)}"
+                );
             await Task.Delay(50);
         }
     }

@@ -21,7 +21,7 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
             MediaType = MediaType.Film,
             Name = "Inception",
             Year = 2010,
-            Popularity = 80.0
+            Popularity = 80.0,
         };
 
         var darkKnight = new Title
@@ -31,7 +31,7 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
             MediaType = MediaType.Film,
             Name = "The Dark Knight",
             Year = 2008,
-            Popularity = 90.0
+            Popularity = 90.0,
         };
 
         var godfather = new Title
@@ -41,7 +41,7 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
             MediaType = MediaType.Film,
             Name = "The Godfather",
             Year = 1972,
-            Popularity = 85.0
+            Popularity = 85.0,
         };
 
         db.Titles.AddRange(inception, darkKnight, godfather);
@@ -50,15 +50,39 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
         var coppolaId = "person-coppola";
 
         db.TitleCredits.AddRange(
-            new TitleCredit { TitleId = inception.TitleId, ExternalPersonId = nolanId, Name = "Christopher Nolan", Role = "director", DisplayOrder = 0 },
-            new TitleCredit { TitleId = darkKnight.TitleId, ExternalPersonId = nolanId, Name = "Christopher Nolan", Role = "director", DisplayOrder = 0 },
-            new TitleCredit { TitleId = godfather.TitleId, ExternalPersonId = coppolaId, Name = "Francis Ford Coppola", Role = "director", DisplayOrder = 0 }
+            new TitleCredit
+            {
+                TitleId = inception.TitleId,
+                ExternalPersonId = nolanId,
+                Name = "Christopher Nolan",
+                Role = "director",
+                DisplayOrder = 0,
+            },
+            new TitleCredit
+            {
+                TitleId = darkKnight.TitleId,
+                ExternalPersonId = nolanId,
+                Name = "Christopher Nolan",
+                Role = "director",
+                DisplayOrder = 0,
+            },
+            new TitleCredit
+            {
+                TitleId = godfather.TitleId,
+                ExternalPersonId = coppolaId,
+                Name = "Francis Ford Coppola",
+                Role = "director",
+                DisplayOrder = 0,
+            }
         );
 
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new GetCreatorTitles.Handler(db);
-        var results = await handler.Handle(inception.TitleId, TestContext.Current.CancellationToken);
+        var results = await handler.Handle(
+            inception.TitleId,
+            TestContext.Current.CancellationToken
+        );
 
         results.Should().ContainSingle(r => r.TitleId == darkKnight.TitleId);
         results.Should().NotContain(r => r.TitleId == godfather.TitleId);
@@ -81,7 +105,7 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
             MediaType = MediaType.Film,
             Name = "Memento",
             Year = 2000,
-            Popularity = 60.0
+            Popularity = 60.0,
         };
 
         var tenet = new Title
@@ -91,7 +115,7 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
             MediaType = MediaType.Film,
             Name = "Tenet",
             Year = 2020,
-            Popularity = 70.0
+            Popularity = 70.0,
         };
 
         var matrix = new Title
@@ -101,7 +125,7 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
             MediaType = MediaType.Film,
             Name = "The Matrix",
             Year = 1999,
-            Popularity = 95.0
+            Popularity = 95.0,
         };
 
         db.Titles.AddRange(memento, tenet, matrix);
@@ -110,10 +134,38 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
         var actorId = $"person-actor-{Guid.NewGuid():N}";
 
         db.TitleCredits.AddRange(
-            new TitleCredit { TitleId = memento.TitleId, ExternalPersonId = nolanId, Name = "Christopher Nolan", Role = "director", DisplayOrder = 0 },
-            new TitleCredit { TitleId = tenet.TitleId, ExternalPersonId = nolanId, Name = "Christopher Nolan", Role = "director", DisplayOrder = 0 },
-            new TitleCredit { TitleId = memento.TitleId, ExternalPersonId = actorId, Name = "Carrie-Anne Moss", Role = "actor", DisplayOrder = 1 },
-            new TitleCredit { TitleId = matrix.TitleId, ExternalPersonId = actorId, Name = "Carrie-Anne Moss", Role = "actor", DisplayOrder = 1 }
+            new TitleCredit
+            {
+                TitleId = memento.TitleId,
+                ExternalPersonId = nolanId,
+                Name = "Christopher Nolan",
+                Role = "director",
+                DisplayOrder = 0,
+            },
+            new TitleCredit
+            {
+                TitleId = tenet.TitleId,
+                ExternalPersonId = nolanId,
+                Name = "Christopher Nolan",
+                Role = "director",
+                DisplayOrder = 0,
+            },
+            new TitleCredit
+            {
+                TitleId = memento.TitleId,
+                ExternalPersonId = actorId,
+                Name = "Carrie-Anne Moss",
+                Role = "actor",
+                DisplayOrder = 1,
+            },
+            new TitleCredit
+            {
+                TitleId = matrix.TitleId,
+                ExternalPersonId = actorId,
+                Name = "Carrie-Anne Moss",
+                Role = "actor",
+                DisplayOrder = 1,
+            }
         );
 
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -129,7 +181,11 @@ public sealed class CreatorTitleTests(WebAppFixture fixture) : IClassFixture<Web
         var tenetIndex = results.ToList().IndexOf(tenetResult);
         var matrixIndex = results.ToList().IndexOf(matrixResult);
 
-        tenetIndex.Should().BeLessThan(matrixIndex,
-            "Tenet (director match) should come before The Matrix (actor match)");
+        tenetIndex
+            .Should()
+            .BeLessThan(
+                matrixIndex,
+                "Tenet (director match) should come before The Matrix (actor match)"
+            );
     }
 }

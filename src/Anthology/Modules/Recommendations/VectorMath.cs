@@ -9,7 +9,9 @@ public static class VectorMath
         if (a.Length != b.Length || a.Length == 0)
             return 1f;
 
-        double dot = 0, normA = 0, normB = 0;
+        double dot = 0,
+            normA = 0,
+            normB = 0;
         for (var i = 0; i < a.Length; i++)
         {
             dot += a[i] * b[i];

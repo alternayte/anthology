@@ -2,10 +2,13 @@ using Microsoft.Extensions.Options;
 
 namespace Anthology.Modules.Catalog;
 
-public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrainzOptions> options) : ICatalogProvider
+public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrainzOptions> options)
+    : ICatalogProvider
 {
-    private static readonly IReadOnlySet<MediaType> Types =
-        new HashSet<MediaType> { MediaType.Music }.AsReadOnly();
+    private static readonly IReadOnlySet<MediaType> Types = new HashSet<MediaType>
+    {
+        MediaType.Music,
+    }.AsReadOnly();
 
     private readonly string _coverBaseUrl = NormalizeCoverBaseUrl(options.Value.CoverBaseUrl);
 
@@ -13,7 +16,10 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrai
 
     public bool OwnsExternalId(string externalId) => externalId.StartsWith("mb-");
 
-    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct)
+    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(
+        string term,
+        CancellationToken ct
+    )
     {
         var response = await api!.SearchReleaseGroupsAsync(term, ct: ct);
         return response.Release_Groups.Select(rg => MapSearchResult(rg, _coverBaseUrl)).ToList();
@@ -27,7 +33,10 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrai
         var artist = rg.Artist_Credit?.FirstOrDefault()?.Name;
         var releaseType = rg.Primary_Type?.ToLowerInvariant();
 
-        var sortedTags = (rg.Tags ?? []).OrderByDescending(t => t.Count).Select(t => t.Name).ToList();
+        var sortedTags = (rg.Tags ?? [])
+            .OrderByDescending(t => t.Count)
+            .Select(t => t.Name)
+            .ToList();
         var genres = sortedTags.Take(5).ToArray();
         var keywords = sortedTags.Skip(5).Take(15).ToArray();
 
@@ -41,7 +50,7 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrai
             PosterPath = CoverUrl(_coverBaseUrl, rg.Id),
             Overview = FormatOverview(artist, rg.Primary_Type),
             Genres = genres,
-            Keywords = keywords
+            Keywords = keywords,
         };
         title.SetMediaData(new MusicData(artist, null, null, releaseType));
 
@@ -49,27 +58,42 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrai
         return new TitleWithCredits(title, credits);
     }
 
-    private static List<TitleCredit> BuildArtistCredits(Guid titleId, List<MusicBrainzArtistCredit>? artists)
+    private static List<TitleCredit> BuildArtistCredits(
+        Guid titleId,
+        List<MusicBrainzArtistCredit>? artists
+    )
     {
-        if (artists is null or []) return [];
+        if (artists is null or [])
+            return [];
 
-        return artists.Select((a, i) => new TitleCredit
-        {
-            TitleId = titleId,
-            ExternalPersonId = $"mb-artist-{a.Name.ToLowerInvariant().Replace(' ', '-')}",
-            Name = a.Name,
-            Role = "artist",
-            DisplayOrder = i
-        }).ToList();
+        return artists
+            .Select(
+                (a, i) =>
+                    new TitleCredit
+                    {
+                        TitleId = titleId,
+                        ExternalPersonId =
+                            $"mb-artist-{a.Name.ToLowerInvariant().Replace(' ', '-')}",
+                        Name = a.Name,
+                        Role = "artist",
+                        DisplayOrder = i,
+                    }
+            )
+            .ToList();
     }
 
-    public static CatalogSearchResult MapSearchResult(MusicBrainzReleaseGroup rg, string? coverBaseUrl = null) => new(
-        $"mb-{rg.Id}",
-        MediaType.Music,
-        rg.Title,
-        ParseYear(rg.First_Release_Date),
-        CoverUrl(NormalizeCoverBaseUrl(coverBaseUrl), rg.Id),
-        FormatOverview(rg.Artist_Credit?.FirstOrDefault()?.Name, rg.Primary_Type));
+    public static CatalogSearchResult MapSearchResult(
+        MusicBrainzReleaseGroup rg,
+        string? coverBaseUrl = null
+    ) =>
+        new(
+            $"mb-{rg.Id}",
+            MediaType.Music,
+            rg.Title,
+            ParseYear(rg.First_Release_Date),
+            CoverUrl(NormalizeCoverBaseUrl(coverBaseUrl), rg.Id),
+            FormatOverview(rg.Artist_Credit?.FirstOrDefault()?.Name, rg.Primary_Type)
+        );
 
     private static int? ParseYear(string? date) =>
         date is { Length: >= 4 } && int.TryParse(date[..4], out var y) ? y : null;
@@ -92,6 +116,6 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrai
             (not null, not null) => $"{artist} — {type}",
             (not null, _) => artist,
             (_, not null) => type,
-            _ => null
+            _ => null,
         };
 }

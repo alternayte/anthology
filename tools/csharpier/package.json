@@ -1,0 +1,11 @@
+{
+  "name": "csharpier-offline-runtime",
+  "private": true,
+  "version": "1.3.0",
+  "description": "CSharpier 1.3.0 formatter runtime used by the local dotnet tool.",
+  "type": "module",
+  "dependencies": {
+    "@dprint/csharpier": "0.2.0",
+    "@dprint/formatter": "0.6.0"
+  }
+}

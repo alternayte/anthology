@@ -3,45 +3,67 @@ using Microsoft.Extensions.Options;
 
 namespace Anthology.Modules.Catalog;
 
-public sealed class OpenLibraryProvider(IOpenLibraryApi api, IOptions<OpenLibraryOptions>? options = null)
-    : ICatalogProvider, ISeedableProvider
+public sealed class OpenLibraryProvider(
+    IOpenLibraryApi api,
+    IOptions<OpenLibraryOptions>? options = null
+) : ICatalogProvider, ISeedableProvider
 {
     private readonly string _coverBaseUrl = OpenLibraryOptions.ResolveCoverBaseUrl(
-        options?.Value.CoverBaseUrl ?? Environment.GetEnvironmentVariable("OpenLibrary__CoverBaseUrl"));
+        options?.Value.CoverBaseUrl
+            ?? Environment.GetEnvironmentVariable("OpenLibrary__CoverBaseUrl")
+    );
 
-    private static readonly IReadOnlySet<MediaType> Types =
-        new HashSet<MediaType> { MediaType.Book }.AsReadOnly();
+    private static readonly IReadOnlySet<MediaType> Types = new HashSet<MediaType>
+    {
+        MediaType.Book,
+    }.AsReadOnly();
 
     public IReadOnlySet<MediaType> SupportedTypes => Types;
 
     public string ProviderName => "openlibrary";
 
-    private static readonly string[] PopularSubjects = ["fiction", "science_fiction", "fantasy", "mystery", "romance"];
+    private static readonly string[] PopularSubjects =
+    [
+        "fiction",
+        "science_fiction",
+        "fantasy",
+        "mystery",
+        "romance",
+    ];
 
     public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
-        SeedOptions options, [EnumeratorCancellation] CancellationToken ct)
+        SeedOptions options,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var seen = new HashSet<string>();
         var yielded = 0;
 
         foreach (var list in options.Lists)
         {
-            if (yielded >= options.Count) break;
+            if (yielded >= options.Count)
+                break;
 
             if (list == "trending")
             {
-                await foreach (var result in DiscoverTrendingAsync(options.Count - yielded, seen, ct))
+                await foreach (
+                    var result in DiscoverTrendingAsync(options.Count - yielded, seen, ct)
+                )
                 {
-                    if (yielded >= options.Count) break;
+                    if (yielded >= options.Count)
+                        break;
                     yielded++;
                     yield return result;
                 }
             }
             else if (list == "popular")
             {
-                await foreach (var result in DiscoverSubjectsAsync(options.Count - yielded, seen, ct))
+                await foreach (
+                    var result in DiscoverSubjectsAsync(options.Count - yielded, seen, ct)
+                )
                 {
-                    if (yielded >= options.Count) break;
+                    if (yielded >= options.Count)
+                        break;
                     yielded++;
                     yield return result;
                 }
@@ -50,72 +72,111 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api, IOptions<OpenLibrar
     }
 
     private async IAsyncEnumerable<CatalogSearchResult> DiscoverTrendingAsync(
-        int remaining, HashSet<string> seen, [EnumeratorCancellation] CancellationToken ct)
+        int remaining,
+        HashSet<string> seen,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var yielded = 0;
         for (var page = 1; yielded < remaining; page++)
         {
             OpenLibraryTrendingResponse response;
-            try { response = await api.GetTrendingAsync("weekly", 20, page, ct); }
-            catch { break; }
+            try
+            {
+                response = await api.GetTrendingAsync("weekly", 20, page, ct);
+            }
+            catch
+            {
+                break;
+            }
 
-            if (response.Works.Count == 0) break;
+            if (response.Works.Count == 0)
+                break;
 
             foreach (var work in response.Works)
             {
-                if (yielded >= remaining) break;
+                if (yielded >= remaining)
+                    break;
                 var externalId = $"ol-{work.Key.Replace("/works/", "")}";
                 if (seen.Add(externalId))
                 {
                     yielded++;
-                    yield return new CatalogSearchResult(externalId, MediaType.Book,
-                        work.Title, work.First_Publish_Year, CoverUrl(work.Cover_I, _coverBaseUrl), null);
+                    yield return new CatalogSearchResult(
+                        externalId,
+                        MediaType.Book,
+                        work.Title,
+                        work.First_Publish_Year,
+                        CoverUrl(work.Cover_I, _coverBaseUrl),
+                        null
+                    );
                 }
             }
         }
     }
 
     private async IAsyncEnumerable<CatalogSearchResult> DiscoverSubjectsAsync(
-        int remaining, HashSet<string> seen, [EnumeratorCancellation] CancellationToken ct)
+        int remaining,
+        HashSet<string> seen,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var yielded = 0;
         var perSubject = Math.Max(remaining / PopularSubjects.Length, 20);
 
         foreach (var subject in PopularSubjects)
         {
-            if (yielded >= remaining) break;
+            if (yielded >= remaining)
+                break;
 
             for (var offset = 0; yielded < remaining; offset += 20)
             {
                 var fetched = 0;
                 OpenLibrarySubjectResponse response;
-                try { response = await api.GetSubjectAsync(subject, 20, offset, ct); }
-                catch { break; }
+                try
+                {
+                    response = await api.GetSubjectAsync(subject, 20, offset, ct);
+                }
+                catch
+                {
+                    break;
+                }
 
-                if (response.Works.Count == 0) break;
+                if (response.Works.Count == 0)
+                    break;
 
                 foreach (var work in response.Works)
                 {
-                    if (yielded >= remaining) break;
+                    if (yielded >= remaining)
+                        break;
                     var workId = work.Key.Replace("/works/", "");
                     var externalId = $"ol-{workId}";
                     if (seen.Add(externalId))
                     {
                         yielded++;
                         fetched++;
-                        yield return new CatalogSearchResult(externalId, MediaType.Book,
-                            work.Title, work.First_Publish_Year, CoverUrl(work.Cover_Id, _coverBaseUrl), null);
+                        yield return new CatalogSearchResult(
+                            externalId,
+                            MediaType.Book,
+                            work.Title,
+                            work.First_Publish_Year,
+                            CoverUrl(work.Cover_Id, _coverBaseUrl),
+                            null
+                        );
                     }
                 }
 
-                if (fetched >= perSubject) break;
+                if (fetched >= perSubject)
+                    break;
             }
         }
     }
 
     public bool OwnsExternalId(string externalId) => externalId.StartsWith("ol-");
 
-    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct)
+    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(
+        string term,
+        CancellationToken ct
+    )
     {
         var response = await api.SearchAsync(term, 20, ct);
         return response.Docs.Select(doc => MapSearchResult(doc, _coverBaseUrl)).ToList();
@@ -143,12 +204,15 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api, IOptions<OpenLibrar
             PosterPath = CoverUrl(work.Covers?.FirstOrDefault(), _coverBaseUrl),
             Overview = work.GetDescriptionText(),
             Genres = genres,
-            Keywords = keywords
+            Keywords = keywords,
         };
-        title.SetMediaData(new BookData(
-            doc?.Author_Name?.FirstOrDefault(),
-            doc?.Number_Of_Pages_Median,
-            doc?.Isbn?.FirstOrDefault()));
+        title.SetMediaData(
+            new BookData(
+                doc?.Author_Name?.FirstOrDefault(),
+                doc?.Number_Of_Pages_Median,
+                doc?.Isbn?.FirstOrDefault()
+            )
+        );
 
         var credits = BuildAuthorCredits(title.TitleId, doc?.Author_Name);
         return new TitleWithCredits(title, credits);
@@ -156,27 +220,39 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api, IOptions<OpenLibrar
 
     private static List<TitleCredit> BuildAuthorCredits(Guid titleId, List<string>? authors)
     {
-        if (authors is null or []) return [];
+        if (authors is null or [])
+            return [];
 
-        return authors.Select((name, i) => new TitleCredit
-        {
-            TitleId = titleId,
-            ExternalPersonId = $"ol-author-{name.ToLowerInvariant().Replace(' ', '-')}",
-            Name = name,
-            Role = "author",
-            DisplayOrder = i
-        }).ToList();
+        return authors
+            .Select(
+                (name, i) =>
+                    new TitleCredit
+                    {
+                        TitleId = titleId,
+                        ExternalPersonId = $"ol-author-{name.ToLowerInvariant().Replace(' ', '-')}",
+                        Name = name,
+                        Role = "author",
+                        DisplayOrder = i,
+                    }
+            )
+            .ToList();
     }
 
-    public CatalogSearchResult MapSearchResult(OpenLibraryDoc doc) => MapSearchResult(doc, _coverBaseUrl);
+    public CatalogSearchResult MapSearchResult(OpenLibraryDoc doc) =>
+        MapSearchResult(doc, _coverBaseUrl);
 
-    public static CatalogSearchResult MapSearchResult(OpenLibraryDoc doc, string? coverBaseUrl = null) => new(
-        $"ol-{doc.Key.Replace("/works/", "")}",
-        MediaType.Book,
-        doc.Title,
-        doc.First_Publish_Year,
-        CoverUrl(doc.Cover_I, coverBaseUrl),
-        null);
+    public static CatalogSearchResult MapSearchResult(
+        OpenLibraryDoc doc,
+        string? coverBaseUrl = null
+    ) =>
+        new(
+            $"ol-{doc.Key.Replace("/works/", "")}",
+            MediaType.Book,
+            doc.Title,
+            doc.First_Publish_Year,
+            CoverUrl(doc.Cover_I, coverBaseUrl),
+            null
+        );
 
     public string? CoverUrl(long? coverId) => CoverUrl(coverId, _coverBaseUrl);
 

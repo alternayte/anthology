@@ -38,6 +38,10 @@ artifacts/
 !**/[Pp]ackages/build/
 *.nupkg
 *.snupkg
+
+# Local CSharpier tool package
+!tools/csharpier/local-packages/
+!tools/csharpier/local-packages/*.nupkg
 **/[Pp]ackages/repositories.config
 !**/[Pp]ackages/repositories.config
 

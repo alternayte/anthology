@@ -11,11 +11,10 @@ using Xunit;
 
 namespace Anthology.Tests;
 
-public sealed class ProjectionRebuildTests(WebAppFixture fixture)
-    : IClassFixture<WebAppFixture>
+public sealed class ProjectionRebuildTests(WebAppFixture fixture) : IClassFixture<WebAppFixture>
 {
-    private static string Snake<T>(T v) where T : struct, Enum =>
-        JsonNamingPolicy.SnakeCaseLower.ConvertName(v.ToString());
+    private static string Snake<T>(T v)
+        where T : struct, Enum => JsonNamingPolicy.SnakeCaseLower.ConvertName(v.ToString());
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync()
     {
@@ -23,13 +22,17 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         var email = $"test-{Guid.NewGuid():N}@example.com";
         var password = "TestPassword123";
 
-        await client.PostAsJsonAsync("/api/identity/register",
+        await client.PostAsJsonAsync(
+            "/api/identity/register",
             new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
-        await client.PostAsJsonAsync("/api/identity/login",
+        await client.PostAsJsonAsync(
+            "/api/identity/login",
             new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
         return client;
     }
@@ -46,7 +49,7 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
             Name = "Rebuild Test Film",
             Year = 2024,
             PosterPath = "/poster.jpg",
-            Overview = "A test film for projection rebuild."
+            Overview = "A test film for projection rebuild.",
         };
         catalogDb.Titles.Add(title);
         await catalogDb.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -65,18 +68,25 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         using var scope = fixture.Factory.Services.CreateScope();
         var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
 
-        var entry = await trackingDb.DiaryEntries.AsNoTracking()
+        var entry = await trackingDb
+            .DiaryEntries.AsNoTracking()
             .FirstAsync(e => e.TitleId == titleId, ct);
 
-        var affected = await trackingDb.Database.ExecuteSqlInterpolatedAsync($"""
+        var affected = await trackingDb.Database.ExecuteSqlInterpolatedAsync(
+            $"""
             INSERT INTO tracking.diary_entries (user_id, title_id, status, rating, occurred_at, visibility)
-            VALUES ({entry.UserId}, {entry.TitleId}, {Snake(entry.Status)}, {entry.Rating}, {entry.OccurredAt}, {Snake(entry.Visibility)})
+            VALUES ({entry.UserId}, {entry.TitleId}, {Snake(
+                entry.Status
+            )}, {entry.Rating}, {entry.OccurredAt}, {Snake(entry.Visibility)})
             ON CONFLICT (user_id, title_id, occurred_at) DO NOTHING
-            """, ct);
+            """,
+            ct
+        );
 
         affected.Should().Be(0, "idempotent insert should not insert a duplicate row");
 
-        var count = await trackingDb.DiaryEntries.AsNoTracking()
+        var count = await trackingDb
+            .DiaryEntries.AsNoTracking()
             .CountAsync(e => e.TitleId == titleId, ct);
         count.Should().Be(1);
     }
@@ -93,18 +103,25 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         using var scope = fixture.Factory.Services.CreateScope();
         var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
 
-        var item = await trackingDb.LibraryItems.AsNoTracking()
+        var item = await trackingDb
+            .LibraryItems.AsNoTracking()
             .FirstAsync(i => i.TitleId == titleId, ct);
 
-        var affected = await trackingDb.Database.ExecuteSqlInterpolatedAsync($"""
+        var affected = await trackingDb.Database.ExecuteSqlInterpolatedAsync(
+            $"""
             INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility)
-            VALUES ({item.UserId}, {item.TitleId}, {Snake(item.MediaType)}, {item.Title}, {Snake(item.Status)}, {item.AddedAt}, {Snake(item.Visibility)})
+            VALUES ({item.UserId}, {item.TitleId}, {Snake(item.MediaType)}, {item.Title}, {Snake(
+                item.Status
+            )}, {item.AddedAt}, {Snake(item.Visibility)})
             ON CONFLICT (user_id, title_id) DO NOTHING
-            """, ct);
+            """,
+            ct
+        );
 
         affected.Should().Be(0, "idempotent insert should not insert a duplicate row");
 
-        var count = await trackingDb.LibraryItems.AsNoTracking()
+        var count = await trackingDb
+            .LibraryItems.AsNoTracking()
             .CountAsync(i => i.TitleId == titleId, ct);
         count.Should().Be(1);
     }
@@ -119,16 +136,30 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        var projections = Enumerable.Range(0, body.GetArrayLength())
-            .Select(i => (Name: body[i].GetProperty("projection").GetString(), Mode: body[i].GetProperty("mode").GetString()))
+        var projections = Enumerable
+            .Range(0, body.GetArrayLength())
+            .Select(i =>
+                (
+                    Name: body[i].GetProperty("projection").GetString(),
+                    Mode: body[i].GetProperty("mode").GetString()
+                )
+            )
             .ToList();
 
-        projections.Should().BeEquivalentTo([("diary", "inline"), ("library", "inline"), ("lists", "inline")],
-            "each projection is registered once, with one run mode");
+        projections
+            .Should()
+            .BeEquivalentTo(
+                [("diary", "inline"), ("library", "inline"), ("lists", "inline")],
+                "each projection is registered once, with one run mode"
+            );
 
-        var projectionTypes = typeof(Program).Assembly.GetTypes()
-            .Count(t => !t.IsAbstract && t.BaseType is { IsGenericType: true } b
-                && b.GetGenericTypeDefinition() == typeof(Deedbox.Projection<>));
+        var projectionTypes = typeof(Program)
+            .Assembly.GetTypes()
+            .Count(t =>
+                !t.IsAbstract
+                && t.BaseType is { IsGenericType: true } b
+                && b.GetGenericTypeDefinition() == typeof(Deedbox.Projection<>)
+            );
         projections.Should().HaveCount(projectionTypes, "every projection class is registered");
     }
 
@@ -169,7 +200,9 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         var response = await client.PostAsync("/admin/projections/diary/rebuild", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        (await WaitForRebuildAsync(client, response)).Should().BeTrue("the rebuild must finish before the next test reads the diary");
+        (await WaitForRebuildAsync(client, response))
+            .Should()
+            .BeTrue("the rebuild must finish before the next test reads the diary");
     }
 
     [Fact]
@@ -188,8 +221,11 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
     {
         var client = fixture.Factory.CreateClient();
 
-        var response = await client.PostAsync("/admin/projections/diary/rebuild", null,
-            TestContext.Current.CancellationToken);
+        var response = await client.PostAsync(
+            "/admin/projections/diary/rebuild",
+            null,
+            TestContext.Current.CancellationToken
+        );
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -206,13 +242,13 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         using (var scope = fixture.Factory.Services.CreateScope())
         {
             var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
-            var count = await trackingDb.DiaryEntries.AsNoTracking()
+            var count = await trackingDb
+                .DiaryEntries.AsNoTracking()
                 .CountAsync(e => e.TitleId == titleId, ct);
             count.Should().Be(1);
         }
 
-        var rebuildResponse = await client.PostAsync(
-            "/admin/projections/diary/rebuild", null, ct);
+        var rebuildResponse = await client.PostAsync("/admin/projections/diary/rebuild", null, ct);
         rebuildResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var caughtUp = await WaitForRebuildAsync(client, rebuildResponse);
 
@@ -221,14 +257,18 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         using (var scope = fixture.Factory.Services.CreateScope())
         {
             var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
-            var entry = await trackingDb.DiaryEntries.AsNoTracking()
+            var entry = await trackingDb
+                .DiaryEntries.AsNoTracking()
                 .FirstOrDefaultAsync(e => e.TitleId == titleId, ct);
             entry.Should().NotBeNull("diary entry should be rebuilt from events");
             entry!.Status.Should().Be(TrackedStatus.WantToConsume);
         }
     }
 
-    private static async Task<bool> WaitForRebuildAsync(HttpClient client, HttpResponseMessage rebuildResponse)
+    private static async Task<bool> WaitForRebuildAsync(
+        HttpClient client,
+        HttpResponseMessage rebuildResponse
+    )
     {
         var ct = TestContext.Current.CancellationToken;
         var jobUrl = rebuildResponse.Headers.Location!.ToString();
@@ -236,8 +276,14 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         {
             await Task.Delay(200, ct);
             var job = await client.GetFromJsonAsync<JsonElement>(jobUrl, ct);
-            var status = await client.GetFromJsonAsync<JsonElement>("/admin/projections/diary/status", ct);
-            if (job.GetProperty("status").GetString() == "done" && status.GetProperty("isCaughtUp").GetBoolean())
+            var status = await client.GetFromJsonAsync<JsonElement>(
+                "/admin/projections/diary/status",
+                ct
+            );
+            if (
+                job.GetProperty("status").GetString() == "done"
+                && status.GetProperty("isCaughtUp").GetBoolean()
+            )
                 return true;
         }
 

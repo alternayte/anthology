@@ -7,8 +7,7 @@ using Xunit;
 
 namespace Anthology.Tests;
 
-public sealed class AdminEndpointTests(WebAppFixture fixture)
-    : IClassFixture<WebAppFixture>
+public sealed class AdminEndpointTests(WebAppFixture fixture) : IClassFixture<WebAppFixture>
 {
     private async Task<HttpClient> CreateAuthenticatedClientAsync()
     {
@@ -16,13 +15,17 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
         var email = $"test-{Guid.NewGuid():N}@example.com";
         var password = "TestPassword123";
 
-        await client.PostAsJsonAsync("/api/identity/register",
+        await client.PostAsJsonAsync(
+            "/api/identity/register",
             new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
-        await client.PostAsJsonAsync("/api/identity/login",
+        await client.PostAsJsonAsync(
+            "/api/identity/login",
             new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
         return client;
     }
@@ -32,8 +35,11 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
     {
         var client = fixture.Factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/admin/streams/rebuild",
-            new { StreamType = "tracked_item" }, TestContext.Current.CancellationToken);
+        var response = await client.PostAsJsonAsync(
+            "/admin/streams/rebuild",
+            new { StreamType = "tracked_item" },
+            TestContext.Current.CancellationToken
+        );
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -44,8 +50,11 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var client = await CreateAuthenticatedClientAsync();
 
-        var response = await client.PostAsJsonAsync("/admin/streams/rebuild",
-            new { StreamType = "tracked_item" }, ct);
+        var response = await client.PostAsJsonAsync(
+            "/admin/streams/rebuild",
+            new { StreamType = "tracked_item" },
+            ct
+        );
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         response.Headers.Location.Should().NotBeNull();
@@ -58,8 +67,11 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var client = await CreateAuthenticatedClientAsync();
 
-        var response = await client.PostAsJsonAsync("/admin/streams/rebuild",
-            new { StreamType = "nonexistent" }, ct);
+        var response = await client.PostAsJsonAsync(
+            "/admin/streams/rebuild",
+            new { StreamType = "nonexistent" },
+            ct
+        );
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -70,13 +82,15 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var client = await CreateAuthenticatedClientAsync();
 
-        var createResponse = await client.PostAsJsonAsync("/admin/streams/rebuild",
-            new { StreamType = "tracked_item" }, ct);
+        var createResponse = await client.PostAsJsonAsync(
+            "/admin/streams/rebuild",
+            new { StreamType = "tracked_item" },
+            ct
+        );
         var createBody = await createResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
         var jobId = createBody.GetProperty("jobId").GetGuid();
 
-        var statusResponse = await client.GetAsync(
-            $"/admin/streams/rebuild/{jobId}", ct);
+        var statusResponse = await client.GetAsync($"/admin/streams/rebuild/{jobId}", ct);
 
         statusResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await statusResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
@@ -85,12 +99,18 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
         for (var i = 0; i < 100 && body.GetProperty("status").GetString() != "done"; i++)
         {
             await Task.Delay(100, ct);
-            body = await client.GetFromJsonAsync<JsonElement>($"/admin/streams/rebuild/{jobId}", ct);
+            body = await client.GetFromJsonAsync<JsonElement>(
+                $"/admin/streams/rebuild/{jobId}",
+                ct
+            );
         }
 
         body.GetProperty("status").GetString().Should().Be("done");
-        body.GetProperty("progress").GetProperty("streams").GetInt32().Should().BeGreaterThan(0,
-            "the migrated tracked items are rebuilt too");
+        body.GetProperty("progress")
+            .GetProperty("streams")
+            .GetInt32()
+            .Should()
+            .BeGreaterThan(0, "the migrated tracked items are rebuilt too");
     }
 
     [Fact]
@@ -99,8 +119,7 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var client = await CreateAuthenticatedClientAsync();
 
-        var response = await client.GetAsync(
-            $"/admin/streams/rebuild/{Guid.NewGuid()}", ct);
+        var response = await client.GetAsync($"/admin/streams/rebuild/{Guid.NewGuid()}", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -117,7 +136,8 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
         body.GetArrayLength().Should().BeGreaterThanOrEqualTo(1);
 
-        var types = Enumerable.Range(0, body.GetArrayLength())
+        var types = Enumerable
+            .Range(0, body.GetArrayLength())
             .Select(i => body[i].GetString())
             .ToList();
         types.Should().Contain("tracked_item");
