@@ -3,9 +3,21 @@ using Deedbox;
 
 namespace Anthology.Modules.Tracking;
 
-public enum TrackedStatus { None, WantToConsume, InProgress, Finished, Abandoned, Rerated }
+public enum TrackedStatus
+{
+    None,
+    WantToConsume,
+    InProgress,
+    Finished,
+    Abandoned,
+    Rerated,
+}
 
-public enum Visibility { Private, Public }
+public enum Visibility
+{
+    Private,
+    Public,
+}
 
 public readonly record struct Rating
 {
@@ -14,22 +26,35 @@ public readonly record struct Rating
     public Rating(int value)
     {
         if (value is < 1 or > 10)
-            throw new ArgumentOutOfRangeException(nameof(value), "Rating must be between 1 and 10.");
+            throw new ArgumentOutOfRangeException(
+                nameof(value),
+                "Rating must be between 1 and 10."
+            );
         Value = value;
     }
 
     public static implicit operator int(Rating r) => r.Value;
+
     public static explicit operator Rating(int v) => new(v);
 }
 
-public sealed record ItemWanted(Guid TitleId, string TitleName, string MediaType, DateTimeOffset At) : IDomainEvent;
+public sealed record ItemWanted(Guid TitleId, string TitleName, string MediaType, DateTimeOffset At)
+    : IDomainEvent;
+
 public sealed record ItemStarted(DateTimeOffset At) : IDomainEvent;
+
 public sealed record ItemFinished(Rating? Rating, DateTimeOffset At) : IDomainEvent;
+
 public sealed record ItemAbandoned(DateTimeOffset At) : IDomainEvent;
+
 public sealed record ItemRated(Rating Rating, DateTimeOffset At) : IDomainEvent;
 
-public sealed record TrackedItemState(TrackedStatus Status, Rating? Rating, Guid TitleId, int Version)
-    : IState<TrackedItemState>
+public sealed record TrackedItemState(
+    TrackedStatus Status,
+    Rating? Rating,
+    Guid TitleId,
+    int Version
+) : IState<TrackedItemState>
 {
     public static TrackedItemState Initial => new(TrackedStatus.None, null, Guid.Empty, 0);
     public static string StreamType => "tracked_item";
@@ -46,12 +71,18 @@ public interface ITrackingCommand
 
 public static class TrackedItem
 {
-    private static readonly Guid StreamNamespace = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+    private static readonly Guid StreamNamespace = Guid.Parse(
+        "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    );
 
     public static string StreamIdFor(Guid userId, Guid titleId) =>
         StreamId.Deterministic(StreamNamespace, userId.ToString(), titleId.ToString());
 
-    public static async Task<Result<TrackedItemDto>> Execute(IEventStore store, ITrackingCommand command, CancellationToken ct)
+    public static async Task<Result<TrackedItemDto>> Execute(
+        IEventStore store,
+        ITrackingCommand command,
+        CancellationToken ct
+    )
     {
         var streamId = StreamIdFor(command.UserId, command.TitleId);
         var result = await store
@@ -59,11 +90,20 @@ public static class TrackedItem
             .Execute<TrackedItemState>(streamId, state => Decide(state, command), ct);
 
         return result.Match<Result<TrackedItemDto>>(
-            r => new TrackedItemDto(Guid.Parse(streamId), command.TitleId, r.State.Status, r.State.Rating),
-            error => error);
+            r => new TrackedItemDto(
+                Guid.Parse(streamId),
+                command.TitleId,
+                r.State.Status,
+                r.State.Rating
+            ),
+            error => error
+        );
     }
 
-    public static Result<IReadOnlyList<IDomainEvent>> Decide(TrackedItemState state, ITrackingCommand command) =>
+    public static Result<IReadOnlyList<IDomainEvent>> Decide(
+        TrackedItemState state,
+        ITrackingCommand command
+    ) =>
         command switch
         {
             WantItem.Command c => HandleWant(state, c),
@@ -71,51 +111,100 @@ public static class TrackedItem
             FinishItem.Command c => HandleFinish(state, c),
             AbandonItem.Command c => HandleAbandon(state, c),
             RateItem.Command c => HandleRate(state, c),
-            _ => Error.Unprocessable("tracking.unknown_command", "Unrecognised command.")
+            _ => Error.Unprocessable("tracking.unknown_command", "Unrecognised command."),
         };
 
-    public static TrackedItemState Evolve(TrackedItemState state, IDomainEvent e) => e switch
-    {
-        ItemWanted w => state with { Status = TrackedStatus.WantToConsume, TitleId = w.TitleId, Version = state.Version + 1 },
-        ItemStarted => state with { Status = TrackedStatus.InProgress, Version = state.Version + 1 },
-        ItemFinished f => state with { Status = TrackedStatus.Finished, Rating = f.Rating, Version = state.Version + 1 },
-        ItemAbandoned => state with { Status = TrackedStatus.Abandoned, Version = state.Version + 1 },
-        ItemRated r => state with { Rating = r.Rating, Version = state.Version + 1 },
-        _ => state
-    };
+    public static TrackedItemState Evolve(TrackedItemState state, IDomainEvent e) =>
+        e switch
+        {
+            ItemWanted w => state with
+            {
+                Status = TrackedStatus.WantToConsume,
+                TitleId = w.TitleId,
+                Version = state.Version + 1,
+            },
+            ItemStarted => state with
+            {
+                Status = TrackedStatus.InProgress,
+                Version = state.Version + 1,
+            },
+            ItemFinished f => state with
+            {
+                Status = TrackedStatus.Finished,
+                Rating = f.Rating,
+                Version = state.Version + 1,
+            },
+            ItemAbandoned => state with
+            {
+                Status = TrackedStatus.Abandoned,
+                Version = state.Version + 1,
+            },
+            ItemRated r => state with { Rating = r.Rating, Version = state.Version + 1 },
+            _ => state,
+        };
 
-    private static Result<IReadOnlyList<IDomainEvent>> HandleWant(TrackedItemState state, WantItem.Command c) =>
+    private static Result<IReadOnlyList<IDomainEvent>> HandleWant(
+        TrackedItemState state,
+        WantItem.Command c
+    ) =>
         state.Status is not TrackedStatus.None
             ? Error.Conflict("tracking.already_tracked", "Item is already being tracked.")
             : Ok(new ItemWanted(c.TitleId, c.TitleName, c.MediaType, c.At));
 
-    private static Result<IReadOnlyList<IDomainEvent>> HandleStart(TrackedItemState state, StartItem.Command c) =>
+    private static Result<IReadOnlyList<IDomainEvent>> HandleStart(
+        TrackedItemState state,
+        StartItem.Command c
+    ) =>
         state.Status switch
         {
             TrackedStatus.None => Error.Conflict("tracking.not_tracked", "Add the item first."),
-            TrackedStatus.InProgress => Error.Conflict("tracking.already_in_progress", "Already in progress."),
-            TrackedStatus.Finished => Error.Conflict("tracking.already_finished", "Already finished."),
-            _ => Ok(new ItemStarted(c.At))
+            TrackedStatus.InProgress => Error.Conflict(
+                "tracking.already_in_progress",
+                "Already in progress."
+            ),
+            TrackedStatus.Finished => Error.Conflict(
+                "tracking.already_finished",
+                "Already finished."
+            ),
+            _ => Ok(new ItemStarted(c.At)),
         };
 
-    private static Result<IReadOnlyList<IDomainEvent>> HandleFinish(TrackedItemState state, FinishItem.Command c) =>
+    private static Result<IReadOnlyList<IDomainEvent>> HandleFinish(
+        TrackedItemState state,
+        FinishItem.Command c
+    ) =>
         state.Status switch
         {
             TrackedStatus.None => Error.Conflict("tracking.not_tracked", "Add the item first."),
-            TrackedStatus.Finished => Error.Conflict("tracking.already_finished", "Already finished."),
-            _ => Ok(new ItemFinished(null, c.At))
+            TrackedStatus.Finished => Error.Conflict(
+                "tracking.already_finished",
+                "Already finished."
+            ),
+            _ => Ok(new ItemFinished(null, c.At)),
         };
 
-    private static Result<IReadOnlyList<IDomainEvent>> HandleAbandon(TrackedItemState state, AbandonItem.Command c) =>
+    private static Result<IReadOnlyList<IDomainEvent>> HandleAbandon(
+        TrackedItemState state,
+        AbandonItem.Command c
+    ) =>
         state.Status switch
         {
             TrackedStatus.None => Error.Conflict("tracking.not_tracked", "Add the item first."),
-            TrackedStatus.Abandoned => Error.Conflict("tracking.already_abandoned", "Already abandoned."),
-            TrackedStatus.Finished => Error.Conflict("tracking.already_finished", "Cannot abandon a finished item."),
-            _ => Ok(new ItemAbandoned(c.At))
+            TrackedStatus.Abandoned => Error.Conflict(
+                "tracking.already_abandoned",
+                "Already abandoned."
+            ),
+            TrackedStatus.Finished => Error.Conflict(
+                "tracking.already_finished",
+                "Cannot abandon a finished item."
+            ),
+            _ => Ok(new ItemAbandoned(c.At)),
         };
 
-    private static Result<IReadOnlyList<IDomainEvent>> HandleRate(TrackedItemState state, RateItem.Command c) =>
+    private static Result<IReadOnlyList<IDomainEvent>> HandleRate(
+        TrackedItemState state,
+        RateItem.Command c
+    ) =>
         state.Status is TrackedStatus.None or TrackedStatus.WantToConsume
             ? Error.Conflict("tracking.not_started", "Start consuming before rating.")
             : Ok(new ItemRated(new Rating(c.Rating), c.At));
@@ -124,4 +213,9 @@ public static class TrackedItem
         Result<IReadOnlyList<IDomainEvent>>.FromValue(new List<IDomainEvent> { e });
 }
 
-public sealed record TrackedItemDto(Guid StreamId, Guid TitleId, TrackedStatus Status, Rating? Rating);
+public sealed record TrackedItemDto(
+    Guid StreamId,
+    Guid TitleId,
+    TrackedStatus Status,
+    Rating? Rating
+);

@@ -23,7 +23,7 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
             Year = 2016,
             Genres = ["Science Fiction", "Drama"],
             Keywords = ["alien contact", "linguistics"],
-            Popularity = 50.0
+            Popularity = 50.0,
         };
 
         var similar = new Title
@@ -35,7 +35,7 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
             Year = 1997,
             Genres = ["Science Fiction", "Drama"],
             Keywords = ["alien contact"],
-            Popularity = 40.0
+            Popularity = 40.0,
         };
 
         var unrelated = new Title
@@ -47,7 +47,7 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
             Year = 2004,
             Genres = ["Romance", "Drama"],
             Keywords = ["love story"],
-            Popularity = 60.0
+            Popularity = 60.0,
         };
 
         db.Titles.AddRange(source, similar, unrelated);
@@ -67,8 +67,12 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
         {
             var contactIndex = results.ToList().IndexOf(contactResult!);
             var notebookIndex = results.ToList().IndexOf(notebookResult);
-            contactIndex.Should().BeLessThan(notebookIndex,
-                "Contact has higher genre+keyword overlap than The Notebook");
+            contactIndex
+                .Should()
+                .BeLessThan(
+                    notebookIndex,
+                    "Contact has higher genre+keyword overlap than The Notebook"
+                );
         }
     }
 
@@ -87,7 +91,7 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
             Year = 2017,
             Genres = ["Science Fiction"],
             Keywords = ["replicant"],
-            Popularity = 80.0
+            Popularity = 80.0,
         };
 
         var otherFilm = new Title
@@ -99,7 +103,7 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
             Year = 2014,
             Genres = ["Science Fiction"],
             Keywords = ["artificial intelligence"],
-            Popularity = 60.0
+            Popularity = 60.0,
         };
 
         var book = new Title
@@ -111,18 +115,25 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
             Year = 1984,
             Genres = ["Science Fiction"],
             Keywords = ["cyberpunk"],
-            Popularity = 30.0
+            Popularity = 30.0,
         };
 
         db.Titles.AddRange(sourceFilm, otherFilm, book);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new GetSimilar.Handler(db, new FindSimilarTitles(db));
-        var results = await handler.Handle(sourceFilm.TitleId, TestContext.Current.CancellationToken);
+        var results = await handler.Handle(
+            sourceFilm.TitleId,
+            TestContext.Current.CancellationToken
+        );
 
         results.Should().Contain(r => r.TitleId == otherFilm.TitleId);
-        results.Should().NotContain(r => r.TitleId == book.TitleId,
-            "books should not appear in similar results for a film");
+        results
+            .Should()
+            .NotContain(
+                r => r.TitleId == book.TitleId,
+                "books should not appear in similar results for a film"
+            );
         results.Should().OnlyContain(r => r.MediaType == MediaType.Film);
     }
 }

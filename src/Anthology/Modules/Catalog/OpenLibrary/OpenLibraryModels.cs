@@ -3,7 +3,8 @@ using System.Text.Json.Serialization;
 namespace Anthology.Modules.Catalog;
 
 public sealed record OpenLibrarySearchResponse(
-    [property: JsonPropertyName("docs")] List<OpenLibraryDoc> Docs);
+    [property: JsonPropertyName("docs")] List<OpenLibraryDoc> Docs
+);
 
 public sealed class OpenLibraryDoc
 {
@@ -46,13 +47,16 @@ public sealed class OpenLibraryWork
     [JsonPropertyName("covers")]
     public List<long>? Covers { get; set; }
 
-    public string? GetDescriptionText() => Description switch
-    {
-        string s => s,
-        System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.String } el => el.GetString(),
-        System.Text.Json.JsonElement el when el.TryGetProperty("value", out var v) => v.GetString(),
-        _ => null
-    };
+    public string? GetDescriptionText() =>
+        Description switch
+        {
+            string s => s,
+            System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.String } el =>
+                el.GetString(),
+            System.Text.Json.JsonElement el when el.TryGetProperty("value", out var v) =>
+                v.GetString(),
+            _ => null,
+        };
 }
 
 public sealed class OpenLibraryTrendingResponse

@@ -9,18 +9,35 @@ public static class ProfileEndpoints
     {
         var group = app.MapGroup("/api/profile").WithTags("Profile");
 
-        group.MapGet("/me", async (
-            ClaimsPrincipal user, GetProfile.Handler handler, CancellationToken ct) =>
-            (await handler.Handle(user.UserId(), ct)).ToHttpResult())
-            .RequireAuthorization().WithName("getProfile").Produces<GetProfile.ProfileDto>();
+        group
+            .MapGet(
+                "/me",
+                async (ClaimsPrincipal user, GetProfile.Handler handler, CancellationToken ct) =>
+                    (await handler.Handle(user.UserId(), ct)).ToHttpResult()
+            )
+            .RequireAuthorization()
+            .WithName("getProfile")
+            .Produces<GetProfile.ProfileDto>();
 
-        group.MapPut("/me", async (
-            UpdateProfile.UpdateProfileCommand command,
-            ClaimsPrincipal user,
-            ICommandHandler<UpdateProfile.UpdateProfileCommand, Result<UpdateProfile.ProfileDto>> handler,
-            CancellationToken ct) =>
-            (await handler.Handle(command with { UserId = user.UserId() }, ct)).ToHttpResult())
-            .RequireAuthorization().WithName("updateProfile").Produces<UpdateProfile.ProfileDto>();
+        group
+            .MapPut(
+                "/me",
+                async (
+                    UpdateProfile.UpdateProfileCommand command,
+                    ClaimsPrincipal user,
+                    ICommandHandler<
+                        UpdateProfile.UpdateProfileCommand,
+                        Result<UpdateProfile.ProfileDto>
+                    > handler,
+                    CancellationToken ct
+                ) =>
+                    (
+                        await handler.Handle(command with { UserId = user.UserId() }, ct)
+                    ).ToHttpResult()
+            )
+            .RequireAuthorization()
+            .WithName("updateProfile")
+            .Produces<UpdateProfile.ProfileDto>();
 
         return app;
     }

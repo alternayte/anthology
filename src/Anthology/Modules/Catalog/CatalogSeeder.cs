@@ -7,16 +7,20 @@ public sealed class CatalogSeeder(
     IEnumerable<ISeedableProvider> providers,
     AddTitle.Handler addTitle,
     CatalogDbContext db,
-    ILogger<CatalogSeeder> logger)
+    ILogger<CatalogSeeder> logger
+)
 {
     public async Task SeedAsync(SeedCommandOptions options, CancellationToken ct)
     {
         var totalProcessed = 0;
 
         var activeProviders = providers
-            .Where(p => options.Providers is null ||
-                        options.Providers.Any(name =>
-                            string.Equals(name, p.ProviderName, StringComparison.OrdinalIgnoreCase)))
+            .Where(p =>
+                options.Providers is null
+                || options.Providers.Any(name =>
+                    string.Equals(name, p.ProviderName, StringComparison.OrdinalIgnoreCase)
+                )
+            )
             .ToList();
 
         if (activeProviders.Count == 0)
@@ -31,14 +35,23 @@ public sealed class CatalogSeeder(
             var seen = new HashSet<string>();
             var processed = 0;
 
-            Console.WriteLine("[{0}] Starting seed (count={1}, lists=[{2}])",
-                provider.ProviderName, options.Count, string.Join(", ", options.Lists));
+            Console.WriteLine(
+                "[{0}] Starting seed (count={1}, lists=[{2}])",
+                provider.ProviderName,
+                options.Count,
+                string.Join(", ", options.Lists)
+            );
 
             await foreach (var result in provider.DiscoverAsync(seedOptions, ct))
             {
-                if (processed >= options.Count) break;
-                if (!seen.Add(result.ExternalId)) continue;
-                if (options.MediaTypes is not null && !options.MediaTypes.Contains(result.MediaType))
+                if (processed >= options.Count)
+                    break;
+                if (!seen.Add(result.ExternalId))
+                    continue;
+                if (
+                    options.MediaTypes is not null
+                    && !options.MediaTypes.Contains(result.MediaType)
+                )
                     continue;
 
                 Result<AddTitle.TitleDto> addResult;
@@ -54,22 +67,35 @@ public sealed class CatalogSeeder(
                 {
                     // a failed Handle can leave entities tracked; clear so they don't ride along with the next save
                     db.ChangeTracker.Clear();
-                    logger.LogWarning(ex, "[{Provider}] Failed {ExternalId}, skipping",
-                        provider.ProviderName, result.ExternalId);
+                    logger.LogWarning(
+                        ex,
+                        "[{Provider}] Failed {ExternalId}, skipping",
+                        provider.ProviderName,
+                        result.ExternalId
+                    );
                     continue;
                 }
 
                 if (addResult.IsError)
                 {
-                    logger.LogWarning("[{Provider}] Skipped {ExternalId}: {Error}",
-                        provider.ProviderName, result.ExternalId, addResult.Error.Message);
+                    logger.LogWarning(
+                        "[{Provider}] Skipped {ExternalId}: {Error}",
+                        provider.ProviderName,
+                        result.ExternalId,
+                        addResult.Error.Message
+                    );
                     continue;
                 }
 
                 processed++;
-                Console.WriteLine("[{0}] {1}/{2} - {3} ({4})",
-                    provider.ProviderName, processed, options.Count,
-                    addResult.Value.Name, addResult.Value.Year);
+                Console.WriteLine(
+                    "[{0}] {1}/{2} - {3} ({4})",
+                    provider.ProviderName,
+                    processed,
+                    options.Count,
+                    addResult.Value.Name,
+                    addResult.Value.Year
+                );
             }
 
             totalProcessed += processed;
@@ -77,7 +103,9 @@ public sealed class CatalogSeeder(
         }
 
         Console.WriteLine();
-        Console.WriteLine("Seed complete: {0} titles processed. Embeddings will generate in background.",
-            totalProcessed);
+        Console.WriteLine(
+            "Seed complete: {0} titles processed. Embeddings will generate in background.",
+            totalProcessed
+        );
     }
 }

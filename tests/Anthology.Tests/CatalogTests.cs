@@ -24,7 +24,7 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             Name = "Breaking Bad",
             Year = 2008,
             PosterPath = "/poster.jpg",
-            Overview = "A chemistry teacher turns to crime."
+            Overview = "A chemistry teacher turns to crime.",
         };
         show.SetMediaData(new TvShowData(5, 62));
         db.Titles.Add(show);
@@ -38,7 +38,7 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             MediaType = MediaType.Season,
             Name = "Season 1",
             Year = 2008,
-            SortOrder = 1
+            SortOrder = 1,
         };
         season.SetMediaData(new SeasonData(1, 7, "2008-01-20"));
         db.Titles.Add(season);
@@ -51,7 +51,7 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             ExternalId = $"tv-test-{show.TitleId}-s1e1",
             MediaType = MediaType.Episode,
             Name = "Pilot",
-            SortOrder = 1
+            SortOrder = 1,
         };
         ep1.SetMediaData(new EpisodeData(1, 1, "2008-01-20", "/still1.jpg"));
         db.Titles.Add(ep1);
@@ -63,7 +63,7 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             ExternalId = $"tv-test-{show.TitleId}-s1e2",
             MediaType = MediaType.Episode,
             Name = "Cat's in the Bag",
-            SortOrder = 2
+            SortOrder = 2,
         };
         ep2.SetMediaData(new EpisodeData(1, 2, "2008-01-27", "/still2.jpg"));
         db.Titles.Add(ep2);
@@ -115,7 +115,7 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             MediaType = MediaType.Film,
             Name = "Inception",
             Year = 2010,
-            Overview = "Dreams within dreams."
+            Overview = "Dreams within dreams.",
         };
         db.Titles.Add(film);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -141,13 +141,16 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             ExternalId = $"book-test-{Guid.NewGuid():N}",
             MediaType = MediaType.Book,
             Name = "The Name of the Wind",
-            Year = 2007
+            Year = 2007,
         };
         book.SetMediaData(new BookData("Patrick Rothfuss", 662, "978-0756404741"));
         db.Titles.Add(book);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var saved = await db.Titles.FindAsync([book.TitleId], TestContext.Current.CancellationToken);
+        var saved = await db.Titles.FindAsync(
+            [book.TitleId],
+            TestContext.Current.CancellationToken
+        );
         saved.Should().NotBeNull();
         saved!.MediaType.Should().Be(MediaType.Book);
 
@@ -170,13 +173,18 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             ExternalId = $"game-test-{Guid.NewGuid():N}",
             MediaType = MediaType.Game,
             Name = "Elden Ring",
-            Year = 2022
+            Year = 2022,
         };
-        game.SetMediaData(new GameData("FromSoftware", "Bandai Namco", ["PC", "PS5", "Xbox Series X"]));
+        game.SetMediaData(
+            new GameData("FromSoftware", "Bandai Namco", ["PC", "PS5", "Xbox Series X"])
+        );
         db.Titles.Add(game);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var saved = await db.Titles.FindAsync([game.TitleId], TestContext.Current.CancellationToken);
+        var saved = await db.Titles.FindAsync(
+            [game.TitleId],
+            TestContext.Current.CancellationToken
+        );
         saved.Should().NotBeNull();
         saved!.MediaType.Should().Be(MediaType.Game);
 
@@ -201,11 +209,18 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
         var provider = new TmdbProvider(api, options);
         var handler = new AddTitle.Handler(db, [provider], api, options);
 
-        var result = await handler.Handle(new AddTitle.Command(externalId), TestContext.Current.CancellationToken);
+        var result = await handler.Handle(
+            new AddTitle.Command(externalId),
+            TestContext.Current.CancellationToken
+        );
 
         result.IsError.Should().BeFalse();
-        var season = await db.Titles.AsNoTracking()
-            .FirstAsync(t => t.ParentTitleId == result.Value.TitleId, TestContext.Current.CancellationToken);
+        var season = await db
+            .Titles.AsNoTracking()
+            .FirstAsync(
+                t => t.ParentTitleId == result.Value.TitleId,
+                TestContext.Current.CancellationToken
+            );
         season.PosterPath.Should().Be($"{imageBaseUrl}/w342/season.jpg");
     }
 
@@ -221,13 +236,16 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             ExternalId = $"music-test-{Guid.NewGuid():N}",
             MediaType = MediaType.Music,
             Name = "OK Computer",
-            Year = 1997
+            Year = 1997,
         };
         album.SetMediaData(new MusicData("Radiohead", "Parlophone", 12, "album"));
         db.Titles.Add(album);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var saved = await db.Titles.FindAsync([album.TitleId], TestContext.Current.CancellationToken);
+        var saved = await db.Titles.FindAsync(
+            [album.TitleId],
+            TestContext.Current.CancellationToken
+        );
         saved.Should().NotBeNull();
         saved!.MediaType.Should().Be(MediaType.Music);
 
@@ -256,12 +274,15 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             Genres = ["Science Fiction", "Drama", "Adventure"],
             Keywords = ["space travel", "wormhole", "time dilation"],
             Popularity = 82.5,
-            VoteAverage = 8.6
+            VoteAverage = 8.6,
         };
         db.Titles.Add(film);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var saved = await db.Titles.FindAsync([film.TitleId], TestContext.Current.CancellationToken);
+        var saved = await db.Titles.FindAsync(
+            [film.TitleId],
+            TestContext.Current.CancellationToken
+        );
         saved.Should().NotBeNull();
         saved!.Genres.Should().BeEquivalentTo(["Science Fiction", "Drama", "Adventure"]);
         saved.Keywords.Should().BeEquivalentTo(["space travel", "wormhole", "time dilation"]);
@@ -283,17 +304,32 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
             ExternalId = $"credit-test-{Guid.NewGuid():N}",
             MediaType = MediaType.Film,
             Name = "Inception",
-            Year = 2010
+            Year = 2010,
         };
         db.Titles.Add(film);
 
         db.TitleCredits.AddRange(
-            new TitleCredit { TitleId = titleId, ExternalPersonId = "tmdb-525", Name = "Christopher Nolan", Role = "director", DisplayOrder = 0 },
-            new TitleCredit { TitleId = titleId, ExternalPersonId = "tmdb-6193", Name = "Leonardo DiCaprio", Role = "actor", DisplayOrder = 1 }
+            new TitleCredit
+            {
+                TitleId = titleId,
+                ExternalPersonId = "tmdb-525",
+                Name = "Christopher Nolan",
+                Role = "director",
+                DisplayOrder = 0,
+            },
+            new TitleCredit
+            {
+                TitleId = titleId,
+                ExternalPersonId = "tmdb-6193",
+                Name = "Leonardo DiCaprio",
+                Role = "actor",
+                DisplayOrder = 1,
+            }
         );
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var credits = await db.TitleCredits.AsNoTracking()
+        var credits = await db
+            .TitleCredits.AsNoTracking()
             .Where(c => c.TitleId == titleId)
             .OrderBy(c => c.DisplayOrder)
             .ToListAsync(TestContext.Current.CancellationToken);
@@ -307,29 +343,100 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
 
     private sealed class StubTmdbApi(int tmdbId) : ITmdbApi
     {
-        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(int id, CancellationToken ct = default) =>
-            Task.FromResult(new TmdbTvShowDetail(
-                tmdbId, "Test Show", "Overview", "2020-01-01", "/show.jpg",
-                1, 1, 10.0, 8.0, [], "/show-backdrop.jpg"));
+        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(
+            int id,
+            CancellationToken ct = default
+        ) =>
+            Task.FromResult(
+                new TmdbTvShowDetail(
+                    tmdbId,
+                    "Test Show",
+                    "Overview",
+                    "2020-01-01",
+                    "/show.jpg",
+                    1,
+                    1,
+                    10.0,
+                    8.0,
+                    [],
+                    "/show-backdrop.jpg"
+                )
+            );
 
         public Task<TmdbTvShow> GetTvShowAsync(int id, CancellationToken ct = default) =>
-            Task.FromResult(new TmdbTvShow(tmdbId, "Test Show", "Overview", "2020-01-01", "/show.jpg", 1, 1));
+            Task.FromResult(
+                new TmdbTvShow(tmdbId, "Test Show", "Overview", "2020-01-01", "/show.jpg", 1, 1)
+            );
 
-        public Task<TmdbSeason> GetSeasonAsync(int id, int seasonNumber, CancellationToken ct = default) =>
-            Task.FromResult(new TmdbSeason(
-                tmdbId, seasonNumber,
-                [new TmdbEpisode(tmdbId * 100 + seasonNumber * 10 + 1, "Pilot", seasonNumber, 1, "2020-01-01", "/still.jpg", null)],
-                "2020-01-01", "/season.jpg"));
+        public Task<TmdbSeason> GetSeasonAsync(
+            int id,
+            int seasonNumber,
+            CancellationToken ct = default
+        ) =>
+            Task.FromResult(
+                new TmdbSeason(
+                    tmdbId,
+                    seasonNumber,
+                    [
+                        new TmdbEpisode(
+                            tmdbId * 100 + seasonNumber * 10 + 1,
+                            "Pilot",
+                            seasonNumber,
+                            1,
+                            "2020-01-01",
+                            "/still.jpg",
+                            null
+                        ),
+                    ],
+                    "2020-01-01",
+                    "/season.jpg"
+                )
+            );
 
-        public Task<TmdbPagedResult<TmdbMovie>> SearchMoviesAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbMovie> GetMovieAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbMovieDetail> GetMovieDetailAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> SearchTvAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbMovie>> GetTrendingMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> GetPopularTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> GetTopRatedTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> GetTrendingTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> SearchMoviesAsync(
+            string query,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbMovie> GetMovieAsync(int id, CancellationToken ct = default) =>
+            throw new NotImplementedException();
+
+        public Task<TmdbMovieDetail> GetMovieDetailAsync(int id, CancellationToken ct = default) =>
+            throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> SearchTvAsync(
+            string query,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbMovie>> GetTrendingMoviesAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> GetPopularTvAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTopRatedTvAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTrendingTvAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
     }
 }

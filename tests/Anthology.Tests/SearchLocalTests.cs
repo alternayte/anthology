@@ -23,7 +23,7 @@ public sealed class SearchLocalTests(WebAppFixture fixture) : IClassFixture<WebA
             Year = 2014,
             Overview = "A team of explorers travel through a wormhole in space.",
             Popularity = 200.0,
-            VoteAverage = 8.6
+            VoteAverage = 8.6,
         };
 
         var obscure = new Title
@@ -35,7 +35,7 @@ public sealed class SearchLocalTests(WebAppFixture fixture) : IClassFixture<WebA
             Year = 2016,
             Overview = "Aliens attack earth and interstellar war begins.",
             Popularity = 1.0,
-            VoteAverage = 2.0
+            VoteAverage = 2.0,
         };
 
         db.Titles.AddRange(popular, obscure);
@@ -44,7 +44,8 @@ public sealed class SearchLocalTests(WebAppFixture fixture) : IClassFixture<WebA
         var handler = new SearchLocal.Handler(db);
         var results = await handler.Handle(
             new SearchLocal.Query("Interstellar", null, null),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
         results.Should().HaveCountGreaterThanOrEqualTo(2);
 
@@ -53,8 +54,7 @@ public sealed class SearchLocalTests(WebAppFixture fixture) : IClassFixture<WebA
 
         var popularIndex = results.ToList().IndexOf(popularResult);
         var obscureIndex = results.ToList().IndexOf(obscureResult);
-        popularIndex.Should().BeLessThan(obscureIndex,
-            "the more popular title should rank higher");
+        popularIndex.Should().BeLessThan(obscureIndex, "the more popular title should rank higher");
     }
 
     [Fact]
@@ -70,7 +70,8 @@ public sealed class SearchLocalTests(WebAppFixture fixture) : IClassFixture<WebA
             MediaType = MediaType.Film,
             Name = "Dune",
             Year = 2021,
-            Overview = "A noble family becomes embroiled in a war for control of the most valuable asset."
+            Overview =
+                "A noble family becomes embroiled in a war for control of the most valuable asset.",
         };
 
         var book = new Title
@@ -80,7 +81,7 @@ public sealed class SearchLocalTests(WebAppFixture fixture) : IClassFixture<WebA
             MediaType = MediaType.Book,
             Name = "Dune",
             Year = 1965,
-            Overview = "Set on the desert planet Arrakis, Dune is the story of Paul Atreides."
+            Overview = "Set on the desert planet Arrakis, Dune is the story of Paul Atreides.",
         };
 
         db.Titles.AddRange(film, book);
@@ -89,7 +90,8 @@ public sealed class SearchLocalTests(WebAppFixture fixture) : IClassFixture<WebA
         var handler = new SearchLocal.Handler(db);
         var results = await handler.Handle(
             new SearchLocal.Query("Dune", MediaType.Book, null),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
         results.Should().Contain(r => r.TitleId == book.TitleId);
         results.Should().NotContain(r => r.TitleId == film.TitleId);

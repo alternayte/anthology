@@ -22,10 +22,12 @@ public class IgdbAuthHandlerTests
     public void IgdbOptions_binds_TokenUrl_from_configuration_key()
     {
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Igdb:TokenUrl"] = "http://localhost:5055/oauth2/token"
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Igdb:TokenUrl"] = "http://localhost:5055/oauth2/token",
+                }
+            )
             .Build();
 
         BindOptions(configuration).TokenUrl.Should().Be("http://localhost:5055/oauth2/token");
@@ -40,9 +42,7 @@ public class IgdbAuthHandlerTests
         {
             Environment.SetEnvironmentVariable(name, "http://localhost:5056/env-token");
 
-            var configuration = new ConfigurationBuilder()
-                .AddEnvironmentVariables()
-                .Build();
+            var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
 
             BindOptions(configuration).TokenUrl.Should().Be("http://localhost:5056/env-token");
         }
@@ -56,19 +56,25 @@ public class IgdbAuthHandlerTests
     public async Task IgdbAuthHandler_requests_token_from_configured_url_and_uses_access_token_as_bearer()
     {
         await using var server = new FakeTokenServer(
-            """{"access_token":"fake-access-token","expires_in":3600}""");
+            """{"access_token":"fake-access-token","expires_in":3600}"""
+        );
 
-        var options = Options.Create(new IgdbOptions
-        {
-            ClientId = "test-client",
-            ClientSecret = "test-secret",
-            TokenUrl = server.TokenUrl
-        });
+        var options = Options.Create(
+            new IgdbOptions
+            {
+                ClientId = "test-client",
+                ClientSecret = "test-secret",
+                TokenUrl = server.TokenUrl,
+            }
+        );
 
         var terminal = new CapturingHandler();
         using var handler = new IgdbAuthHandler(options) { InnerHandler = terminal };
         using var invoker = new HttpMessageInvoker(handler, disposeHandler: false);
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.igdb.test/v4/games");
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://api.igdb.test/v4/games"
+        );
 
         using var response = await invoker.SendAsync(request, CancellationToken.None);
 
@@ -98,12 +104,14 @@ public class IgdbAuthHandlerTests
     }
 
     private static Dictionary<string, string> ParseQuery(string query) =>
-        query.TrimStart('?')
+        query
+            .TrimStart('?')
             .Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Select(pair => pair.Split('=', 2))
             .ToDictionary(
                 parts => Uri.UnescapeDataString(parts[0]),
-                parts => parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : string.Empty);
+                parts => parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : string.Empty
+            );
 
     private sealed class CapturingHandler : HttpMessageHandler
     {
@@ -111,11 +119,16 @@ public class IgdbAuthHandlerTests
         public string? AuthorizationParameter { get; private set; }
         public string? ClientId { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
         {
             AuthorizationScheme = request.Headers.Authorization?.Scheme;
             AuthorizationParameter = request.Headers.Authorization?.Parameter;
-            ClientId = request.Headers.TryGetValues("Client-ID", out var values) ? values.Single() : null;
+            ClientId = request.Headers.TryGetValues("Client-ID", out var values)
+                ? values.Single()
+                : null;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         }
     }
@@ -137,7 +150,8 @@ public class IgdbAuthHandlerTests
         public string TokenUrl { get; }
         public string? Method { get; private set; }
         public string? Target { get; private set; }
-        public TaskCompletionSource Received { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Received { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private async Task ServeOnceAsync(string responseJson)
         {
@@ -154,9 +168,11 @@ public class IgdbAuthHandlerTests
                 string? line;
                 while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
                 {
-                    if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase) &&
-                        int.TryParse(line["Content-Length:".Length..].Trim(), out var length) &&
-                        length > 0)
+                    if (
+                        line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase)
+                        && int.TryParse(line["Content-Length:".Length..].Trim(), out var length)
+                        && length > 0
+                    )
                     {
                         var buffer = new char[length];
                         await reader.ReadBlockAsync(buffer.AsMemory());
@@ -165,7 +181,8 @@ public class IgdbAuthHandlerTests
 
                 var body = Encoding.UTF8.GetBytes(responseJson);
                 var headers = Encoding.ASCII.GetBytes(
-                    $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n");
+                    $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"
+                );
                 await stream.WriteAsync(headers);
                 await stream.WriteAsync(body);
                 await stream.FlushAsync();
@@ -184,9 +201,7 @@ public class IgdbAuthHandlerTests
             {
                 await _loop.WaitAsync(TimeSpan.FromSeconds(5));
             }
-            catch
-            {
-            }
+            catch { }
         }
     }
 }

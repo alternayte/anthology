@@ -11,16 +11,21 @@ public static class Decisions
         this IEventStore store,
         string streamId,
         Func<TState, Result<IReadOnlyList<IDomainEvent>>> decide,
-        CancellationToken ct)
+        CancellationToken ct
+    )
         where TState : IState<TState>
     {
         Error? rejected = null;
-        var result = await store.Execute<TState>(streamId, state =>
-        {
-            var decision = decide(state);
-            rejected = decision.IsError ? decision.Error : null;
-            return decision.IsError ? [] : decision.Value;
-        }, ct);
+        var result = await store.Execute<TState>(
+            streamId,
+            state =>
+            {
+                var decision = decide(state);
+                rejected = decision.IsError ? decision.Error : null;
+                return decision.IsError ? [] : decision.Value;
+            },
+            ct
+        );
 
         return rejected is null ? result : rejected;
     }
