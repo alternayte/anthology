@@ -1,0 +1,24 @@
+{
+  "name": "Open Library trending",
+  "request": {
+    "method": "GET",
+    "urlPath": "/trending/weekly.json"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "works": [
+        {
+          "key": "/works/OL123W",
+          "title": "The Left Hand of Darkness",
+          "first_publish_year": 1969,
+          "cover_i": 8739161,
+          "author_name": ["Ursula K. Le Guin"]
+        }
+      ]
+    }
+  }
+}

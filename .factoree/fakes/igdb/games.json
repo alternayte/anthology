@@ -1,0 +1,42 @@
+{
+  "name": "IGDB games",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v4/games"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": [
+      {
+        "id": 1020,
+        "name": "The Legend of Zelda: Ocarina of Time",
+        "first_release_date": 915148800,
+        "summary": "A young boy travels through time to stop Ganondorf from obtaining the Triforce.",
+        "cover": { "image_id": "co1" },
+        "artworks": [{ "image_id": "ar1" }],
+        "screenshots": [{ "image_id": "sc1" }],
+        "involved_companies": [
+          {
+            "developer": true,
+            "publisher": false,
+            "company": { "name": "Nintendo EPD" }
+          },
+          {
+            "developer": false,
+            "publisher": true,
+            "company": { "name": "Nintendo" }
+          }
+        ],
+        "platforms": [{ "name": "Nintendo 64" }],
+        "genres": [{ "name": "Adventure" }],
+        "themes": [{ "name": "Fantasy" }],
+        "keywords": [{ "name": "time travel" }],
+        "total_rating": 96.5,
+        "total_rating_count": 5000
+      }
+    ]
+  }
+}

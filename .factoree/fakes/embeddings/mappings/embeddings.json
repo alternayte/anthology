@@ -1,0 +1,14 @@
+{
+  "name": "OpenAI embeddings",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/embeddings"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyFileName": "embedding.json"
+  }
+}

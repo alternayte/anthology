@@ -5,3 +5,49 @@ services:
       interval: 2s
       timeout: 5s
       retries: 60
+
+  fake-tmdb:
+    image: wiremock/wiremock:3.13.0
+    labels:
+      factoree.fake: "TMDB"
+    ports:
+      - "18081:8080"
+    volumes:
+      - ./.factoree/fakes/tmdb:/home/wiremock/mappings:ro
+
+  fake-openlibrary:
+    image: wiremock/wiremock:3.13.0
+    labels:
+      factoree.fake: "Open Library"
+    ports:
+      - "18082:8080"
+    volumes:
+      - ./.factoree/fakes/openlibrary:/home/wiremock/mappings:ro
+
+  fake-igdb:
+    image: wiremock/wiremock:3.13.0
+    labels:
+      factoree.fake: "IGDB"
+    ports:
+      - "18083:8080"
+    volumes:
+      - ./.factoree/fakes/igdb:/home/wiremock/mappings:ro
+
+  fake-musicbrainz:
+    image: wiremock/wiremock:3.13.0
+    labels:
+      factoree.fake: "MusicBrainz"
+    ports:
+      - "18084:8080"
+    volumes:
+      - ./.factoree/fakes/musicbrainz:/home/wiremock/mappings:ro
+
+  fake-embeddings:
+    image: wiremock/wiremock:3.13.0
+    labels:
+      factoree.fake: "OpenAI Embeddings"
+    ports:
+      - "18085:8080"
+    volumes:
+      - ./.factoree/fakes/embeddings/mappings:/home/wiremock/mappings:ro
+      - ./.factoree/fakes/embeddings/__files:/home/wiremock/__files:ro

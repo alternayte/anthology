@@ -1,0 +1,28 @@
+{
+  "name": "Open Library subject",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/subjects/[^/]+\\.json"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "name": "fiction",
+      "work_count": 1,
+      "works": [
+        {
+          "key": "/works/OL123W",
+          "title": "The Left Hand of Darkness",
+          "cover_id": 8739161,
+          "first_publish_year": 1969,
+          "authors": [
+            { "name": "Ursula K. Le Guin", "key": "/authors/OL1A" }
+          ]
+        }
+      ]
+    }
+  }
+}
