@@ -1,0 +1,31 @@
+version: 1
+identity:
+  product: factoree-test
+  linear:
+    teamKey: FAC
+bootstrap:
+  command: mise install --cd .factoree && mise use --global dotnet@10.0.403
+    node@24.22.2 && DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet restore &&
+    (cd src/Anthology/ClientApp && npm ci)
+  keyFiles:
+    - .factoree/mise.toml
+    - src/Anthology/ClientApp/package-lock.json
+  allowedDomains:
+    - api.nuget.org
+    - builds.dotnet.microsoft.com
+    - ci.dot.net
+    - dot.net
+    - github.com
+    - mise-versions.jdx.dev
+    - mise.jdx.dev
+    - nodejs.org
+    - raw.githubusercontent.com
+    - registry.npmjs.org
+verify:
+  commands:
+    - name: build
+      run: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet build Anthology.slnx
+sandbox:
+  allowedDomains: []
+secrets:
+  require: []
