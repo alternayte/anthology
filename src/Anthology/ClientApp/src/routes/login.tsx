@@ -30,7 +30,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 flex justify-center pt-20">
+    <div className="mx-auto max-w-6xl px-4 flex flex-col items-center pt-20">
       <motion.div
         className="w-full max-w-sm rounded-[10px] bg-abyss p-6"
         initial={{ opacity: 0, y: 12 }}
@@ -58,6 +58,9 @@ function LoginPage() {
         </form>
         <p className="mt-4 text-[0.8125rem] text-text-muted">No account? <Link to="/register" className="text-teal hover:text-teal-glow transition-colors">Create one</Link></p>
       </motion.div>
+      <footer className="mt-6 text-center text-[0.8125rem] text-text-muted">
+        Anthology · © {new Date().getFullYear()}
+      </footer>
     </div>
   )
 }
