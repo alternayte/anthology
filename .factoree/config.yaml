@@ -25,6 +25,7 @@ bootstrap:
     - mise.jdx.dev
     - nodejs.org
     - production.cloudfront.docker.com
+    - raw.githubusercontent.com
     - registry-1.docker.io
     - registry.npmjs.org
 verify:
