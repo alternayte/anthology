@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Pgvector.EntityFrameworkCore;
 using Refit;
 
@@ -36,8 +37,15 @@ public static class CatalogModule
         services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<TmdbProvider>());
 
         // Open Library
-        services.AddRefitClient<IOpenLibraryApi>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://openlibrary.org"));
+        services.Configure<OpenLibraryOptions>(configuration.GetSection(OpenLibraryOptions.Section));
+        services.AddRefitClient<IOpenLibraryApi>(httpClientName: typeof(IOpenLibraryApi).FullName)
+            .ConfigureHttpClient((sp, c) =>
+            {
+                var baseUrl = sp.GetRequiredService<IOptions<OpenLibraryOptions>>().Value.BaseUrl;
+                c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(baseUrl)
+                    ? OpenLibraryOptions.DefaultBaseUrl
+                    : baseUrl);
+            });
         services.AddScoped<OpenLibraryProvider>();
         services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<OpenLibraryProvider>());
         services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<OpenLibraryProvider>());
