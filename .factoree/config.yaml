@@ -25,13 +25,16 @@ bootstrap:
     - mise.jdx.dev
     - nodejs.org
     - production.cloudfront.docker.com
-    - raw.githubusercontent.com
     - registry-1.docker.io
     - registry.npmjs.org
 verify:
   commands:
     - name: build
       run: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet build Anthology.slnx
+    - name: test
+      run: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet test Anthology.slnx
+    - name: web
+      run: cd src/Anthology/ClientApp && npm run generate && npx vite build
 agents:
   implementer: opencode
   validator: opencode
@@ -47,6 +50,16 @@ preview:
   command: ./.factoree/preview.sh
   readyUrl: http://localhost:3000/
   timeoutSeconds: 600
+accounts:
+  - name: member
+    username: member@example.test
+    password: Local-password1
+    steps:
+      - { action: goto, path: /login }
+      - { action: fill, selector: "#email", value: "{username}" }
+      - { action: fill, selector: "#password", value: "{password}" }
+      - { action: click, selector: "button[type=submit]" }
+    check: { action: expectVisible, selector: "nav button" }
 sandbox:
   allowedDomains: []
 secrets:
