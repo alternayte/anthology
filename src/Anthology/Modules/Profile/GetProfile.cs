@@ -11,7 +11,8 @@ public static class GetProfile
     {
         public async Task<Result<ProfileDto>> Handle(Guid userId, CancellationToken ct)
         {
-            var profile = await db.Profiles.AsNoTracking()
+            var profile = await db
+                .Profiles.AsNoTracking()
                 .FirstOrDefaultAsync(p => p.UserId == userId, ct);
 
             return profile is null

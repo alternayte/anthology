@@ -15,16 +15,14 @@ namespace Anthology.Modules.Catalog.Migrations
                 schema: "catalog",
                 table: "titles",
                 type: "text",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "backdrop_path",
-                schema: "catalog",
-                table: "titles");
+            migrationBuilder.DropColumn(name: "backdrop_path", schema: "catalog", table: "titles");
         }
     }
 }

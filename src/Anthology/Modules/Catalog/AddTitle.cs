@@ -8,7 +8,13 @@ public static class AddTitle
 {
     public sealed record Command(string ExternalId);
 
-    public sealed record TitleDto(Guid TitleId, string Name, int? Year, string? PosterPath, MediaType MediaType);
+    public sealed record TitleDto(
+        Guid TitleId,
+        string Name,
+        int? Year,
+        string? PosterPath,
+        MediaType MediaType
+    );
 
     public sealed class Handler
     {
@@ -18,24 +24,22 @@ public static class AddTitle
         private readonly string imageBaseUrl;
 
         public Handler(CatalogDbContext db, IEnumerable<ICatalogProvider> providers, ITmdbApi tmdb)
-            : this(db, providers, tmdb, (TmdbOptions?)null)
-        {
-        }
+            : this(db, providers, tmdb, (TmdbOptions?)null) { }
 
         public Handler(
             CatalogDbContext db,
             IEnumerable<ICatalogProvider> providers,
             ITmdbApi tmdb,
-            IOptions<TmdbOptions> options)
-            : this(db, providers, tmdb, options?.Value)
-        {
-        }
+            IOptions<TmdbOptions> options
+        )
+            : this(db, providers, tmdb, options?.Value) { }
 
         public Handler(
             CatalogDbContext db,
             IEnumerable<ICatalogProvider> providers,
             ITmdbApi tmdb,
-            TmdbOptions? options)
+            TmdbOptions? options
+        )
         {
             this.db = db;
             this.providers = providers;
@@ -45,18 +49,31 @@ public static class AddTitle
 
         public async Task<Result<TitleDto>> Handle(Command command, CancellationToken ct)
         {
-            var existing = await db.Titles.AsNoTracking()
+            var existing = await db
+                .Titles.AsNoTracking()
                 .FirstOrDefaultAsync(t => t.ExternalId == command.ExternalId, ct);
             if (existing is not null)
-                return new TitleDto(existing.TitleId, existing.Name, existing.Year, existing.PosterPath, existing.MediaType);
+                return new TitleDto(
+                    existing.TitleId,
+                    existing.Name,
+                    existing.Year,
+                    existing.PosterPath,
+                    existing.MediaType
+                );
 
             var provider = providers.FirstOrDefault(p => p.OwnsExternalId(command.ExternalId));
             if (provider is null)
-                return Error.Validation("catalog.unknown_provider", $"No provider found for external ID '{command.ExternalId}'.");
+                return Error.Validation(
+                    "catalog.unknown_provider",
+                    $"No provider found for external ID '{command.ExternalId}'."
+                );
 
             var result = await provider.GetDetailsAsync(command.ExternalId, ct);
             if (result is null)
-                return Error.NotFound("catalog.title_not_found", $"Title '{command.ExternalId}' not found in external catalog.");
+                return Error.NotFound(
+                    "catalog.title_not_found",
+                    $"Title '{command.ExternalId}' not found in external catalog."
+                );
 
             var title = result.Title;
             db.Titles.Add(title);
@@ -68,10 +85,20 @@ public static class AddTitle
                 await AddTvShowChildren(title, command.ExternalId, ct);
 
             await db.SaveChangesAsync(ct);
-            return new TitleDto(title.TitleId, title.Name, title.Year, title.PosterPath, title.MediaType);
+            return new TitleDto(
+                title.TitleId,
+                title.Name,
+                title.Year,
+                title.PosterPath,
+                title.MediaType
+            );
         }
 
-        private async Task AddTvShowChildren(Title showTitle, string externalId, CancellationToken ct)
+        private async Task AddTvShowChildren(
+            Title showTitle,
+            string externalId,
+            CancellationToken ct
+        )
         {
             var tmdbId = int.Parse(externalId.Replace("tmdb-tv-", ""));
             var show = await tmdb.GetTvShowAsync(tmdbId, ct);
@@ -89,9 +116,11 @@ public static class AddTitle
                     Name = $"Season {s}",
                     Year = TmdbProvider.ParseYear(season.Air_Date),
                     PosterPath = TmdbProvider.PosterUrl(season.Poster_Path, imageBaseUrl),
-                    SortOrder = s
+                    SortOrder = s,
                 };
-                seasonTitle.SetMediaData(new SeasonData(season.Season_Number, season.Episodes.Count, season.Air_Date));
+                seasonTitle.SetMediaData(
+                    new SeasonData(season.Season_Number, season.Episodes.Count, season.Air_Date)
+                );
                 db.Titles.Add(seasonTitle);
 
                 foreach (var ep in season.Episodes)
@@ -102,10 +131,19 @@ public static class AddTitle
                         ParentTitleId = seasonTitle.TitleId,
                         ExternalId = $"tmdb-tv-{tmdbId}-s{s}e{ep.Episode_Number}",
                         MediaType = MediaType.Episode,
-                        Name = string.IsNullOrWhiteSpace(ep.Name) ? $"Episode {ep.Episode_Number}" : ep.Name,
-                        SortOrder = ep.Episode_Number
+                        Name = string.IsNullOrWhiteSpace(ep.Name)
+                            ? $"Episode {ep.Episode_Number}"
+                            : ep.Name,
+                        SortOrder = ep.Episode_Number,
                     };
-                    episodeTitle.SetMediaData(new EpisodeData(ep.Season_Number, ep.Episode_Number, ep.Air_Date, ep.Still_Path));
+                    episodeTitle.SetMediaData(
+                        new EpisodeData(
+                            ep.Season_Number,
+                            ep.Episode_Number,
+                            ep.Air_Date,
+                            ep.Still_Path
+                        )
+                    );
                     db.Titles.Add(episodeTitle);
                 }
             }

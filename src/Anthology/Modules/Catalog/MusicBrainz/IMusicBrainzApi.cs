@@ -10,12 +10,14 @@ public interface IMusicBrainzApi
         [AliasAs("query")] string query,
         [AliasAs("fmt")] string fmt = "json",
         [AliasAs("limit")] int limit = 20,
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
 
     [Get("/release-group/{id}")]
     Task<MusicBrainzReleaseGroup> GetReleaseGroupAsync(
         string id,
         [AliasAs("inc")] string inc = "artist-credits+tags",
         [AliasAs("fmt")] string fmt = "json",
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
 }

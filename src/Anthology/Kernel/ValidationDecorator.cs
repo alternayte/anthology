@@ -4,8 +4,8 @@ namespace Anthology.Kernel;
 
 public sealed class ValidationDecorator<TCommand, TResult>(
     ICommandHandler<TCommand, TResult> inner,
-    IValidator<TCommand>? validator = null)
-    : ICommandHandler<TCommand, TResult>
+    IValidator<TCommand>? validator = null
+) : ICommandHandler<TCommand, TResult>
     where TResult : IResultUnion<TResult>
 {
     public async Task<TResult> Handle(TCommand command, CancellationToken ct)

@@ -10,13 +10,17 @@ namespace Anthology.Modules.Catalog.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("UPDATE catalog.titles SET external_id = 'tmdb-' || external_id WHERE external_id NOT LIKE 'tmdb-%'");
+            migrationBuilder.Sql(
+                "UPDATE catalog.titles SET external_id = 'tmdb-' || external_id WHERE external_id NOT LIKE 'tmdb-%'"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("UPDATE catalog.titles SET external_id = REPLACE(external_id, 'tmdb-', '') WHERE external_id LIKE 'tmdb-%'");
+            migrationBuilder.Sql(
+                "UPDATE catalog.titles SET external_id = REPLACE(external_id, 'tmdb-', '') WHERE external_id LIKE 'tmdb-%'"
+            );
         }
     }
 }

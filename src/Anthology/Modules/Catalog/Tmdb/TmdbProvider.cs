@@ -5,19 +5,20 @@ namespace Anthology.Modules.Catalog;
 
 public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
 {
-    private static readonly IReadOnlySet<MediaType> Types =
-        new HashSet<MediaType> { MediaType.Film, MediaType.TvShow }.AsReadOnly();
+    private static readonly IReadOnlySet<MediaType> Types = new HashSet<MediaType>
+    {
+        MediaType.Film,
+        MediaType.TvShow,
+    }.AsReadOnly();
 
     private readonly ITmdbApi tmdb;
     private readonly string imageBaseUrl;
 
-    public TmdbProvider(ITmdbApi tmdb) : this(tmdb, (TmdbOptions?)null)
-    {
-    }
+    public TmdbProvider(ITmdbApi tmdb)
+        : this(tmdb, (TmdbOptions?)null) { }
 
-    public TmdbProvider(ITmdbApi tmdb, IOptions<TmdbOptions> options) : this(tmdb, options?.Value)
-    {
-    }
+    public TmdbProvider(ITmdbApi tmdb, IOptions<TmdbOptions> options)
+        : this(tmdb, options?.Value) { }
 
     public TmdbProvider(ITmdbApi tmdb, TmdbOptions? options)
     {
@@ -30,18 +31,22 @@ public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
     public string ProviderName => "tmdb";
 
     public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
-        SeedOptions options, [EnumeratorCancellation] CancellationToken ct)
+        SeedOptions options,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var seen = new HashSet<string>();
         var yielded = 0;
 
         foreach (var list in options.Lists)
         {
-            if (yielded >= options.Count) break;
+            if (yielded >= options.Count)
+                break;
 
             await foreach (var result in DiscoverListAsync(list, options.Count - yielded, ct))
             {
-                if (yielded >= options.Count) break;
+                if (yielded >= options.Count)
+                    break;
                 if (seen.Add(result.ExternalId))
                 {
                     yielded++;
@@ -52,7 +57,10 @@ public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
     }
 
     private async IAsyncEnumerable<CatalogSearchResult> DiscoverListAsync(
-        string list, int remaining, [EnumeratorCancellation] CancellationToken ct)
+        string list,
+        int remaining,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var movieFetcher = GetMovieFetcher(list);
         var tvFetcher = GetTvFetcher(list);
@@ -70,69 +78,86 @@ public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
         }
     }
 
-    private Func<int, CancellationToken, Task<TmdbPagedResult<TmdbMovie>>>? GetMovieFetcher(string list) =>
+    private Func<int, CancellationToken, Task<TmdbPagedResult<TmdbMovie>>>? GetMovieFetcher(
+        string list
+    ) =>
         list switch
         {
             "popular" => tmdb.GetPopularMoviesAsync,
             "top_rated" => tmdb.GetTopRatedMoviesAsync,
             "trending" => tmdb.GetTrendingMoviesAsync,
-            _ => null
+            _ => null,
         };
 
-    private Func<int, CancellationToken, Task<TmdbPagedResult<TmdbTvShow>>>? GetTvFetcher(string list) =>
+    private Func<int, CancellationToken, Task<TmdbPagedResult<TmdbTvShow>>>? GetTvFetcher(
+        string list
+    ) =>
         list switch
         {
             "popular" => tmdb.GetPopularTvAsync,
             "top_rated" => tmdb.GetTopRatedTvAsync,
             "trending" => tmdb.GetTrendingTvAsync,
-            _ => null
+            _ => null,
         };
 
     private async IAsyncEnumerable<CatalogSearchResult> FetchMoviePagesAsync(
         Func<int, CancellationToken, Task<TmdbPagedResult<TmdbMovie>>> fetch,
-        int remaining, [EnumeratorCancellation] CancellationToken ct)
+        int remaining,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var yielded = 0;
         for (var page = 1; yielded < remaining; page++)
         {
             var result = await fetch(page, ct);
-            if (result.Results.Count == 0) break;
+            if (result.Results.Count == 0)
+                break;
 
             foreach (var movie in result.Results)
             {
-                if (yielded >= remaining) break;
+                if (yielded >= remaining)
+                    break;
                 yielded++;
                 yield return MapMovieResult(movie, imageBaseUrl);
             }
 
-            if (page >= result.Total_Pages) break;
+            if (page >= result.Total_Pages)
+                break;
         }
     }
 
     private async IAsyncEnumerable<CatalogSearchResult> FetchTvPagesAsync(
         Func<int, CancellationToken, Task<TmdbPagedResult<TmdbTvShow>>> fetch,
-        int remaining, [EnumeratorCancellation] CancellationToken ct)
+        int remaining,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var yielded = 0;
         for (var page = 1; yielded < remaining; page++)
         {
             var result = await fetch(page, ct);
-            if (result.Results.Count == 0) break;
+            if (result.Results.Count == 0)
+                break;
 
             foreach (var show in result.Results)
             {
-                if (yielded >= remaining) break;
+                if (yielded >= remaining)
+                    break;
                 yielded++;
                 yield return MapTvResult(show, imageBaseUrl);
             }
 
-            if (page >= result.Total_Pages) break;
+            if (page >= result.Total_Pages)
+                break;
         }
     }
 
     public bool OwnsExternalId(string externalId) => externalId.StartsWith("tmdb-");
 
-    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct)
+    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(
+        string term,
+        CancellationToken ct
+    )
     {
         var movieTask = tmdb.SearchMoviesAsync(term, ct);
         var tvTask = tmdb.SearchTvAsync(term, ct);
@@ -155,24 +180,28 @@ public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
     public static CatalogSearchResult MapMovieResult(TmdbMovie m) =>
         MapMovieResult(m, TmdbOptions.DefaultImageBaseUrl);
 
-    public static CatalogSearchResult MapMovieResult(TmdbMovie m, string? imageBaseUrl) => new(
-        $"tmdb-{m.Id}",
-        MediaType.Film,
-        m.Title,
-        ParseYear(m.Release_Date),
-        PosterUrl(m.Poster_Path, imageBaseUrl),
-        m.Overview);
+    public static CatalogSearchResult MapMovieResult(TmdbMovie m, string? imageBaseUrl) =>
+        new(
+            $"tmdb-{m.Id}",
+            MediaType.Film,
+            m.Title,
+            ParseYear(m.Release_Date),
+            PosterUrl(m.Poster_Path, imageBaseUrl),
+            m.Overview
+        );
 
     public static CatalogSearchResult MapTvResult(TmdbTvShow s) =>
         MapTvResult(s, TmdbOptions.DefaultImageBaseUrl);
 
-    public static CatalogSearchResult MapTvResult(TmdbTvShow s, string? imageBaseUrl) => new(
-        $"tmdb-tv-{s.Id}",
-        MediaType.TvShow,
-        s.Name,
-        ParseYear(s.First_Air_Date),
-        PosterUrl(s.Poster_Path, imageBaseUrl),
-        s.Overview);
+    public static CatalogSearchResult MapTvResult(TmdbTvShow s, string? imageBaseUrl) =>
+        new(
+            $"tmdb-tv-{s.Id}",
+            MediaType.TvShow,
+            s.Name,
+            ParseYear(s.First_Air_Date),
+            PosterUrl(s.Poster_Path, imageBaseUrl),
+            s.Overview
+        );
 
     private async Task<TitleWithCredits> GetFilmDetails(string externalId, CancellationToken ct)
     {
@@ -192,7 +221,7 @@ public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
             Genres = movie.Genres.Select(g => g.Name).ToArray(),
             Keywords = movie.Keywords.Keywords.Select(k => k.Name).ToArray(),
             Popularity = movie.Popularity,
-            VoteAverage = movie.Vote_Average
+            VoteAverage = movie.Vote_Average,
         };
 
         var credits = BuildCredits(title.TitleId, movie.Credits);
@@ -217,7 +246,7 @@ public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
             Genres = show.Genres.Select(g => g.Name).ToArray(),
             Keywords = [],
             Popularity = show.Popularity,
-            VoteAverage = show.Vote_Average
+            VoteAverage = show.Vote_Average,
         };
         showTitle.SetMediaData(new TvShowData(show.Number_Of_Seasons, show.Number_Of_Episodes));
 
@@ -231,38 +260,44 @@ public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
 
         foreach (var crew in credits.Crew.Where(c => c.Job == "Director").Take(3))
         {
-            result.Add(new TitleCredit
-            {
-                TitleId = titleId,
-                ExternalPersonId = $"tmdb-{crew.Id}",
-                Name = crew.Name,
-                Role = "director",
-                DisplayOrder = order++
-            });
+            result.Add(
+                new TitleCredit
+                {
+                    TitleId = titleId,
+                    ExternalPersonId = $"tmdb-{crew.Id}",
+                    Name = crew.Name,
+                    Role = "director",
+                    DisplayOrder = order++,
+                }
+            );
         }
 
         foreach (var crew in credits.Crew.Where(c => c.Department == "Writing").Take(3))
         {
-            result.Add(new TitleCredit
-            {
-                TitleId = titleId,
-                ExternalPersonId = $"tmdb-{crew.Id}",
-                Name = crew.Name,
-                Role = "writer",
-                DisplayOrder = order++
-            });
+            result.Add(
+                new TitleCredit
+                {
+                    TitleId = titleId,
+                    ExternalPersonId = $"tmdb-{crew.Id}",
+                    Name = crew.Name,
+                    Role = "writer",
+                    DisplayOrder = order++,
+                }
+            );
         }
 
         foreach (var cast in credits.Cast.OrderBy(c => c.Order).Take(10))
         {
-            result.Add(new TitleCredit
-            {
-                TitleId = titleId,
-                ExternalPersonId = $"tmdb-{cast.Id}",
-                Name = cast.Name,
-                Role = "actor",
-                DisplayOrder = order++
-            });
+            result.Add(
+                new TitleCredit
+                {
+                    TitleId = titleId,
+                    ExternalPersonId = $"tmdb-{cast.Id}",
+                    Name = cast.Name,
+                    Role = "actor",
+                    DisplayOrder = order++,
+                }
+            );
         }
 
         // TMDB repeats a person per job (e.g. Screenplay + Story); key is (TitleId, ExternalPersonId, Role)

@@ -16,27 +16,31 @@ namespace Anthology.Modules.Catalog.Migrations
                 schema: "catalog",
                 table: "titles",
                 type: "jsonb",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<Guid>(
                 name: "parent_title_id",
                 schema: "catalog",
                 table: "titles",
                 type: "uuid",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<int>(
                 name: "sort_order",
                 schema: "catalog",
                 table: "titles",
                 type: "integer",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_titles_parent_title_id_sort_order",
                 schema: "catalog",
                 table: "titles",
-                columns: new[] { "parent_title_id", "sort_order" });
+                columns: new[] { "parent_title_id", "sort_order" }
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "fk_titles_titles_parent_title_id",
@@ -45,7 +49,8 @@ namespace Anthology.Modules.Catalog.Migrations
                 column: "parent_title_id",
                 principalSchema: "catalog",
                 principalTable: "titles",
-                principalColumn: "title_id");
+                principalColumn: "title_id"
+            );
         }
 
         /// <inheritdoc />
@@ -54,27 +59,24 @@ namespace Anthology.Modules.Catalog.Migrations
             migrationBuilder.DropForeignKey(
                 name: "fk_titles_titles_parent_title_id",
                 schema: "catalog",
-                table: "titles");
+                table: "titles"
+            );
 
             migrationBuilder.DropIndex(
                 name: "ix_titles_parent_title_id_sort_order",
                 schema: "catalog",
-                table: "titles");
+                table: "titles"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "media_data",
-                schema: "catalog",
-                table: "titles");
+            migrationBuilder.DropColumn(name: "media_data", schema: "catalog", table: "titles");
 
             migrationBuilder.DropColumn(
                 name: "parent_title_id",
                 schema: "catalog",
-                table: "titles");
+                table: "titles"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "sort_order",
-                schema: "catalog",
-                table: "titles");
+            migrationBuilder.DropColumn(name: "sort_order", schema: "catalog", table: "titles");
         }
     }
 }

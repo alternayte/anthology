@@ -13,24 +13,37 @@ public class TrackedItemTests
     private static TrackedItemState Given(params IDomainEvent[] events) =>
         events.Aggregate(TrackedItemState.Initial, TrackedItem.Evolve);
 
-    private static Result<IReadOnlyList<IDomainEvent>> When(TrackedItemState state, ITrackingCommand command) =>
-        TrackedItem.Decide(state, command);
+    private static Result<IReadOnlyList<IDomainEvent>> When(
+        TrackedItemState state,
+        ITrackingCommand command
+    ) => TrackedItem.Decide(state, command);
 
     [Fact]
     public void Want_on_new_stream_emits_ItemWanted()
     {
         var state = Given();
-        var result = When(state, new WantItem.Command(TitleId, "The Matrix", "film", Guid.NewGuid(), Now));
+        var result = When(
+            state,
+            new WantItem.Command(TitleId, "The Matrix", "film", Guid.NewGuid(), Now)
+        );
         result.IsError.Should().BeFalse();
-        result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemWanted>()
-            .Which.TitleId.Should().Be(TitleId);
+        result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ItemWanted>()
+            .Which.TitleId.Should()
+            .Be(TitleId);
     }
 
     [Fact]
     public void Want_on_already_tracked_returns_conflict()
     {
         var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now));
-        var result = When(state, new WantItem.Command(TitleId, "The Matrix", "film", Guid.NewGuid(), Now));
+        var result = When(
+            state,
+            new WantItem.Command(TitleId, "The Matrix", "film", Guid.NewGuid(), Now)
+        );
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
     }
@@ -59,7 +72,12 @@ public class TrackedItemTests
         var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
         var result = When(state, new FinishItem.Command(Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
-        var finished = result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemFinished>().Subject;
+        var finished = result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ItemFinished>()
+            .Subject;
         finished.Rating.Should().BeNull();
     }
 
@@ -83,7 +101,10 @@ public class TrackedItemTests
     [Fact]
     public void Finish_on_already_finished_returns_conflict()
     {
-        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemFinished(null, Now));
+        var state = Given(
+            new ItemWanted(TitleId, "The Matrix", "film", Now),
+            new ItemFinished(null, Now)
+        );
         var result = When(state, new FinishItem.Command(Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -101,7 +122,10 @@ public class TrackedItemTests
     [Fact]
     public void Abandon_on_finished_returns_conflict()
     {
-        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemFinished(null, Now));
+        var state = Given(
+            new ItemWanted(TitleId, "The Matrix", "film", Now),
+            new ItemFinished(null, Now)
+        );
         var result = When(state, new AbandonItem.Command(Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -113,24 +137,40 @@ public class TrackedItemTests
         var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
         var result = When(state, new RateItem.Command(8, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
-        result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemRated>()
-            .Which.Rating.Should().Be(new Rating(8));
+        result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ItemRated>()
+            .Which.Rating.Should()
+            .Be(new Rating(8));
     }
 
     [Fact]
     public void Rate_on_finished_emits_ItemRated()
     {
-        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemFinished(null, Now));
+        var state = Given(
+            new ItemWanted(TitleId, "The Matrix", "film", Now),
+            new ItemFinished(null, Now)
+        );
         var result = When(state, new RateItem.Command(9, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
-        result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemRated>()
-            .Which.Rating.Should().Be(new Rating(9));
+        result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ItemRated>()
+            .Which.Rating.Should()
+            .Be(new Rating(9));
     }
 
     [Fact]
     public void Rate_on_abandoned_emits_ItemRated()
     {
-        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemAbandoned(Now));
+        var state = Given(
+            new ItemWanted(TitleId, "The Matrix", "film", Now),
+            new ItemAbandoned(Now)
+        );
         var result = When(state, new RateItem.Command(4, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
     }
@@ -183,6 +223,9 @@ public class TrackedItemTests
         var userId = Guid.Parse("01a0d269-9da4-7fed-89aa-75d3b33686bc");
         var titleId = Guid.Parse("11111111-0000-0000-0000-000000000001");
 
-        TrackedItem.StreamIdFor(userId, titleId).Should().Be("62a62d4a-abc9-579b-aa8e-71d45e88c0c8");
+        TrackedItem
+            .StreamIdFor(userId, titleId)
+            .Should()
+            .Be("62a62d4a-abc9-579b-aa8e-71d45e88c0c8");
     }
 }

@@ -9,6 +9,12 @@ run:
 test:
     dotnet test Anthology.slnx
 
+format:
+    dotnet csharpier format .
+
+format-check:
+    dotnet csharpier check .
+
 seed-catalog *args:
     ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Anthology -- seed-catalog {{args}}
 
