@@ -14,8 +14,8 @@ public sealed class EventStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     private EventStore CreateStore(EventStoreDbContext db)
     {
         var registry = new EventRegistry();
-        registry.Map<TestEvent>("test.event.v1");
-        registry.Map<AnotherTestEvent>("test.another.v1");
+        registry.Map<TestEvent>("test.event");
+        registry.Map<AnotherTestEvent>("test.another");
         var serializer = new EventSerializer(registry);
         return new EventStore(db, registry, serializer);
     }

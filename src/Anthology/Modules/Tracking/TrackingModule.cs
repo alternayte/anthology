@@ -36,10 +36,10 @@ public static class TrackingModule
 
     public static void RegisterEvents(EventRegistry registry)
     {
-        registry.Map<ItemWanted>("tracking.item.wanted.v1");
-        registry.Map<ItemStarted>("tracking.item.started.v1");
-        registry.Map<ItemFinished>("tracking.item.finished.v1");
-        registry.Map<ItemAbandoned>("tracking.item.abandoned.v1");
-        registry.Map<ItemRerated>("tracking.item.rerated.v1");
+        registry.Map<ItemWanted>("tracking.item.wanted");
+        registry.Map<ItemStarted>("tracking.item.started");
+        registry.Map<ItemFinished>("tracking.item.finished");
+        registry.Map<ItemAbandoned>("tracking.item.abandoned");
+        registry.Map<ItemRerated>("tracking.item.rerated");
     }
 }

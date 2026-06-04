@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 
 namespace Anthology.Kernel.EventStore;
@@ -23,8 +24,17 @@ public sealed class EventSerializer
 
     public IDomainEvent Deserialize(string eventType, string payload)
     {
-        var clrType = _registry.TypeOf(eventType);
-        return (IDomainEvent)(JsonSerializer.Deserialize(payload, clrType, _options)
+        var resolution = _registry.Resolve(eventType);
+
+        if (resolution.Upcasters.Count > 0)
+        {
+            var node = JsonNode.Parse(payload)!;
+            foreach (var upcaster in resolution.Upcasters)
+                upcaster.Transform(node);
+            payload = node.ToJsonString();
+        }
+
+        return (IDomainEvent)(JsonSerializer.Deserialize(payload, resolution.ClrType, _options)
             ?? throw new InvalidOperationException($"Failed to deserialize event of type '{eventType}'."));
     }
 
