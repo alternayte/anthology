@@ -42,7 +42,6 @@ TrackingModule.RegisterEvents(registry);
 builder.Services.AddSingleton(registry);
 builder.Services.AddSingleton<EventSerializer>();
 builder.Services.AddScoped<EventStore>();
-builder.Services.AddScoped<InlineProjector>();
 builder.Services.AddScoped<OutboxWriter>();
 builder.Services.AddSingleton<IntegrationEventTranslator>(sp =>
 {
@@ -59,6 +58,7 @@ builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddCatalogModule(builder.Configuration);
 builder.Services.AddTrackingModule(builder.Configuration);
 builder.Services.AddProfileModule(builder.Configuration);
+builder.Services.AddScoped<InlineProjector>();
 
 // Command handler scanning + decoration via Scrutor
 builder.Services.Scan(s => s.FromAssemblyOf<Program>()

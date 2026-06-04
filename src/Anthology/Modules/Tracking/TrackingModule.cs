@@ -13,8 +13,8 @@ public static class TrackingModule
         services.AddDbContext<TrackingDbContext>((sp, options) =>
             options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>()));
 
-        services.AddScoped<IProjection, DiaryProjection>();
-        services.AddScoped<IProjection, LibraryProjection>();
+        services.AddInlineProjection<DiaryProjection>();
+        services.AddInlineProjection<LibraryProjection>();
 
         services.AddScoped<GetDiary.Handler>();
         services.AddScoped<GetLibrary.Handler>();

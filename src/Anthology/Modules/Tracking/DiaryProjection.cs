@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -26,12 +25,12 @@ internal sealed class DiaryEntryConfiguration : IEntityTypeConfiguration<DiaryEn
     }
 }
 
-public sealed class DiaryProjection(TrackingDbContext db) : IProjection
+public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbContextProjection
 {
-    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, DbTransaction transaction, CancellationToken ct)
-    {
-        await db.Database.UseTransactionAsync(transaction, ct);
+    public DbContext DbContext => db;
 
+    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
+    {
         foreach (var envelope in events)
         {
             if (envelope.UserId is null || envelope.TitleId is null) continue;
@@ -81,7 +80,5 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection
             if (entry is not null)
                 db.DiaryEntries.Add(entry);
         }
-
-        await db.SaveChangesAsync(ct);
     }
 }

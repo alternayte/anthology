@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -31,12 +30,12 @@ internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<Librar
     }
 }
 
-public sealed class LibraryProjection(TrackingDbContext db) : IProjection
+public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbContextProjection
 {
-    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, DbTransaction transaction, CancellationToken ct)
-    {
-        await db.Database.UseTransactionAsync(transaction, ct);
+    public DbContext DbContext => db;
 
+    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
+    {
         foreach (var envelope in events)
         {
             if (envelope.UserId is null || envelope.TitleId is null) continue;
@@ -77,8 +76,6 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection
                     break;
             }
         }
-
-        await db.SaveChangesAsync(ct);
     }
 
     private async Task Upsert(EventEnvelope envelope, Action<LibraryItem> update, CancellationToken ct)
