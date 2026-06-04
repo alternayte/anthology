@@ -30,14 +30,17 @@ migrate:
     dotnet ef database update --context ProfileDbContext
     echo "All migrations applied."
 
-add-migration name:
+add-migration module name:
     #!/usr/bin/env bash
     cd src/Anthology
-    dotnet ef migrations add {{name}} --context EventStoreDbContext --output-dir Kernel/EventStore/Migrations
-    dotnet ef migrations add {{name}} --context Anthology.Modules.Identity.IdentityDbContext --output-dir Modules/Identity/Migrations
-    dotnet ef migrations add {{name}} --context CatalogDbContext --output-dir Modules/Catalog/Migrations
-    dotnet ef migrations add {{name}} --context TrackingDbContext --output-dir Modules/Tracking/Migrations
-    dotnet ef migrations add {{name}} --context ProfileDbContext --output-dir Modules/Profile/Migrations
+    case "{{module}}" in
+      eventstore|es)   dotnet ef migrations add {{name}} --context EventStoreDbContext --output-dir Kernel/EventStore/Migrations ;;
+      identity)        dotnet ef migrations add {{name}} --context Anthology.Modules.Identity.IdentityDbContext --output-dir Modules/Identity/Migrations ;;
+      catalog)         dotnet ef migrations add {{name}} --context CatalogDbContext --output-dir Modules/Catalog/Migrations ;;
+      tracking)        dotnet ef migrations add {{name}} --context TrackingDbContext --output-dir Modules/Tracking/Migrations ;;
+      profile)         dotnet ef migrations add {{name}} --context ProfileDbContext --output-dir Modules/Profile/Migrations ;;
+      *) echo "Unknown module '{{module}}'. Use: eventstore|es, identity, catalog, tracking, profile"; exit 1 ;;
+    esac
 
 # Frontend
 dev:
