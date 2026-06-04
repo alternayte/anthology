@@ -20,6 +20,7 @@ public readonly struct Result<T> : IResultUnion<Result<T>>
     public Error Error => _error ?? throw new InvalidOperationException("Result is not an error.");
     public T Value => !_isError ? _value! : throw new InvalidOperationException("Result is an error.");
 
+    public static Result<T> FromValue(T value) => new(value);
     public static Result<T> FromError(Error error) => new(error);
 
     public TOut Match<TOut>(Func<T, TOut> ok, Func<Error, TOut> err) =>
