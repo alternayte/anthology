@@ -36,9 +36,9 @@ up: db
 
 export-openapi:
     #!/usr/bin/env bash
-    dotnet run --project src/Anthology --urls http://localhost:5199 &
+    ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Anthology --no-launch-profile --urls http://localhost:5199 &
     PID=$!
-    sleep 4
-    curl -s http://localhost:5199/openapi/v1.json | python3 -m json.tool > src/Anthology/openapi.json
+    sleep 6
+    curl -s http://localhost:5199/openapi/v1.json > src/Anthology/openapi.json
     kill $PID
     echo "OpenAPI spec written to src/Anthology/openapi.json"
