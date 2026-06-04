@@ -12,6 +12,7 @@ public sealed class EventRow
     public string Payload { get; set; } = default!;
     public string Metadata { get; set; } = default!;
     public DateTimeOffset OccurredAt { get; set; }
+    public uint Xid { get; set; }
 }
 
 internal sealed class EventRowConfiguration : IEntityTypeConfiguration<EventRow>
@@ -26,5 +27,11 @@ internal sealed class EventRowConfiguration : IEntityTypeConfiguration<EventRow>
         builder.Property(e => e.Payload).HasColumnType("jsonb").IsRequired();
         builder.Property(e => e.Metadata).HasColumnType("jsonb").IsRequired();
         builder.Property(e => e.OccurredAt).HasDefaultValueSql("now()");
+        builder.HasOne<StreamRow>()
+            .WithMany()
+            .HasForeignKey(e => e.StreamId);
+        builder.Property(e => e.Xid)
+            .HasColumnType("xid8")
+            .HasDefaultValueSql("pg_current_xact_id()");
     }
 }
