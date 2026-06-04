@@ -1,13 +1,20 @@
 using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
+using Anthology.Modules.Tracking;
 using Anthology.Tests.Fixtures;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Anthology.Tests;
 
 public sealed record TestEvent(string Value) : IDomainEvent;
 public sealed record AnotherTestEvent(int Count) : IDomainEvent;
+
+public sealed record TestState(string Latest, int EventCount)
+{
+    public static readonly TestState Initial = new("", 0);
+}
 
 public sealed class EventStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
@@ -23,40 +30,53 @@ public sealed class EventStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     private static EventMetadata TestMeta() =>
         new(Guid.NewGuid(), null, Guid.NewGuid(), DateTimeOffset.UtcNow);
 
+    private static TestState Evolve(TestState s, IDomainEvent e) => e switch
+    {
+        TestEvent t => s with { Latest = t.Value, EventCount = s.EventCount + 1 },
+        AnotherTestEvent a => s with { Latest = $"count:{a.Count}", EventCount = s.EventCount + 1 },
+        _ => s
+    };
+
     [Fact]
-    public async Task Append_and_rehydrate_round_trips()
+    public async Task Append_creates_stream_row_with_correct_state()
     {
         await using var db = fixture.CreateEventStoreDbContext();
         var store = CreateStore(db);
         var streamId = Guid.NewGuid();
+        var events = new IDomainEvent[] { new TestEvent("hello") };
+        var newState = events.Aggregate(TestState.Initial, Evolve);
 
-        await store.AppendAsync(streamId, 0, [new TestEvent("hello")], TestMeta(), TestContext.Current.CancellationToken);
+        await store.AppendAsync(streamId, "test_aggregate", 0, events, newState, TestMeta());
 
         await using var readDb = fixture.CreateEventStoreDbContext();
-        var readStore = CreateStore(readDb);
-        var events = new List<IDomainEvent>();
-        await readStore.RehydrateAsync(streamId, 0, (_, e) => { events.Add(e); return 0; }, TestContext.Current.CancellationToken);
-
-        events.Should().ContainSingle().Which.Should().BeOfType<TestEvent>()
-            .Which.Value.Should().Be("hello");
+        var stream = await readDb.Streams.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.StreamId == streamId);
+        stream.Should().NotBeNull();
+        stream!.Version.Should().Be(1);
+        stream.StreamType.Should().Be("test_aggregate");
     }
 
     [Fact]
-    public async Task Append_multiple_events_increments_version()
+    public async Task Append_updates_stream_row_on_subsequent_writes()
     {
         await using var db = fixture.CreateEventStoreDbContext();
         var store = CreateStore(db);
         var streamId = Guid.NewGuid();
 
-        await store.AppendAsync(streamId, 0,
-            [new TestEvent("one"), new AnotherTestEvent(2)], TestMeta(), TestContext.Current.CancellationToken);
+        var events1 = new IDomainEvent[] { new TestEvent("first") };
+        var state1 = events1.Aggregate(TestState.Initial, Evolve);
+        await store.AppendAsync(streamId, "test_aggregate", 0, events1, state1, TestMeta());
+
+        await using var db2 = fixture.CreateEventStoreDbContext();
+        var store2 = CreateStore(db2);
+        var events2 = new IDomainEvent[] { new AnotherTestEvent(42) };
+        var state2 = events2.Aggregate(state1, Evolve);
+        await store2.AppendAsync(streamId, "test_aggregate", 1, events2, state2, TestMeta());
 
         await using var readDb = fixture.CreateEventStoreDbContext();
-        var readStore = CreateStore(readDb);
-        var (_, version) = await readStore.RehydrateWithVersionAsync(
-            streamId, 0, (count, _) => count + 1, TestContext.Current.CancellationToken);
-
-        version.Should().Be(2);
+        var stream = await readDb.Streams.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.StreamId == streamId);
+        stream!.Version.Should().Be(2);
     }
 
     [Fact]
@@ -66,59 +86,62 @@ public sealed class EventStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         var store = CreateStore(db);
         var streamId = Guid.NewGuid();
 
-        await store.AppendAsync(streamId, 0, [new TestEvent("first")], TestMeta(), TestContext.Current.CancellationToken);
+        var events1 = new IDomainEvent[] { new TestEvent("first") };
+        var state1 = events1.Aggregate(TestState.Initial, Evolve);
+        await store.AppendAsync(streamId, "test_aggregate", 0, events1, state1, TestMeta());
 
         await using var db2 = fixture.CreateEventStoreDbContext();
         var store2 = CreateStore(db2);
+        var events2 = new IDomainEvent[] { new TestEvent("conflict") };
+        var state2 = events2.Aggregate(TestState.Initial, Evolve);
 
-        var act = () => store2.AppendAsync(streamId, 0, [new TestEvent("conflict")], TestMeta(), TestContext.Current.CancellationToken);
+        var act = () => store2.AppendAsync(streamId, "test_aggregate", 0, events2, state2, TestMeta());
         await act.Should().ThrowAsync<ConcurrencyConflict>();
     }
 
     [Fact]
-    public async Task Rehydrate_empty_stream_returns_initial_state()
+    public async Task Load_returns_inline_state()
+    {
+        await using var db = fixture.CreateEventStoreDbContext();
+        var store = CreateStore(db);
+        var streamId = Guid.NewGuid();
+
+        var events = new IDomainEvent[] { new TestEvent("hello") };
+        var newState = events.Aggregate(TestState.Initial, Evolve);
+        await store.AppendAsync(streamId, "test_aggregate", 0, events, newState, TestMeta());
+
+        await using var readDb = fixture.CreateEventStoreDbContext();
+        var readStore = CreateStore(readDb);
+        var (state, version) = await readStore.LoadAsync<TestState>(streamId);
+
+        state.Latest.Should().Be("hello");
+        state.EventCount.Should().Be(1);
+        version.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Load_unknown_stream_returns_default_and_version_zero()
     {
         await using var db = fixture.CreateEventStoreDbContext();
         var store = CreateStore(db);
 
-        var (state, version) = await store.RehydrateWithVersionAsync(
-            Guid.NewGuid(), "initial", (s, _) => "changed", TestContext.Current.CancellationToken);
+        var (state, version) = await store.LoadAsync<TestState>(Guid.NewGuid());
 
-        state.Should().Be("initial");
+        state.Should().Be(default(TestState));
         version.Should().Be(0);
     }
 
     [Fact]
-    public async Task Rehydrate_applies_upcaster_to_old_version_event()
+    public void Serializer_round_trips_aggregate_state()
     {
         var registry = new EventRegistry();
-        registry.Map<TestEvent>("test.event", currentVersion: 2, upcasters:
-        [
-            Upcaster.From(1, json => json["value"] = "upcasted-from-v1")
-        ]);
+        registry.Map<TestEvent>("test.event");
         var serializer = new EventSerializer(registry);
 
-        await using var db = fixture.CreateEventStoreDbContext();
+        var state = new TrackedItemState(TrackedStatus.Finished, new Rating(8), Guid.NewGuid(), 3);
+        var json = serializer.SerializeState(state);
+        var deserialized = serializer.DeserializeState<TrackedItemState>(json);
 
-        var streamId = Guid.NewGuid();
-        var v1Payload = """{"value":"original"}""";
-        db.Events.Add(new EventRow
-        {
-            StreamId = streamId,
-            Version = 1,
-            EventType = "test.event.v1",
-            Payload = v1Payload,
-            Metadata = serializer.SerializeMetadata(TestMeta()),
-            OccurredAt = DateTimeOffset.UtcNow
-        });
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        await using var readDb = fixture.CreateEventStoreDbContext();
-        var store = new EventStore(readDb, registry, serializer);
-        var events = new List<IDomainEvent>();
-        await store.RehydrateAsync(streamId, 0, (_, e) => { events.Add(e); return 0; }, TestContext.Current.CancellationToken);
-
-        events.Should().ContainSingle().Which.Should().BeOfType<TestEvent>()
-            .Which.Value.Should().Be("upcasted-from-v1");
+        deserialized.Should().Be(state);
     }
 }
