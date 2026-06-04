@@ -36,7 +36,14 @@ public static class TrackingModule
 
     public static void RegisterEvents(EventRegistry registry)
     {
-        registry.Map<ItemWanted>("tracking.item.wanted");
+        registry.Map<ItemWanted>("tracking.item.wanted", currentVersion: 2, upcasters:
+        [
+            Upcaster.From(1, json =>
+            {
+                json["titleName"] ??= "Unknown";
+                json["mediaType"] ??= "film";
+            })
+        ]);
         registry.Map<ItemStarted>("tracking.item.started");
         registry.Map<ItemFinished>("tracking.item.finished");
         registry.Map<ItemAbandoned>("tracking.item.abandoned");

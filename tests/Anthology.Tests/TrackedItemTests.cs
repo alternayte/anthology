@@ -20,7 +20,7 @@ public class TrackedItemTests
     public void Want_on_new_stream_emits_ItemWanted()
     {
         var state = Given();
-        var result = When(state, new WantItem.Command(TitleId, Guid.NewGuid(), Now));
+        var result = When(state, new WantItem.Command(TitleId, "The Matrix", "film", Guid.NewGuid(), Now));
         result.IsError.Should().BeFalse();
         result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemWanted>()
             .Which.TitleId.Should().Be(TitleId);
@@ -29,8 +29,8 @@ public class TrackedItemTests
     [Fact]
     public void Want_on_already_tracked_returns_conflict()
     {
-        var state = Given(new ItemWanted(TitleId, Now));
-        var result = When(state, new WantItem.Command(TitleId, Guid.NewGuid(), Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now));
+        var result = When(state, new WantItem.Command(TitleId, "The Matrix", "film", Guid.NewGuid(), Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
     }
@@ -38,7 +38,7 @@ public class TrackedItemTests
     [Fact]
     public void Start_on_wanted_emits_ItemStarted()
     {
-        var state = Given(new ItemWanted(TitleId, Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now));
         var result = When(state, new StartItem.Command(Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
         result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemStarted>();
@@ -57,7 +57,7 @@ public class TrackedItemTests
     public void Finish_on_in_progress_emits_ItemFinished_with_rating()
     {
         var rating = new Rating(8);
-        var state = Given(new ItemWanted(TitleId, Now), new ItemStarted(Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
         var result = When(state, new FinishItem.Command(rating, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
         var finished = result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemFinished>().Subject;
@@ -67,7 +67,7 @@ public class TrackedItemTests
     [Fact]
     public void Finish_on_wanted_skipping_start_is_allowed()
     {
-        var state = Given(new ItemWanted(TitleId, Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now));
         var result = When(state, new FinishItem.Command(null, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
     }
@@ -84,7 +84,7 @@ public class TrackedItemTests
     [Fact]
     public void Finish_on_already_finished_returns_conflict()
     {
-        var state = Given(new ItemWanted(TitleId, Now), new ItemFinished(null, Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemFinished(null, Now));
         var result = When(state, new FinishItem.Command(null, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -93,7 +93,7 @@ public class TrackedItemTests
     [Fact]
     public void Abandon_on_in_progress_emits_ItemAbandoned()
     {
-        var state = Given(new ItemWanted(TitleId, Now), new ItemStarted(Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
         var result = When(state, new AbandonItem.Command(Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
         result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemAbandoned>();
@@ -102,7 +102,7 @@ public class TrackedItemTests
     [Fact]
     public void Abandon_on_finished_returns_conflict()
     {
-        var state = Given(new ItemWanted(TitleId, Now), new ItemFinished(null, Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemFinished(null, Now));
         var result = When(state, new AbandonItem.Command(Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -112,7 +112,7 @@ public class TrackedItemTests
     public void Rerate_on_finished_emits_ItemRerated()
     {
         var newRating = new Rating(9);
-        var state = Given(new ItemWanted(TitleId, Now), new ItemFinished(new Rating(7), Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemFinished(new Rating(7), Now));
         var result = When(state, new RerateItem.Command(newRating, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
         result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemRerated>()
@@ -122,7 +122,7 @@ public class TrackedItemTests
     [Fact]
     public void Rerate_on_non_finished_returns_conflict()
     {
-        var state = Given(new ItemWanted(TitleId, Now), new ItemStarted(Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
         var result = When(state, new RerateItem.Command(new Rating(5), Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -131,7 +131,7 @@ public class TrackedItemTests
     [Fact]
     public void Evolve_tracks_version()
     {
-        var state = Given(new ItemWanted(TitleId, Now), new ItemStarted(Now));
+        var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
         state.Version.Should().Be(2);
         state.Status.Should().Be(TrackedStatus.InProgress);
     }

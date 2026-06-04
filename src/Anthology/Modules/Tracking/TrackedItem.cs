@@ -19,7 +19,7 @@ public readonly record struct Rating
     public static explicit operator Rating(int v) => new(v);
 }
 
-public sealed record ItemWanted(Guid TitleId, DateTimeOffset At) : IDomainEvent;
+public sealed record ItemWanted(Guid TitleId, string TitleName, string MediaType, DateTimeOffset At) : IDomainEvent;
 public sealed record ItemStarted(DateTimeOffset At) : IDomainEvent;
 public sealed record ItemFinished(Rating? Rating, DateTimeOffset At) : IDomainEvent;
 public sealed record ItemAbandoned(DateTimeOffset At) : IDomainEvent;
@@ -30,7 +30,7 @@ public sealed record TrackedItemState(TrackedStatus Status, Rating? Rating, Guid
     public static readonly TrackedItemState Initial = new(TrackedStatus.None, null, Guid.Empty, 0);
 }
 
-public interface ITrackingCommand;
+public interface ITrackingCommand : IEventSourcedCommand;
 
 public static class TrackedItem
 {
@@ -58,7 +58,7 @@ public static class TrackedItem
     private static Result<IReadOnlyList<IDomainEvent>> HandleWant(TrackedItemState state, WantItem.Command c) =>
         state.Status is not TrackedStatus.None
             ? Error.Conflict("tracking.already_tracked", "Item is already being tracked.")
-            : Ok(new ItemWanted(c.TitleId, c.At));
+            : Ok(new ItemWanted(c.TitleId, c.TitleName, c.MediaType, c.At));
 
     private static Result<IReadOnlyList<IDomainEvent>> HandleStart(TrackedItemState state, StartItem.Command c) =>
         state.Status switch
