@@ -13,17 +13,19 @@ public sealed class TransactionDecorator<TCommand, TResult>(
 {
     public async Task<TResult> Handle(TCommand command, CancellationToken ct)
     {
+        if (command is not IEventSourcedCommand)
+            return await inner.Handle(command, ct);
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
         var result = await inner.Handle(command, ct);
-
         if (result.IsError)
         {
             await tx.RollbackAsync(ct);
             return result;
         }
 
-        await projector.ApplyStagedAsync(ct);
+        await projector.ApplyAndSaveAsync(tx.GetDbTransaction(), ct);
         await outbox.WriteStagedAsync(ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
