@@ -2,12 +2,14 @@ using System.Security.Claims;
 using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
+using Anthology.Modules.Catalog;
+using Microsoft.EntityFrameworkCore;
 
 namespace Anthology.Modules.Tracking;
 
 public static class WantItem
 {
-    public sealed record Command(Guid TitleId, Guid UserId, DateTimeOffset At)
+    public sealed record Command(Guid TitleId, string TitleName, string MediaType, Guid UserId, DateTimeOffset At)
         : ICommand<Result<TrackedItemDto>>, ITrackingCommand;
 
     public sealed class Handler(EventStore store, InlineProjector projector, OutboxWriter outboxWriter)
@@ -37,10 +39,21 @@ public static class WantItem
         group.MapPost("/items/{titleId:guid}/want", async (
             Guid titleId,
             ClaimsPrincipal user,
+            CatalogDbContext catalogDb,
             ICommandHandler<Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
-            (await handler.Handle(new Command(titleId, user.UserId(), DateTimeOffset.UtcNow), ct)).ToHttpResult())
-            .RequireAuthorization();
+        {
+            var title = await catalogDb.Titles.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.TitleId == titleId, ct);
+
+            if (title is null)
+                return Results.NotFound();
+
+            return (await handler.Handle(
+                new Command(titleId, title.Name, title.MediaType.ToString().ToLowerInvariant(),
+                            user.UserId(), DateTimeOffset.UtcNow), ct)).ToHttpResult();
+        })
+        .RequireAuthorization();
 }
 
 public sealed record TrackedItemDto(Guid StreamId, Guid TitleId, TrackedStatus Status, Rating? Rating);
