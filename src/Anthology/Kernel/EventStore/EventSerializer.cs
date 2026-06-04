@@ -44,4 +44,11 @@ public sealed class EventSerializer
     public EventMetadata DeserializeMetadata(string json) =>
         JsonSerializer.Deserialize<EventMetadata>(json, _options)
             ?? throw new InvalidOperationException("Failed to deserialize event metadata.");
+
+    public string SerializeState<TState>(TState state) =>
+        JsonSerializer.Serialize(state, _options);
+
+    public TState DeserializeState<TState>(string json) =>
+        JsonSerializer.Deserialize<TState>(json, _options)
+            ?? throw new InvalidOperationException($"Failed to deserialize state of type '{typeof(TState).Name}'.");
 }
