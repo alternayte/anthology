@@ -87,4 +87,38 @@ public sealed class EventStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         state.Should().Be("initial");
         version.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Rehydrate_applies_upcaster_to_old_version_event()
+    {
+        var registry = new EventRegistry();
+        registry.Map<TestEvent>("test.event", currentVersion: 2, upcasters:
+        [
+            Upcaster.From(1, json => json["value"] = "upcasted-from-v1")
+        ]);
+        var serializer = new EventSerializer(registry);
+
+        await using var db = fixture.CreateEventStoreDbContext();
+
+        var streamId = Guid.NewGuid();
+        var v1Payload = """{"value":"original"}""";
+        db.Events.Add(new EventRow
+        {
+            StreamId = streamId,
+            Version = 1,
+            EventType = "test.event.v1",
+            Payload = v1Payload,
+            Metadata = serializer.SerializeMetadata(TestMeta()),
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await using var readDb = fixture.CreateEventStoreDbContext();
+        var store = new EventStore(readDb, registry, serializer);
+        var events = new List<IDomainEvent>();
+        await store.RehydrateAsync(streamId, 0, (_, e) => { events.Add(e); return 0; }, TestContext.Current.CancellationToken);
+
+        events.Should().ContainSingle().Which.Should().BeOfType<TestEvent>()
+            .Which.Value.Should().Be("upcasted-from-v1");
+    }
 }
