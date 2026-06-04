@@ -51,11 +51,11 @@ namespace Anthology.Kernel.EventStore.Migrations
                 });
 
             migrationBuilder.Sql("""
-                INSERT INTO es.streams (stream_id, stream_type, version, state, created_at, updated_at)
-                SELECT stream_id, 'tracked_item',
-                       MAX(version), '{}'::jsonb, MIN(occurred_at), MAX(occurred_at)
+                INSERT INTO es.streams ("StreamId", "StreamType", "Version", "State", "CreatedAt", "UpdatedAt")
+                SELECT "StreamId", 'tracked_item',
+                       MAX("Version"), '{}'::jsonb, MIN("OccurredAt"), MAX("OccurredAt")
                 FROM es.events
-                GROUP BY stream_id
+                GROUP BY "StreamId"
                 ON CONFLICT DO NOTHING
                 """);
 

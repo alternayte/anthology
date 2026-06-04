@@ -31,9 +31,9 @@ public sealed class EventStore(EventStoreDbContext db, EventRegistry registry, E
         {
             var serializedState = serializer.SerializeState(newState);
             var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
-                UPDATE es.streams SET version = {newVersion},
-                state = {serializedState}::jsonb, updated_at = now()
-                WHERE stream_id = {streamId} AND version = {expectedVersion}
+                UPDATE es.streams SET "Version" = {newVersion},
+                "State" = {serializedState}::jsonb, "UpdatedAt" = now()
+                WHERE "StreamId" = {streamId} AND "Version" = {expectedVersion}
                 """, ct);
             if (affected == 0) throw new ConcurrencyConflict(streamId, expectedVersion);
         }
@@ -56,9 +56,20 @@ public sealed class EventStore(EventStoreDbContext db, EventRegistry registry, E
             envelopes.Add(new EventEnvelope(streamId, version, e, metadata, userId, titleId));
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            throw new ConcurrencyConflict(streamId, expectedVersion);
+        }
+
         return envelopes;
     }
+
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is Npgsql.PostgresException { SqlState: "23505" };
 
     public async Task<(TState State, int Version)> LoadAsync<TState>(
         Guid streamId,

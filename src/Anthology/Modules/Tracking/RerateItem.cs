@@ -27,7 +27,8 @@ public static class RerateItem
         public async Task<Result<TrackedItemDto>> Handle(Command command, CancellationToken ct)
         {
             var streamId = StreamId.For(command.UserId, command.TitleId);
-            var (state, version) = await store.LoadAsync<TrackedItemState>(streamId, ct);
+            var (loaded, version) = await store.LoadAsync<TrackedItemState>(streamId, ct);
+            var state = loaded ?? TrackedItemState.Initial;
 
             var result = TrackedItem.Decide(state, command);
             if (result.IsError) return Result<TrackedItemDto>.FromError(result.Error);

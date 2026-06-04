@@ -17,7 +17,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
         await _container.StartAsync();
         await using var db = CreateEventStoreDbContext();
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
     }
 
     public async ValueTask DisposeAsync() => await _container.DisposeAsync();

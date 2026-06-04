@@ -6,7 +6,7 @@ public enum TrackedStatus { None, WantToConsume, InProgress, Finished, Abandoned
 
 public readonly record struct Rating
 {
-    public int Value { get; }
+    public int Value { get; init; }
 
     public Rating(int value)
     {
