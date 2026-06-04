@@ -4,11 +4,6 @@
     "title": "Anthology | v1",
     "version": "1.0.0"
   },
-  "servers": [
-    {
-      "url": "http://localhost:5199/"
-    }
-  ],
   "paths": {
     "/api/identity/register": {
       "post": {
