@@ -1,41 +1,101 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Anthology.Kernel;
+using Anthology.Kernel.EventStore;
+using Anthology.Kernel.Messaging;
+using Anthology.Modules.Catalog;
+using Anthology.Modules.Identity;
+using Anthology.Modules.Profile;
+using Anthology.Modules.Tracking;
+using FluentValidation;
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// JSON serialization
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
+});
+
+// ProblemDetails + global exception handler
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// OpenAPI
 builder.Services.AddOpenApi();
+
+// FluentValidation
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+// Event store kernel
+builder.Services.AddDbContext<EventStoreDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+var registry = new EventRegistry();
+TrackingModule.RegisterEvents(registry);
+builder.Services.AddSingleton(registry);
+builder.Services.AddSingleton<EventSerializer>();
+builder.Services.AddScoped<EventStore>();
+builder.Services.AddScoped<InlineProjector>();
+builder.Services.AddScoped<OutboxWriter>();
+builder.Services.AddSingleton<IntegrationEventTranslator>(sp =>
+{
+    var translator = new IntegrationEventTranslator();
+    TrackingContracts.RegisterTranslators(translator);
+    return translator;
+});
+
+// Modules
+builder.Services.AddIdentityModule(builder.Configuration);
+builder.Services.AddCatalogModule(builder.Configuration);
+builder.Services.AddTrackingModule(builder.Configuration);
+builder.Services.AddProfileModule(builder.Configuration);
+
+// Command handler scanning + decoration via Scrutor
+builder.Services.Scan(s => s.FromAssemblyOf<Program>()
+    .AddClasses(c => c.AssignableTo(typeof(ICommandHandler<,>)))
+    .AsImplementedInterfaces()
+    .WithScopedLifetime());
+builder.Services.Decorate(typeof(ICommandHandler<,>), typeof(TransactionDecorator<,>));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Middleware
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
-app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
-var summaries = new[]
+// Endpoints
+app.MapIdentityEndpoints();
+app.MapCatalogEndpoints();
+app.MapTrackingEndpoints();
+app.MapProfileEndpoints();
+
+// SPA fallback
+app.UseStaticFiles();
+app.MapFallbackToFile("index.html");
+
+// Apply migrations in development
+if (app.Environment.IsDevelopment())
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-    {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast");
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    await services.GetRequiredService<EventStoreDbContext>().Database.MigrateAsync();
+    await services.GetRequiredService<IdentityDbContext>().Database.MigrateAsync();
+    await services.GetRequiredService<CatalogDbContext>().Database.MigrateAsync();
+    await services.GetRequiredService<TrackingDbContext>().Database.MigrateAsync();
+    await services.GetRequiredService<ProfileDbContext>().Database.MigrateAsync();
+}
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
