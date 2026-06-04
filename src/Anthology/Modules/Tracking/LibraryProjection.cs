@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -30,10 +31,12 @@ internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<Librar
     }
 }
 
-public sealed class LibraryProjection(TrackingDbContext db, Catalog.CatalogDbContext catalogDb) : IProjection
+public sealed class LibraryProjection(TrackingDbContext db) : IProjection
 {
-    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
+    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, DbTransaction transaction, CancellationToken ct)
     {
+        await db.Database.UseTransactionAsync(transaction, ct);
+
         foreach (var envelope in events)
         {
             if (envelope.UserId is null || envelope.TitleId is null) continue;
@@ -41,15 +44,12 @@ public sealed class LibraryProjection(TrackingDbContext db, Catalog.CatalogDbCon
             switch (envelope.Event)
             {
                 case ItemWanted w:
-                    var title = await catalogDb.Titles.AsNoTracking()
-                        .FirstOrDefaultAsync(t => t.TitleId == w.TitleId, ct);
-
                     db.LibraryItems.Add(new LibraryItem
                     {
                         UserId = envelope.UserId.Value,
                         TitleId = w.TitleId,
-                        MediaType = title?.MediaType.ToString().ToLowerInvariant() ?? "film",
-                        Title = title?.Name ?? "Unknown",
+                        MediaType = w.MediaType,
+                        Title = w.TitleName,
                         Status = "want_to_consume",
                         AddedAt = w.At,
                     });
@@ -77,6 +77,8 @@ public sealed class LibraryProjection(TrackingDbContext db, Catalog.CatalogDbCon
                     break;
             }
         }
+
+        await db.SaveChangesAsync(ct);
     }
 
     private async Task Upsert(EventEnvelope envelope, Action<LibraryItem> update, CancellationToken ct)
