@@ -47,6 +47,9 @@ builder.Services.AddSingleton<IntegrationEventTranslator>(sp =>
     return translator;
 });
 
+// Auth
+builder.Services.AddAuthorization();
+
 // Modules
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddCatalogModule(builder.Configuration);
