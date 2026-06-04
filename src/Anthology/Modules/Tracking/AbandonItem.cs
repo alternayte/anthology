@@ -16,19 +16,20 @@ public static class AbandonItem
         public async Task<Result<TrackedItemDto>> Handle(Command command, CancellationToken ct)
         {
             var streamId = StreamId.For(command.UserId, command.TitleId);
-            var (state, version) = await store.RehydrateWithVersionAsync(
-                streamId, TrackedItemState.Initial, TrackedItem.Evolve, ct);
+            var (state, version) = await store.LoadAsync<TrackedItemState>(streamId, ct);
 
             var result = TrackedItem.Decide(state, command);
             if (result.IsError) return Result<TrackedItemDto>.FromError(result.Error);
 
+            var newState = result.Value.Aggregate(state, TrackedItem.Evolve);
             var meta = new EventMetadata(Guid.NewGuid(), null, command.UserId, command.At);
-            var envelopes = await store.AppendAsync(streamId, version, result.Value, meta, ct, command.UserId, command.TitleId);
+            var envelopes = await store.AppendAsync(
+                streamId, "tracked_item", version, result.Value, newState, meta, ct,
+                command.UserId, command.TitleId);
 
             projector.Stage(envelopes);
             outboxWriter.Stage(envelopes);
 
-            var newState = result.Value.Aggregate(state, TrackedItem.Evolve);
             return new TrackedItemDto(streamId, command.TitleId, newState.Status, newState.Rating);
         }
     }
