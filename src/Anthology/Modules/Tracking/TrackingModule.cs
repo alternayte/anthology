@@ -2,6 +2,7 @@ using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Anthology.Modules.Tracking;
 
@@ -9,8 +10,8 @@ public static class TrackingModule
 {
     public static IServiceCollection AddTrackingModule(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<TrackingDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        services.AddDbContext<TrackingDbContext>((sp, options) =>
+            options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>()));
 
         services.AddScoped<IProjection, DiaryProjection>();
         services.AddScoped<IProjection, LibraryProjection>();

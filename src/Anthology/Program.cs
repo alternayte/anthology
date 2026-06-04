@@ -8,6 +8,7 @@ using Anthology.Modules.Identity;
 using Anthology.Modules.Profile;
 using Anthology.Modules.Tracking;
 using FluentValidation;
+using Npgsql;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,9 +30,12 @@ builder.Services.AddOpenApi();
 // FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// Event store kernel
-builder.Services.AddDbContext<EventStoreDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Shared connection for write-path DbContexts (event store + module projections)
+builder.Services.AddScoped(_ =>
+    new NpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddDbContext<EventStoreDbContext>((sp, options) =>
+    options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>()));
 
 var registry = new EventRegistry();
 TrackingModule.RegisterEvents(registry);

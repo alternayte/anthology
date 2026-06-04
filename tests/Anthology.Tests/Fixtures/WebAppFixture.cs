@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Anthology.Kernel.EventStore;
@@ -26,13 +27,12 @@ public sealed class WebAppFixture : IAsyncLifetime
         Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.ConfigureServices(services =>
+                builder.ConfigureAppConfiguration((_, config) =>
                 {
-                    ReplaceDbContext<EventStoreDbContext>(services);
-                    ReplaceDbContext<IdentityDbContext>(services);
-                    ReplaceDbContext<CatalogDbContext>(services);
-                    ReplaceDbContext<TrackingDbContext>(services);
-                    ReplaceDbContext<ProfileDbContext>(services);
+                    config.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["ConnectionStrings:DefaultConnection"] = _container.GetConnectionString()
+                    });
                 });
             });
 
@@ -49,14 +49,5 @@ public sealed class WebAppFixture : IAsyncLifetime
     {
         await Factory.DisposeAsync();
         await _container.DisposeAsync();
-    }
-
-    private void ReplaceDbContext<TContext>(IServiceCollection services) where TContext : DbContext
-    {
-        var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<TContext>));
-        if (descriptor is not null) services.Remove(descriptor);
-
-        services.AddDbContext<TContext>(options =>
-            options.UseNpgsql(_container.GetConnectionString()));
     }
 }
