@@ -92,6 +92,12 @@ appsettings.local.json
 # Internal docs (not for version control)
 docs/internal/
 
+# Node / Frontend
+node_modules/
+src/Anthology/wwwroot/
+src/Anthology/ClientApp/src/routeTree.gen.ts
+src/Anthology/ClientApp/src/generated/
+
 # Misc
 *.pidb
 *.svclog
