@@ -100,11 +100,25 @@ public sealed class AsyncProjectionHost(
         }
 
         var serializer = scope.ServiceProvider.GetRequiredService<EventSerializer>();
+
+        var streamIds = batch.Select(r => r.StreamId).Distinct().ToList();
+        var streamTypes = await db.Streams.AsNoTracking()
+            .Where(s => streamIds.Contains(s.StreamId))
+            .ToDictionaryAsync(s => s.StreamId, s => s.StreamType, ct);
+
         var envelopes = batch.Select(row =>
         {
             var domainEvent = serializer.Deserialize(row.EventType, row.Payload);
             var metadata = serializer.DeserializeMetadata(row.Metadata);
-            return new EventEnvelope(row.StreamId, string.Empty, row.Version, domainEvent, metadata);
+            streamTypes.TryGetValue(row.StreamId, out var streamType);
+            return new EventEnvelope(
+                row.StreamId,
+                streamType ?? string.Empty,
+                row.Version,
+                domainEvent,
+                metadata,
+                metadata.UserId ?? metadata.ActorId,
+                metadata.ContextId);
         }).ToList();
 
         if (projection is IDbContextProjection contextProjection)

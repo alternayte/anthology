@@ -110,6 +110,42 @@ public sealed class AsyncProjectionTests(PostgresFixture fixture) : IClassFixtur
     }
 
     [Fact]
+    public async Task Envelope_constructed_from_metadata_carries_userId_and_contextId()
+    {
+        await using var db = CreateDb();
+        var (store, serializer) = CreateStoreAndSerializer(db);
+
+        var userId = Guid.NewGuid();
+        var contextId = Guid.NewGuid();
+        var streamId = Guid.NewGuid();
+
+        var events = new IDomainEvent[] { new TestEvent("value") };
+        var state = new TestState("value", 1);
+        var meta = new EventMetadata(Guid.NewGuid(), null, userId, DateTimeOffset.UtcNow);
+        await store.AppendAsync(streamId, "test", 0, events, state, meta, default, userId, contextId);
+
+        await using var readDb = CreateDb();
+        var row = await readDb.Events.AsNoTracking()
+            .Where(e => e.StreamId == streamId)
+            .FirstAsync();
+
+        var metadata = serializer.DeserializeMetadata(row.Metadata);
+
+        metadata.UserId.Should().Be(userId);
+        metadata.ContextId.Should().Be(contextId);
+
+        var envelope = new EventEnvelope(
+            row.StreamId, "test", row.Version,
+            serializer.Deserialize(row.EventType, row.Payload),
+            metadata,
+            metadata.UserId ?? metadata.ActorId,
+            metadata.ContextId);
+
+        envelope.UserId.Should().Be(userId);
+        envelope.ContextId.Should().Be(contextId);
+    }
+
+    [Fact]
     public async Task Xid_guard_query_returns_committed_events()
     {
         await using var db = CreateDb();
