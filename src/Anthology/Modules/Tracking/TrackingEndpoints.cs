@@ -2,30 +2,13 @@ using System.Security.Claims;
 using Anthology.Kernel;
 using Anthology.Kernel.Messaging;
 using Anthology.Modules.Catalog;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace Anthology.Modules.Tracking;
 
 public sealed record FinishRequest(int? Rating);
 
-public sealed class FinishRequestValidator : AbstractValidator<FinishRequest>
-{
-    public FinishRequestValidator()
-    {
-        RuleFor(x => x.Rating).InclusiveBetween(1, 10).When(x => x.Rating.HasValue);
-    }
-}
-
 public sealed record RerateRequest(int Rating);
-
-public sealed class RerateRequestValidator : AbstractValidator<RerateRequest>
-{
-    public RerateRequestValidator()
-    {
-        RuleFor(x => x.Rating).InclusiveBetween(1, 10);
-    }
-}
 
 public static class TrackingEndpoints
 {
@@ -66,11 +49,7 @@ public static class TrackingEndpoints
             ClaimsPrincipal user,
             ICommandHandler<FinishItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
-        {
-            var rating = request.Rating.HasValue ? new Rating(request.Rating.Value) : (Rating?)null;
-            return (await handler.Handle(new FinishItem.Command(rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult();
-        })
-        .AddEndpointFilter<ValidationFilter<FinishRequest>>()
+            (await handler.Handle(new FinishItem.Command(request.Rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
         .RequireAuthorization();
 
         group.MapPost("/items/{titleId:guid}/abandon", async (
@@ -87,8 +66,7 @@ public static class TrackingEndpoints
             ClaimsPrincipal user,
             ICommandHandler<RerateItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
-            (await handler.Handle(new RerateItem.Command(new Rating(request.Rating), DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-            .AddEndpointFilter<ValidationFilter<RerateRequest>>()
+            (await handler.Handle(new RerateItem.Command(request.Rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
             .RequireAuthorization();
 
         group.MapGet("/diary", async (

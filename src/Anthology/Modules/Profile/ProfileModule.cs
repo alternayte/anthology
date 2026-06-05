@@ -11,7 +11,6 @@ public static class ProfileModule
                 .UseSnakeCaseNamingConvention());
 
         services.AddScoped<GetProfile.Handler>();
-        services.AddScoped<UpdateProfile.Handler>();
 
         return services;
     }

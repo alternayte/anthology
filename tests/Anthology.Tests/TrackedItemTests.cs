@@ -57,12 +57,11 @@ public class TrackedItemTests
     [Fact]
     public void Finish_on_in_progress_emits_ItemFinished_with_rating()
     {
-        var rating = new Rating(8);
         var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
-        var result = When(state, new FinishItem.Command(rating, Now, Guid.NewGuid(), TitleId));
+        var result = When(state, new FinishItem.Command(8, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
         var finished = result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemFinished>().Subject;
-        finished.Rating.Should().Be(rating);
+        finished.Rating.Should().Be(new Rating(8));
     }
 
     [Fact]
@@ -112,19 +111,18 @@ public class TrackedItemTests
     [Fact]
     public void Rerate_on_finished_emits_ItemRerated()
     {
-        var newRating = new Rating(9);
         var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemFinished(new Rating(7), Now));
-        var result = When(state, new RerateItem.Command(newRating, Now, Guid.NewGuid(), TitleId));
+        var result = When(state, new RerateItem.Command(9, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeFalse();
         result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemRerated>()
-            .Which.Rating.Should().Be(newRating);
+            .Which.Rating.Should().Be(new Rating(9));
     }
 
     [Fact]
     public void Rerate_on_non_finished_returns_conflict()
     {
         var state = Given(new ItemWanted(TitleId, "The Matrix", "film", Now), new ItemStarted(Now));
-        var result = When(state, new RerateItem.Command(new Rating(5), Now, Guid.NewGuid(), TitleId));
+        var result = When(state, new RerateItem.Command(5, Now, Guid.NewGuid(), TitleId));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
     }

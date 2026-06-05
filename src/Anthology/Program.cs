@@ -72,6 +72,7 @@ builder.Services.Scan(s => s.FromAssemblyOf<Program>()
     .AddClasses(c => c.AssignableTo(typeof(ICommandHandler<,>)))
     .AsImplementedInterfaces()
     .WithScopedLifetime());
+builder.Services.Decorate(typeof(ICommandHandler<,>), typeof(ValidationDecorator<,>));
 builder.Services.Decorate(typeof(ICommandHandler<,>), typeof(TransactionDecorator<,>));
 
 var app = builder.Build();

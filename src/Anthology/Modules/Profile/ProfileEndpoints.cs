@@ -1,19 +1,10 @@
 using System.Security.Claims;
 using Anthology.Kernel;
-using FluentValidation;
 
 namespace Anthology.Modules.Profile;
 
 public static class ProfileEndpoints
 {
-    public sealed class UpdateProfileValidator : AbstractValidator<UpdateProfile.Command>
-    {
-        public UpdateProfileValidator()
-        {
-            RuleFor(x => x.DisplayName).NotEmpty().MaximumLength(100);
-        }
-    }
-
     public static WebApplication MapProfileEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/profile").WithTags("Profile");
@@ -24,9 +15,11 @@ public static class ProfileEndpoints
             .RequireAuthorization();
 
         group.MapPut("/me", async (
-            UpdateProfile.Command command, ClaimsPrincipal user, UpdateProfile.Handler handler, CancellationToken ct) =>
-            (await handler.Handle(user.UserId(), command, ct)).ToHttpResult())
-            .AddEndpointFilter<ValidationFilter<UpdateProfile.Command>>()
+            UpdateProfile.Command command,
+            ClaimsPrincipal user,
+            ICommandHandler<UpdateProfile.Command, Result<UpdateProfile.ProfileDto>> handler,
+            CancellationToken ct) =>
+            (await handler.Handle(command with { UserId = user.UserId() }, ct)).ToHttpResult())
             .RequireAuthorization();
 
         return app;

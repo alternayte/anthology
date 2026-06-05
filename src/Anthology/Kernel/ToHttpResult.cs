@@ -12,6 +12,8 @@ public static class ResultExtensions
                 ErrorKind.NotFound => TypedResults.Problem(err.Message, statusCode: 404, title: err.Code),
                 ErrorKind.Conflict => TypedResults.Problem(err.Message, statusCode: 409, title: err.Code),
                 ErrorKind.Forbidden => TypedResults.Problem(err.Message, statusCode: 403, title: err.Code),
+                ErrorKind.Validation when err.ValidationErrors is not null =>
+                    TypedResults.ValidationProblem(err.ValidationErrors),
                 ErrorKind.Validation => TypedResults.Problem(err.Message, statusCode: 400, title: err.Code),
                 _ => TypedResults.Problem(err.Message, statusCode: 422, title: err.Code),
             });

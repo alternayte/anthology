@@ -76,7 +76,7 @@ public static class TrackedItem
         {
             TrackedStatus.None => Error.Conflict("tracking.not_tracked", "Add the item first."),
             TrackedStatus.Finished => Error.Conflict("tracking.already_finished", "Already finished."),
-            _ => Ok(new ItemFinished(c.Rating, c.At))
+            _ => Ok(new ItemFinished(c.Rating.HasValue ? new Rating(c.Rating.Value) : null, c.At))
         };
 
     private static Result<IReadOnlyList<IDomainEvent>> HandleAbandon(TrackedItemState state, AbandonItem.Command c) =>
@@ -91,7 +91,7 @@ public static class TrackedItem
     private static Result<IReadOnlyList<IDomainEvent>> HandleRerate(TrackedItemState state, RerateItem.Command c) =>
         state.Status is not TrackedStatus.Finished
             ? Error.Conflict("tracking.not_finished", "Can only re-rate a finished item.")
-            : Ok(new ItemRerated(c.Rating, c.At));
+            : Ok(new ItemRerated(new Rating(c.Rating), c.At));
 
     private static Result<IReadOnlyList<IDomainEvent>> Ok(IDomainEvent e) =>
         Result<IReadOnlyList<IDomainEvent>>.FromValue(new List<IDomainEvent> { e });
