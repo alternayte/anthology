@@ -108,4 +108,84 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
             .CountAsync(i => i.TitleId == titleId, ct);
         count.Should().Be(1);
     }
+
+    [Fact]
+    public async Task List_projections_returns_registered_projections()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/admin/projections", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        body.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
+
+        var names = Enumerable.Range(0, body.GetArrayLength())
+            .Select(i => body[i].GetProperty("projection").GetString())
+            .ToList();
+        names.Should().Contain("DiaryProjection");
+        names.Should().Contain("LibraryProjection");
+    }
+
+    [Fact]
+    public async Task Get_projection_status_returns_status()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/admin/projections/DiaryProjection/status", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        body.GetProperty("projection").GetString().Should().Be("DiaryProjection");
+        body.GetProperty("position").GetInt64().Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public async Task Get_unknown_projection_status_returns_404()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/admin/projections/NonExistent/status", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Rebuild_projection_returns_202()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+        var titleId = await SeedTitleAsync();
+
+        await client.PostAsJsonAsync($"/api/tracking/items/{titleId}/want", new { }, ct);
+
+        var response = await client.PostAsync("/admin/projections/DiaryProjection/rebuild", null, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+
+    [Fact]
+    public async Task Rebuild_unknown_projection_returns_404()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+
+        var response = await client.PostAsync("/admin/projections/NonExistent/rebuild", null, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Rebuild_unauthenticated_returns_401()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.PostAsync("/admin/projections/DiaryProjection/rebuild", null,
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 }
