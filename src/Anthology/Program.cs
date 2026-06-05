@@ -35,7 +35,8 @@ builder.Services.AddScoped(_ =>
     new NpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddDbContext<EventStoreDbContext>((sp, options) =>
-    options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>()));
+    options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>())
+        .UseSnakeCaseNamingConvention());
 
 var registry = new EventRegistry();
 TrackingModule.RegisterEvents(registry);

@@ -11,7 +11,8 @@ public static class TrackingModule
     public static IServiceCollection AddTrackingModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<TrackingDbContext>((sp, options) =>
-            options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>()));
+            options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>())
+                .UseSnakeCaseNamingConvention());
 
         services.AddInlineProjection<DiaryProjection>();
         services.AddInlineProjection<LibraryProjection>();
