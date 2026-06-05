@@ -13,7 +13,7 @@ public sealed class OutboxWriter(EventStoreDbContext db, IntegrationEventTransla
     {
         foreach (var envelope in _staged)
         {
-            var translated = translator.Translate(envelope.Event);
+            var translated = translator.Translate(envelope.Event, envelope);
             if (translated is null) continue;
 
             var (eventType, payload) = translated.Value;

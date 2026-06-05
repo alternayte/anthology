@@ -11,6 +11,6 @@ public static class TrackingContracts
     {
         translator.Register<ItemFinished, ItemFinishedIntegrationEvent>(
             "tracking.item.finished.v1",
-            e => new ItemFinishedIntegrationEvent(Guid.Empty, Guid.Empty, e.Rating?.Value, e.At));
+            (e, env) => new ItemFinishedIntegrationEvent(env.StreamId, env.TitleId ?? Guid.Empty, e.Rating?.Value, e.At));
     }
 }
