@@ -89,8 +89,8 @@ Desktop.ini
 appsettings.Local.json
 appsettings.local.json
 
-# Internal docs (not for version control)
-docs/internal/
+# Docs (local only)
+docs/
 
 # Node / Frontend
 node_modules/
