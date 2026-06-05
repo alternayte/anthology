@@ -14,27 +14,9 @@ public static class RerateItem
     }
 
     public sealed class Handler(EventStore store, InlineProjector projector, OutboxWriter outboxWriter)
-        : ICommandHandler<Command, Result<TrackedItemDto>>
-    {
-        public async Task<Result<TrackedItemDto>> Handle(Command command, CancellationToken ct)
-        {
-            var streamId = StreamId.For(command.UserId, command.TitleId);
-            var (loaded, version) = await store.LoadAsync<TrackedItemState>(streamId, ct);
-            var state = loaded ?? TrackedItemState.Initial;
-
-            var result = TrackedItem.Decide(state, command);
-            if (result.IsError) return Result<TrackedItemDto>.FromError(result.Error);
-
-            var newState = result.Value.Aggregate(state, TrackedItem.Evolve);
-            var meta = new EventMetadata(Guid.NewGuid(), null, command.UserId, command.At);
-            var envelopes = await store.AppendAsync(
-                streamId, "tracked_item", version, result.Value, newState, meta, ct,
-                command.UserId, command.TitleId);
-
-            projector.Stage(envelopes);
-            outboxWriter.Stage(envelopes);
-
-            return new TrackedItemDto(streamId, command.TitleId, newState.Status, newState.Rating);
-        }
-    }
+        : EventSourcedHandler<Command, TrackedItemState, TrackedItemDto>(
+            store, projector, outboxWriter,
+            TrackedItem.Decide, TrackedItem.Evolve,
+            "tracked_item", TrackedItemState.Initial,
+            (streamId, cmd, state) => new TrackedItemDto(streamId, cmd.TitleId, state.Status, state.Rating));
 }
