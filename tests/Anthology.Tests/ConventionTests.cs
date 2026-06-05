@@ -69,4 +69,34 @@ public class ConventionTests
                 $"{projection.Name} must be registered via AddInlineProjection or AddAsyncProjection");
         }
     }
+
+    [Fact]
+    public void All_aggregate_states_have_registered_evolvers()
+    {
+        var stateTypes = typeof(Program).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface)
+            .Where(t => t.GetInterfaces().Any(i =>
+                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAggregateState<>)))
+            .ToList();
+
+        stateTypes.Should().NotBeEmpty("there should be aggregate state types in the assembly");
+
+        var eventRegistry = new Anthology.Kernel.EventStore.EventRegistry();
+        TrackingModule.RegisterEvents(eventRegistry);
+        var serializer = new Anthology.Kernel.EventStore.EventSerializer(eventRegistry);
+        var evolverRegistry = new Anthology.Kernel.EventStore.StreamEvolverRegistry();
+        TrackingModule.RegisterEvolvers(evolverRegistry, serializer);
+
+        foreach (var stateType in stateTypes)
+        {
+            var streamTypeProp = stateType.GetProperty("StreamType",
+                BindingFlags.Public | BindingFlags.Static);
+            streamTypeProp.Should().NotBeNull(
+                $"{stateType.Name} should have a static StreamType property");
+
+            var streamType = (string)streamTypeProp!.GetValue(null)!;
+            evolverRegistry.IsRegistered(streamType).Should().BeTrue(
+                $"{stateType.Name} (stream type '{streamType}') must have a registered evolver in its module's RegisterEvolvers method");
+        }
+    }
 }
