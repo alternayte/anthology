@@ -2,6 +2,7 @@ import { createFileRoute, Link, Navigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../lib/auth'
 import { useState } from 'react'
+import { getLibraryOptions } from '../../generated/@tanstack/react-query.gen'
 
 export const Route = createFileRoute('/library/')({
   component: LibraryPage,
@@ -23,14 +24,15 @@ function LibraryPage() {
   if (!user) return <Navigate to="/login" />
 
   const { data, isLoading } = useQuery({
-    queryKey: ['library', sort, statusFilter, cursor],
-    queryFn: async () => {
-      const params = new URLSearchParams({ sort, dir: 'desc', size: '20' })
-      if (statusFilter) params.set('status', statusFilter)
-      if (cursor) params.set('cursor', cursor)
-      const res = await fetch(`/api/tracking/library?${params}`, { credentials: 'include' })
-      return res.json()
-    },
+    ...getLibraryOptions({
+      query: {
+        sort,
+        dir: 'desc',
+        size: 20,
+        ...(statusFilter && { status: statusFilter }),
+        ...(cursor && { cursor }),
+      },
+    }),
   })
 
   return (
@@ -61,7 +63,7 @@ function LibraryPage() {
       )}
 
       <div className="grid gap-3">
-        {data?.items?.map((item: any) => (
+        {data?.items?.map((item) => (
           <Link key={item.titleId} to="/library/$titleId" params={{ titleId: item.titleId }}
             className="border rounded-lg bg-white p-4 hover:shadow-md transition-shadow cursor-pointer flex items-center justify-between">
             <div>
