@@ -1,6 +1,7 @@
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 namespace Anthology.Kernel;
 
@@ -8,7 +9,8 @@ public sealed class TransactionDecorator<TCommand, TResult>(
     ICommandHandler<TCommand, TResult> inner,
     EventStoreDbContext db,
     InlineProjector projector,
-    OutboxWriter outbox)
+    OutboxWriter outbox,
+    NpgsqlConnection connection)
     : ICommandHandler<TCommand, TResult>
     where TResult : IResultUnion<TResult>
 {
@@ -30,6 +32,14 @@ public sealed class TransactionDecorator<TCommand, TResult>(
         await outbox.WriteStagedAsync(ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+
+        try
+        {
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = "NOTIFY new_events";
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch { }
 
         return result;
     }

@@ -60,6 +60,12 @@ builder.Services.AddTrackingModule(builder.Configuration);
 builder.Services.AddProfileModule(builder.Configuration);
 builder.Services.AddScoped<InlineProjector>();
 
+// Async projection host — registered when async projections exist (M5+)
+// Infrastructure lives in Workers/AsyncProjectionHost.cs; wire it with:
+//   builder.Services.AddNpgsqlDataSource(connectionString);
+//   builder.Services.AddSingleton(sp => sp.GetService<AsyncProjectionRegistry>() ?? new AsyncProjectionRegistry());
+//   builder.Services.AddHostedService<AsyncProjectionHost>();
+
 // Command handler scanning + decoration via Scrutor
 builder.Services.Scan(s => s.FromAssemblyOf<Program>()
     .AddClasses(c => c.AssignableTo(typeof(ICommandHandler<,>)))
