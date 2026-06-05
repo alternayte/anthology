@@ -28,8 +28,9 @@ internal sealed class DiaryEntryConfiguration : IEntityTypeConfiguration<DiaryEn
     }
 }
 
-public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbContextProjection
+public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbContextProjection, IRebuildableProjection
 {
+    public static string SchemaQualifiedTableName => "tracking.diary_entries";
     public DbContext DbContext => db;
 
     public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
@@ -81,7 +82,21 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
             };
 
             if (entry is not null)
-                db.DiaryEntries.Add(entry);
+            {
+                var statusStr = SnakeCaseEnumHelper.ToSnakeCase(entry.Status);
+                var visibilityStr = SnakeCaseEnumHelper.ToSnakeCase(entry.Visibility);
+                await db.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO tracking.diary_entries (user_id, title_id, status, rating, occurred_at, visibility)
+                    VALUES ({entry.UserId}, {entry.TitleId}, {statusStr}, {entry.Rating}, {entry.OccurredAt}, {visibilityStr})
+                    ON CONFLICT (user_id, title_id, occurred_at) DO NOTHING
+                    """, ct);
+            }
         }
     }
+}
+
+internal static class SnakeCaseEnumHelper
+{
+    public static string ToSnakeCase<T>(T value) where T : struct, Enum =>
+        System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(value.ToString());
 }
