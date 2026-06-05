@@ -12,15 +12,15 @@ public static class ProfileEndpoints
         group.MapGet("/me", async (
             ClaimsPrincipal user, GetProfile.Handler handler, CancellationToken ct) =>
             (await handler.Handle(user.UserId(), ct)).ToHttpResult())
-            .RequireAuthorization();
+            .RequireAuthorization().WithName("getProfile").Produces<GetProfile.ProfileDto>();
 
         group.MapPut("/me", async (
-            UpdateProfile.Command command,
+            UpdateProfile.UpdateProfileCommand command,
             ClaimsPrincipal user,
-            ICommandHandler<UpdateProfile.Command, Result<UpdateProfile.ProfileDto>> handler,
+            ICommandHandler<UpdateProfile.UpdateProfileCommand, Result<UpdateProfile.ProfileDto>> handler,
             CancellationToken ct) =>
             (await handler.Handle(command with { UserId = user.UserId() }, ct)).ToHttpResult())
-            .RequireAuthorization();
+            .RequireAuthorization().WithName("updateProfile").Produces<UpdateProfile.ProfileDto>();
 
         return app;
     }

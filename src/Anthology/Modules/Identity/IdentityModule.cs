@@ -55,7 +55,7 @@ public static class IdentityModule
                 ? Results.Ok(new AuthResponse(user.Id, user.Email!))
                 : Results.ValidationProblem(result.Errors.ToDictionary(
                     e => e.Code, e => new[] { e.Description }));
-        });
+        }).WithName("register").Produces<AuthResponse>();
 
         group.MapPost("/login", async (
             LoginRequest request,
@@ -68,13 +68,13 @@ public static class IdentityModule
 
             var user = await signInManager.UserManager.FindByEmailAsync(request.Email);
             return Results.Ok(new AuthResponse(user!.Id, user.Email!));
-        });
+        }).WithName("login").Produces<AuthResponse>();
 
         group.MapPost("/logout", async (SignInManager<ApplicationUser> signInManager) =>
         {
             await signInManager.SignOutAsync();
             return Results.Ok();
-        }).RequireAuthorization();
+        }).RequireAuthorization().WithName("logout");
 
         group.MapGet("/me", (HttpContext context) =>
         {
@@ -86,7 +86,7 @@ public static class IdentityModule
             var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
                         ?? user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
             return Results.Ok(new AuthResponse(Guid.Parse(userId!), email ?? ""));
-        });
+        }).WithName("getMe").Produces<AuthResponse>();
 
         return app;
     }

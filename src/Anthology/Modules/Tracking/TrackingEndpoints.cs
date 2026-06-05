@@ -33,7 +33,7 @@ public static class TrackingEndpoints
                 new WantItem.Command(titleId, title.Name, title.MediaType.ToString().ToLowerInvariant(),
                             user.UserId(), DateTimeOffset.UtcNow), ct)).ToHttpResult();
         })
-        .RequireAuthorization();
+        .RequireAuthorization().WithName("wantItem").Produces<TrackedItemDto>();
 
         group.MapPost("/items/{titleId:guid}/start", async (
             Guid titleId,
@@ -41,7 +41,7 @@ public static class TrackingEndpoints
             ICommandHandler<StartItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
             (await handler.Handle(new StartItem.Command(DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-            .RequireAuthorization();
+            .RequireAuthorization().WithName("startItem").Produces<TrackedItemDto>();
 
         group.MapPost("/items/{titleId:guid}/finish", async (
             Guid titleId,
@@ -50,7 +50,7 @@ public static class TrackingEndpoints
             ICommandHandler<FinishItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
             (await handler.Handle(new FinishItem.Command(request.Rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-        .RequireAuthorization();
+        .RequireAuthorization().WithName("finishItem").Produces<TrackedItemDto>();
 
         group.MapPost("/items/{titleId:guid}/abandon", async (
             Guid titleId,
@@ -58,7 +58,7 @@ public static class TrackingEndpoints
             ICommandHandler<AbandonItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
             (await handler.Handle(new AbandonItem.Command(DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-            .RequireAuthorization();
+            .RequireAuthorization().WithName("abandonItem").Produces<TrackedItemDto>();
 
         group.MapPost("/items/{titleId:guid}/rerate", async (
             Guid titleId,
@@ -67,7 +67,7 @@ public static class TrackingEndpoints
             ICommandHandler<RerateItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
             (await handler.Handle(new RerateItem.Command(request.Rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-            .RequireAuthorization();
+            .RequireAuthorization().WithName("rerateItem").Produces<TrackedItemDto>();
 
         group.MapGet("/diary", async (
             ClaimsPrincipal user,
@@ -76,7 +76,7 @@ public static class TrackingEndpoints
             GetDiary.Handler handler,
             CancellationToken ct) =>
             Results.Ok(await handler.Handle(user.UserId(), cursor, size ?? 20, ct)))
-            .RequireAuthorization();
+            .RequireAuthorization().WithName("getDiary").Produces<Page<GetDiary.DiaryEntryDto>>();
 
         group.MapGet("/library", async (
             ClaimsPrincipal user,
@@ -96,7 +96,7 @@ public static class TrackingEndpoints
             return (await handler.Handle(
                 user.UserId(), mediaFilter, statusFilter, minRating,
                 sort ?? "added", dir ?? "desc", cursor, size ?? 20, ct)).ToHttpResult();
-        }).RequireAuthorization();
+        }).RequireAuthorization().WithName("getLibrary").Produces<Page<GetLibrary.LibraryItemDto>>();
 
         return app;
     }
