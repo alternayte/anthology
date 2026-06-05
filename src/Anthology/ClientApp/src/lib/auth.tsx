@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { getMe, login as loginSdk, register as registerSdk, logout as logoutSdk } from '../generated/sdk.gen'
+import type { AuthResponse } from '../generated/types.gen'
 
-interface AuthUser {
-  userId: string
-  email: string
-}
+type AuthUser = AuthResponse
 
 interface AuthContextType {
   user: AuthUser | null
@@ -20,42 +19,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/identity/me', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.userId) setUser({ userId: data.userId, email: data.email })
+    getMe()
+      .then(({ data }) => {
+        if (data) setUser(data)
       })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('/api/identity/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, password }),
-    })
-    if (!res.ok) throw new Error('Invalid credentials')
-    const data = await res.json()
-    setUser({ userId: data.userId, email: data.email })
+    const { data, error } = await loginSdk({ body: { email, password } })
+    if (error) throw new Error('Invalid credentials')
+    setUser(data!)
   }
 
   const register = async (email: string, password: string) => {
-    const res = await fetch('/api/identity/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, password }),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(JSON.stringify(err))
-    }
+    const { error } = await registerSdk({ body: { email, password } })
+    if (error) throw new Error(JSON.stringify(error))
     await login(email, password)
   }
 
   const logout = async () => {
-    await fetch('/api/identity/logout', { method: 'POST', credentials: 'include' })
+    await logoutSdk()
     setUser(null)
   }
 

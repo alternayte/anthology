@@ -9,14 +9,16 @@ public static class CatalogEndpoints
         var group = app.MapGroup("/api/catalog").WithTags("Catalog");
 
         group.MapGet("/search", async (string term, SearchTitles.Handler handler, CancellationToken ct) =>
-            Results.Ok(await handler.Handle(new SearchTitles.Query(term), ct)));
+            Results.Ok(await handler.Handle(new SearchTitles.Query(term), ct)))
+            .WithName("searchCatalog").Produces<List<SearchTitles.TitleSearchResult>>();
 
-        group.MapPost("/titles", async (AddTitle.Command command, AddTitle.Handler handler, CancellationToken ct) =>
+        group.MapPost("/titles", async (AddTitle.AddTitleCommand command, AddTitle.Handler handler, CancellationToken ct) =>
             (await handler.Handle(command, ct)).ToHttpResult())
-            .RequireAuthorization();
+            .RequireAuthorization().WithName("addTitle").Produces<AddTitle.TitleDto>();
 
         group.MapGet("/titles/{titleId:guid}", async (Guid titleId, GetTitle.Handler handler, CancellationToken ct) =>
-            (await handler.Handle(titleId, ct)).ToHttpResult());
+            (await handler.Handle(titleId, ct)).ToHttpResult())
+            .WithName("getTitle").Produces<GetTitle.TitleDetailDto>();
 
         return app;
     }

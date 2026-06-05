@@ -4,12 +4,18 @@
     "title": "Anthology | v1",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "http://localhost:5000/"
+    }
+  ],
   "paths": {
     "/api/identity/register": {
       "post": {
         "tags": [
           "Identity"
         ],
+        "operationId": "register",
         "requestBody": {
           "content": {
             "application/json": {
@@ -22,7 +28,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -32,6 +45,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "login",
         "requestBody": {
           "content": {
             "application/json": {
@@ -44,7 +58,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -54,6 +75,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "logout",
         "responses": {
           "200": {
             "description": "OK"
@@ -66,9 +88,17 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "getMe",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -78,6 +108,7 @@
         "tags": [
           "Catalog"
         ],
+        "operationId": "searchCatalog",
         "parameters": [
           {
             "name": "term",
@@ -90,7 +121,17 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TitleSearchResult"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -100,11 +141,12 @@
         "tags": [
           "Catalog"
         ],
+        "operationId": "addTitle",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Command"
+                "$ref": "#/components/schemas/AddTitleCommand"
               }
             }
           },
@@ -112,7 +154,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TitleDto"
+                }
+              }
+            }
           }
         }
       }
@@ -122,6 +171,7 @@
         "tags": [
           "Catalog"
         ],
+        "operationId": "getTitle",
         "parameters": [
           {
             "name": "titleId",
@@ -135,7 +185,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TitleDetailDto"
+                }
+              }
+            }
           }
         }
       }
@@ -145,6 +202,7 @@
         "tags": [
           "Tracking"
         ],
+        "operationId": "wantItem",
         "parameters": [
           {
             "name": "titleId",
@@ -158,7 +216,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackedItemDto"
+                }
+              }
+            }
           }
         }
       }
@@ -168,6 +233,7 @@
         "tags": [
           "Tracking"
         ],
+        "operationId": "startItem",
         "parameters": [
           {
             "name": "titleId",
@@ -181,7 +247,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackedItemDto"
+                }
+              }
+            }
           }
         }
       }
@@ -191,6 +264,7 @@
         "tags": [
           "Tracking"
         ],
+        "operationId": "finishItem",
         "parameters": [
           {
             "name": "titleId",
@@ -206,7 +280,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Request"
+                "$ref": "#/components/schemas/FinishRequest"
               }
             }
           },
@@ -214,7 +288,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackedItemDto"
+                }
+              }
+            }
           }
         }
       }
@@ -224,6 +305,7 @@
         "tags": [
           "Tracking"
         ],
+        "operationId": "abandonItem",
         "parameters": [
           {
             "name": "titleId",
@@ -237,7 +319,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackedItemDto"
+                }
+              }
+            }
           }
         }
       }
@@ -247,6 +336,7 @@
         "tags": [
           "Tracking"
         ],
+        "operationId": "rerateItem",
         "parameters": [
           {
             "name": "titleId",
@@ -262,7 +352,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Request"
+                "$ref": "#/components/schemas/RerateRequest"
               }
             }
           },
@@ -270,7 +360,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackedItemDto"
+                }
+              }
+            }
           }
         }
       }
@@ -280,6 +377,7 @@
         "tags": [
           "Tracking"
         ],
+        "operationId": "getDiary",
         "parameters": [
           {
             "name": "cursor",
@@ -303,7 +401,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfDiaryEntryDto"
+                }
+              }
+            }
           }
         }
       }
@@ -313,6 +418,7 @@
         "tags": [
           "Tracking"
         ],
+        "operationId": "getLibrary",
         "parameters": [
           {
             "name": "media",
@@ -376,7 +482,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfLibraryItemDto"
+                }
+              }
+            }
           }
         }
       }
@@ -386,9 +499,17 @@
         "tags": [
           "Profile"
         ],
+        "operationId": "getProfile",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
           }
         }
       },
@@ -396,11 +517,12 @@
         "tags": [
           "Profile"
         ],
+        "operationId": "updateProfile",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Command"
+                "$ref": "#/components/schemas/UpdateProfileCommand"
               }
             }
           },
@@ -408,7 +530,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
           }
         }
       }
@@ -416,7 +545,7 @@
   },
   "components": {
     "schemas": {
-      "Command": {
+      "AddTitleCommand": {
         "required": [
           "tmdbId"
         ],
@@ -429,6 +558,117 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "AuthResponse": {
+        "required": [
+          "userId",
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "DiaryEntryDto": {
+        "required": [
+          "titleId",
+          "status",
+          "rating",
+          "occurredAt"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TrackedStatus"
+          },
+          "rating": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FinishRequest": {
+        "required": [
+          "rating"
+        ],
+        "type": "object",
+        "properties": {
+          "rating": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "LibraryItemDto": {
+        "required": [
+          "titleId",
+          "title",
+          "mediaType",
+          "status",
+          "rating",
+          "addedAt",
+          "finishedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TrackedStatus"
+          },
+          "rating": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "addedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -447,6 +687,82 @@
           }
         }
       },
+      "MediaType": {
+        "enum": [
+          "film"
+        ]
+      },
+      "PageOfDiaryEntryDto": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiaryEntryDto"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PageOfLibraryItemDto": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryItemDto"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ProfileDto": {
+        "required": [
+          "userId",
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "Rating": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "RegisterRequest": {
         "required": [
           "email",
@@ -462,7 +778,7 @@
           }
         }
       },
-      "Request": {
+      "RerateRequest": {
         "required": [
           "rating"
         ],
@@ -471,11 +787,188 @@
           "rating": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TitleDetailDto": {
+        "required": [
+          "titleId",
+          "name",
+          "year",
+          "posterPath",
+          "overview",
+          "mediaType"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
               "null",
               "integer",
               "string"
             ],
             "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "overview": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/MediaType"
+          }
+        }
+      },
+      "TitleDto": {
+        "required": [
+          "titleId",
+          "name",
+          "year",
+          "posterPath",
+          "mediaType"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/MediaType"
+          }
+        }
+      },
+      "TitleSearchResult": {
+        "required": [
+          "tmdbId",
+          "name",
+          "year",
+          "posterPath",
+          "overview"
+        ],
+        "type": "object",
+        "properties": {
+          "tmdbId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "overview": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TrackedItemDto": {
+        "required": [
+          "streamId",
+          "titleId",
+          "status",
+          "rating"
+        ],
+        "type": "object",
+        "properties": {
+          "streamId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TrackedStatus"
+          },
+          "rating": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Rating"
+              }
+            ]
+          }
+        }
+      },
+      "TrackedStatus": {
+        "enum": [
+          "none",
+          "want_to_consume",
+          "in_progress",
+          "finished",
+          "abandoned",
+          "rerated"
+        ]
+      },
+      "UpdateProfileCommand": {
+        "required": [
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
           }
         }
       }

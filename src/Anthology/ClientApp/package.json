@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate": "openapi-ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -19,7 +20,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@hey-api/client-fetch": "^0.13.1",
     "@hey-api/openapi-ts": "^0.98.1",
     "@tanstack/router-devtools": "^1.167.0",
     "@tanstack/router-plugin": "^1.168.14",

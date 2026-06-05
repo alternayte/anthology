@@ -1,3 +1,3 @@
 namespace Anthology.Kernel;
 
-public sealed record Page<T>(IReadOnlyList<T> Items, string? NextCursor);
+public sealed record Page<T>(List<T> Items, string? NextCursor);

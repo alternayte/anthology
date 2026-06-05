@@ -2,6 +2,7 @@ import { createFileRoute, Navigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useState } from 'react'
+import { getDiaryOptions } from '../generated/@tanstack/react-query.gen'
 
 export const Route = createFileRoute('/diary')({
   component: DiaryPage,
@@ -14,13 +15,7 @@ function DiaryPage() {
   if (!user) return <Navigate to="/login" />
 
   const { data, isLoading } = useQuery({
-    queryKey: ['diary', cursor],
-    queryFn: async () => {
-      const params = new URLSearchParams({ size: '20' })
-      if (cursor) params.set('cursor', cursor)
-      const res = await fetch(`/api/tracking/diary?${params}`, { credentials: 'include' })
-      return res.json()
-    },
+    ...getDiaryOptions({ query: { cursor, size: 20 } }),
   })
 
   return (
@@ -29,7 +24,7 @@ function DiaryPage() {
       {isLoading && <p className="text-zinc-500">Loading...</p>}
       {data?.items?.length === 0 && <p className="text-zinc-500">No diary entries yet.</p>}
       <div className="grid gap-3">
-        {data?.items?.map((entry: any, i: number) => (
+        {data?.items?.map((entry, i) => (
           <div key={i} className="border rounded-lg bg-white p-4 flex items-center justify-between">
             <p className="text-sm text-zinc-500">{new Date(entry.occurredAt).toLocaleDateString()}</p>
             <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Anthology.Kernel;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -6,10 +7,10 @@ namespace Anthology.Modules.Profile;
 
 public static class UpdateProfile
 {
-    public sealed record Command(string DisplayName, Guid UserId = default)
+    public sealed record UpdateProfileCommand(string DisplayName, [property: JsonIgnore] Guid UserId = default)
         : ICommand<Result<ProfileDto>>;
 
-    public sealed class Validator : AbstractValidator<Command>
+    public sealed class Validator : AbstractValidator<UpdateProfileCommand>
     {
         public Validator()
         {
@@ -20,9 +21,9 @@ public static class UpdateProfile
     public sealed record ProfileDto(Guid UserId, string DisplayName);
 
     public sealed class Handler(ProfileDbContext db)
-        : ICommandHandler<Command, Result<ProfileDto>>
+        : ICommandHandler<UpdateProfileCommand, Result<ProfileDto>>
     {
-        public async Task<Result<ProfileDto>> Handle(Command command, CancellationToken ct)
+        public async Task<Result<ProfileDto>> Handle(UpdateProfileCommand command, CancellationToken ct)
         {
             var profile = await db.Profiles.FirstOrDefaultAsync(p => p.UserId == command.UserId, ct);
 

@@ -5,13 +5,13 @@ namespace Anthology.Modules.Catalog;
 
 public static class AddTitle
 {
-    public sealed record Command(int TmdbId);
+    public sealed record AddTitleCommand(int TmdbId);
 
     public sealed record TitleDto(Guid TitleId, string Name, int? Year, string? PosterPath, MediaType MediaType);
 
     public sealed class Handler(CatalogDbContext db, TmdbClient tmdb)
     {
-        public async Task<Result<TitleDto>> Handle(Command command, CancellationToken ct)
+        public async Task<Result<TitleDto>> Handle(AddTitleCommand command, CancellationToken ct)
         {
             var existing = await db.Titles.AsNoTracking()
                 .FirstOrDefaultAsync(t => t.ExternalId == command.TmdbId.ToString(), ct);

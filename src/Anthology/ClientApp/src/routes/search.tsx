@@ -2,6 +2,8 @@ import { createFileRoute, Navigate, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useState } from 'react'
+import { searchCatalogOptions, addTitleMutation } from '../generated/@tanstack/react-query.gen'
+import type { TitleSearchResult } from '../generated/types.gen'
 
 export const Route = createFileRoute('/search')({
   component: SearchPage,
@@ -16,25 +18,12 @@ function SearchPage() {
   if (!user) return <Navigate to="/login" />
 
   const { data: results, isLoading } = useQuery({
-    queryKey: ['search', search],
-    queryFn: async () => {
-      if (!search) return []
-      const res = await fetch(`/api/catalog/search?term=${encodeURIComponent(search)}`, { credentials: 'include' })
-      return res.json()
-    },
+    ...searchCatalogOptions({ query: { term: search } }),
     enabled: search.length > 0,
   })
 
-  const addTitle = useMutation({
-    mutationFn: async (tmdbId: number) => {
-      const res = await fetch('/api/catalog/titles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ tmdbId }),
-      })
-      return res.json()
-    },
+  const addMutation = useMutation({
+    ...addTitleMutation(),
     onSuccess: (data) => {
       if (data?.titleId) navigate({ to: '/library/$titleId', params: { titleId: data.titleId } })
     },
@@ -52,8 +41,8 @@ function SearchPage() {
       {isLoading && <p className="text-zinc-500">Searching...</p>}
 
       <div className="grid gap-3">
-        {results?.map?.((r: any) => (
-          <div key={r.tmdbId} onClick={() => addTitle.mutate(r.tmdbId)}
+        {results?.map((r: TitleSearchResult) => (
+          <div key={r.tmdbId} onClick={() => addMutation.mutate({ body: { tmdbId: r.tmdbId } })}
             className="cursor-pointer border rounded-lg bg-white p-4 hover:shadow-md transition-shadow flex items-center gap-4">
             {r.posterPath && <img src={r.posterPath} alt="" className="w-12 h-18 rounded object-cover" />}
             <div>

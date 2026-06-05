@@ -5,7 +5,17 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
 import { queryClient } from './lib/query-client'
 import { AuthProvider } from './lib/auth'
+import { client } from './generated/client.gen'
 import './index.css'
+
+client.setConfig({
+  baseUrl: '',
+})
+
+client.interceptors.request.use((request) => {
+  request.credentials = 'include'
+  return request
+})
 
 const router = createRouter({ routeTree })
 

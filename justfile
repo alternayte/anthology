@@ -52,6 +52,10 @@ install-ui:
 generate-api:
     cd src/Anthology/ClientApp && npx @hey-api/openapi-ts
 
+codegen:
+    just export-openapi
+    just generate-api
+
 # OpenAPI — generates the spec at build time without running the server
 export-openapi:
     #!/usr/bin/env bash
