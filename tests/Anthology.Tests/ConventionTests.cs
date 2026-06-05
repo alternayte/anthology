@@ -1,6 +1,9 @@
 using System.Reflection;
 using Anthology.Kernel;
+using Anthology.Modules.Tracking;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Anthology.Tests;
@@ -36,5 +39,37 @@ public class ConventionTests
             .ToList();
 
         trackingSlices.Should().NotBeEmpty("tracking module should have slice types with Map methods");
+    }
+
+    [Fact]
+    public void All_projections_are_registered_via_AddInlineProjection_or_AddAsyncProjection()
+    {
+        var projectionTypes = typeof(Program).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface)
+            .Where(t => t.GetInterfaces().Contains(typeof(Anthology.Kernel.Messaging.IProjection)))
+            .ToList();
+
+        projectionTypes.Should().NotBeEmpty("there should be projection implementations in the assembly");
+
+        var services = new ServiceCollection();
+        var config = new ConfigurationBuilder().AddInMemoryCollection().Build();
+        services.AddTrackingModule(config);
+
+        var inlineRegistry = services
+            .FirstOrDefault(d => d.ServiceType == typeof(Anthology.Kernel.Messaging.InlineProjectionRegistry))
+            ?.ImplementationInstance as Anthology.Kernel.Messaging.InlineProjectionRegistry;
+        var asyncRegistry = services
+            .FirstOrDefault(d => d.ServiceType == typeof(Anthology.Kernel.Messaging.AsyncProjectionRegistry))
+            ?.ImplementationInstance as Anthology.Kernel.Messaging.AsyncProjectionRegistry;
+
+        var registeredTypes = new List<Type>();
+        if (inlineRegistry is not null) registeredTypes.AddRange(inlineRegistry.ProjectionTypes);
+        if (asyncRegistry is not null) registeredTypes.AddRange(asyncRegistry.ProjectionTypes);
+
+        foreach (var projection in projectionTypes)
+        {
+            registeredTypes.Should().Contain(projection,
+                $"{projection.Name} must be registered via AddInlineProjection or AddAsyncProjection");
+        }
     }
 }
