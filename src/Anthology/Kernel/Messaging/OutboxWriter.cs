@@ -23,7 +23,7 @@ public sealed class OutboxWriter(EventStoreDbContext db, IntegrationEventTransla
                 AggregateType = "TrackedItem",
                 AggregateId = envelope.StreamId.ToString(),
                 Type = eventType,
-                Payload = JsonSerializer.Serialize(payload),
+                Payload = JsonSerializer.Serialize(payload, EventSerializer.Options),
                 OccurredAt = envelope.Metadata.OccurredAt
             });
         }
