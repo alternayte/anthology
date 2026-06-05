@@ -4,4 +4,6 @@ public sealed record EventMetadata(
     Guid CorrelationId,
     Guid? CausationId,
     Guid ActorId,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    Guid? UserId = null,
+    Guid? ContextId = null);

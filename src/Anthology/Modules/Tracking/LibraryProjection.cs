@@ -43,7 +43,7 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
     {
         foreach (var envelope in events)
         {
-            if (envelope.UserId is null || envelope.TitleId is null) continue;
+            if (envelope.UserId is null || envelope.ContextId is null) continue;
 
             switch (envelope.Event)
             {
@@ -85,7 +85,7 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
 
     private async Task Upsert(EventEnvelope envelope, Action<LibraryItem> update, CancellationToken ct)
     {
-        var item = await db.LibraryItems.FindAsync([envelope.UserId!.Value, envelope.TitleId!.Value], ct);
+        var item = await db.LibraryItems.FindAsync([envelope.UserId!.Value, envelope.ContextId!.Value], ct);
         if (item is not null)
             update(item);
     }

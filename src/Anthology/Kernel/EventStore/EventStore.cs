@@ -13,7 +13,7 @@ public sealed class EventStore(EventStoreDbContext db, EventRegistry registry, E
         EventMetadata metadata,
         CancellationToken ct = default,
         Guid? userId = null,
-        Guid? titleId = null)
+        Guid? contextId = null)
     {
         var newVersion = expectedVersion + events.Count;
 
@@ -40,6 +40,7 @@ public sealed class EventStore(EventStoreDbContext db, EventRegistry registry, E
 
         var version = expectedVersion;
         var envelopes = new List<EventEnvelope>(events.Count);
+        var enrichedMeta = metadata with { UserId = userId, ContextId = contextId };
 
         foreach (var e in events)
         {
@@ -50,10 +51,10 @@ public sealed class EventStore(EventStoreDbContext db, EventRegistry registry, E
                 Version = version,
                 EventType = registry.NameOf(e.GetType()),
                 Payload = serializer.Serialize(e),
-                Metadata = serializer.SerializeMetadata(metadata),
+                Metadata = serializer.SerializeMetadata(enrichedMeta),
                 OccurredAt = metadata.OccurredAt
             });
-            envelopes.Add(new EventEnvelope(streamId, streamType, version, e, metadata, userId, titleId));
+            envelopes.Add(new EventEnvelope(streamId, streamType, version, e, enrichedMeta, userId, contextId));
         }
 
         try

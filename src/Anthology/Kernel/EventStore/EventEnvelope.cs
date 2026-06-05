@@ -7,4 +7,4 @@ public sealed record EventEnvelope(
     IDomainEvent Event,
     EventMetadata Metadata,
     Guid? UserId = null,
-    Guid? TitleId = null);
+    Guid? ContextId = null);

@@ -36,7 +36,7 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
     {
         foreach (var envelope in events)
         {
-            if (envelope.UserId is null || envelope.TitleId is null) continue;
+            if (envelope.UserId is null || envelope.ContextId is null) continue;
 
             var entry = envelope.Event switch
             {
@@ -50,14 +50,14 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
                 ItemStarted s => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
-                    TitleId = envelope.TitleId.Value,
+                    TitleId = envelope.ContextId.Value,
                     Status = TrackedStatus.InProgress,
                     OccurredAt = s.At,
                 },
                 ItemFinished f => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
-                    TitleId = envelope.TitleId.Value,
+                    TitleId = envelope.ContextId.Value,
                     Status = TrackedStatus.Finished,
                     Rating = f.Rating?.Value,
                     OccurredAt = f.At,
@@ -65,14 +65,14 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
                 ItemAbandoned a => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
-                    TitleId = envelope.TitleId.Value,
+                    TitleId = envelope.ContextId.Value,
                     Status = TrackedStatus.Abandoned,
                     OccurredAt = a.At,
                 },
                 ItemRerated r => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
-                    TitleId = envelope.TitleId.Value,
+                    TitleId = envelope.ContextId.Value,
                     Status = TrackedStatus.Rerated,
                     Rating = r.Rating.Value,
                     OccurredAt = r.At,
