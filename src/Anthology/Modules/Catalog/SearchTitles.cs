@@ -28,8 +28,4 @@ public static class SearchTitles
         private static int? ParseYear(string? date) =>
             DateTime.TryParse(date, out var d) ? d.Year : null;
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapGet("/search", async (string term, Handler handler, CancellationToken ct) =>
-            Results.Ok(await handler.Handle(new Query(term), ct)));
 }

@@ -39,9 +39,4 @@ public static class AddTitle
             return new TitleDto(title.TitleId, title.Name, title.Year, title.PosterPath, title.MediaType);
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapPost("/titles", async (Command command, Handler handler, CancellationToken ct) =>
-            (await handler.Handle(command, ct)).ToHttpResult())
-            .RequireAuthorization();
 }

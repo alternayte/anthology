@@ -22,8 +22,4 @@ public static class GetTitle
                 title.TitleId, title.Name, title.Year, title.PosterPath, title.Overview, title.MediaType);
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapGet("/titles/{titleId:guid}", async (Guid titleId, Handler handler, CancellationToken ct) =>
-            (await handler.Handle(titleId, ct)).ToHttpResult());
 }

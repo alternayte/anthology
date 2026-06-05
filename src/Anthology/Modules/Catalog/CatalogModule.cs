@@ -20,12 +20,4 @@ public static class CatalogModule
         return services;
     }
 
-    public static WebApplication MapCatalogEndpoints(this WebApplication app)
-    {
-        var group = app.MapGroup("/api/catalog").WithTags("Catalog");
-        SearchTitles.Map(group);
-        AddTitle.Map(group);
-        GetTitle.Map(group);
-        return app;
-    }
 }
