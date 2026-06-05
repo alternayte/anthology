@@ -63,7 +63,7 @@ public static class AdminEndpoints
             return Results.Ok(new RebuildJobStatusResponse(
                 job.Id, job.StreamType, job.Status,
                 job.Total, job.Processed, job.Failed,
-                JsonDocument.Parse(job.Errors).RootElement,
+                JsonSerializer.Deserialize<JsonElement>(job.Errors),
                 job.StartedAt, job.CompletedAt));
         });
 
