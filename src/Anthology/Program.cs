@@ -6,7 +6,9 @@ using Anthology.Kernel.Messaging;
 using Anthology.Modules.Catalog;
 using Anthology.Modules.Identity;
 using Anthology.Modules.Profile;
+using Anthology.Modules.Admin;
 using Anthology.Modules.Tracking;
+using Anthology.Workers;
 using FluentValidation;
 using Npgsql;
 using Scalar.AspNetCore;
@@ -41,7 +43,15 @@ builder.Services.AddDbContext<EventStoreDbContext>((sp, options) =>
 var registry = new EventRegistry();
 TrackingModule.RegisterEvents(registry);
 builder.Services.AddSingleton(registry);
-builder.Services.AddSingleton<EventSerializer>();
+
+var serializer = new EventSerializer(registry);
+builder.Services.AddSingleton(serializer);
+
+var evolverRegistry = new StreamEvolverRegistry();
+TrackingModule.RegisterEvolvers(evolverRegistry, serializer);
+builder.Services.AddSingleton(evolverRegistry);
+
+builder.Services.AddScoped<StreamRebuilder>();
 builder.Services.AddScoped<EventStore>();
 builder.Services.AddScoped<OutboxWriter>();
 builder.Services.AddSingleton<IntegrationEventTranslator>(sp =>
@@ -60,6 +70,8 @@ builder.Services.AddCatalogModule(builder.Configuration);
 builder.Services.AddTrackingModule(builder.Configuration);
 builder.Services.AddProfileModule(builder.Configuration);
 builder.Services.AddScoped<InlineProjector>();
+
+builder.Services.AddHostedService<RebuildJobHost>();
 
 // Async projection host — registered when async projections exist (M5+)
 // Infrastructure lives in Workers/AsyncProjectionHost.cs; wire it with:
@@ -94,6 +106,7 @@ app.MapIdentityEndpoints();
 app.MapCatalogEndpoints();
 app.MapTrackingEndpoints();
 app.MapProfileEndpoints();
+app.MapAdminEndpoints();
 
 // SPA fallback
 app.UseStaticFiles();

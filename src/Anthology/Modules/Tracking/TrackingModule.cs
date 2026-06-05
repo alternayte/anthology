@@ -23,6 +23,11 @@ public static class TrackingModule
         return services;
     }
 
+    public static void RegisterEvolvers(StreamEvolverRegistry registry, EventSerializer serializer)
+    {
+        registry.Register<TrackedItemState>(serializer, TrackedItem.Evolve);
+    }
+
     public static void RegisterEvents(EventRegistry registry)
     {
         registry.Map<ItemWanted>("tracking.item.wanted", currentVersion: 2, upcasters:
