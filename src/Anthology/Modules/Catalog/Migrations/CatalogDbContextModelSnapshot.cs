@@ -27,33 +27,42 @@ namespace Anthology.Modules.Catalog.Migrations
                 {
                     b.Property<Guid>("TitleId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("title_id");
 
                     b.Property<string>("ExternalId")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("external_id");
 
                     b.Property<string>("MediaType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("media_type");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("name");
 
                     b.Property<string>("Overview")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("overview");
 
                     b.Property<string>("PosterPath")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("poster_path");
 
                     b.Property<int?>("Year")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
 
-                    b.HasKey("TitleId");
+                    b.HasKey("TitleId")
+                        .HasName("pk_titles");
 
                     b.HasIndex("ExternalId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_titles_external_id");
 
                     b.ToTable("titles", "catalog");
                 });

@@ -26,17 +26,21 @@ namespace Anthology.Kernel.EventStore.Migrations
             modelBuilder.Entity("Anthology.Kernel.EventStore.CheckpointRow", b =>
                 {
                     b.Property<string>("ProjectionName")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("projection_name");
 
                     b.Property<long>("Position")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("position");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
 
-                    b.HasKey("ProjectionName");
+                    b.HasKey("ProjectionName")
+                        .HasName("pk_checkpoints");
 
                     b.ToTable("checkpoints", "es");
                 });
@@ -44,43 +48,53 @@ namespace Anthology.Kernel.EventStore.Migrations
             modelBuilder.Entity("Anthology.Kernel.EventStore.EventRow", b =>
                 {
                     b.Property<Guid>("StreamId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("stream_id");
 
                     b.Property<int>("Version")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
                     b.Property<string>("EventType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("event_type");
 
                     b.Property<long>("GlobalPosition")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("global_position");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("GlobalPosition"));
 
                     b.Property<string>("Metadata")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata");
 
                     b.Property<DateTimeOffset>("OccurredAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at")
                         .HasDefaultValueSql("now()");
 
                     b.Property<string>("Payload")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
 
                     b.Property<ulong>("Xid")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("xid8")
+                        .HasColumnName("xid")
                         .HasDefaultValueSql("pg_current_xact_id()");
 
-                    b.HasKey("StreamId", "Version");
+                    b.HasKey("StreamId", "Version")
+                        .HasName("pk_events");
 
                     b.HasIndex("GlobalPosition")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_events_global_position");
 
                     b.ToTable("events", "es");
                 });
@@ -88,17 +102,21 @@ namespace Anthology.Kernel.EventStore.Migrations
             modelBuilder.Entity("Anthology.Kernel.EventStore.InboxRow", b =>
                 {
                     b.Property<Guid>("MessageId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
 
                     b.Property<string>("Consumer")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("consumer");
 
                     b.Property<DateTimeOffset>("ProcessedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at")
                         .HasDefaultValueSql("now()");
 
-                    b.HasKey("MessageId", "Consumer");
+                    b.HasKey("MessageId", "Consumer")
+                        .HasName("pk_inbox");
 
                     b.ToTable("inbox", "es");
                 });
@@ -107,33 +125,41 @@ namespace Anthology.Kernel.EventStore.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("AggregateId")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("aggregate_id");
 
                     b.Property<string>("AggregateType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("aggregate_type");
 
                     b.Property<DateTimeOffset>("OccurredAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at")
                         .HasDefaultValueSql("now()");
 
                     b.Property<string>("Payload")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
 
                     b.Property<string>("Traceparent")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("traceparent");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("type");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_outbox");
 
                     b.ToTable("outbox", "es");
                 });
@@ -142,30 +168,37 @@ namespace Anthology.Kernel.EventStore.Migrations
                 {
                     b.Property<Guid>("StreamId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("stream_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
                     b.Property<string>("State")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasColumnType("jsonb")
+                        .HasColumnName("state");
 
                     b.Property<string>("StreamType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("stream_type");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
 
                     b.Property<int>("Version")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
-                    b.HasKey("StreamId");
+                    b.HasKey("StreamId")
+                        .HasName("pk_streams");
 
                     b.ToTable("streams", "es");
                 });
@@ -176,7 +209,8 @@ namespace Anthology.Kernel.EventStore.Migrations
                         .WithMany()
                         .HasForeignKey("StreamId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_events_streams_stream_id");
                 });
 #pragma warning restore 612, 618
         }

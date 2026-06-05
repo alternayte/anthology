@@ -26,29 +26,37 @@ namespace Anthology.Modules.Tracking.Migrations
             modelBuilder.Entity("Anthology.Modules.Tracking.DiaryEntry", b =>
                 {
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
 
                     b.Property<Guid>("TitleId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("title_id");
 
                     b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
 
                     b.Property<int?>("Rating")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("status");
 
                     b.Property<string>("Visibility")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("visibility");
 
-                    b.HasKey("UserId", "TitleId", "OccurredAt");
+                    b.HasKey("UserId", "TitleId", "OccurredAt")
+                        .HasName("pk_diary_entries");
 
                     b.HasIndex("UserId", "OccurredAt")
-                        .IsDescending(false, true);
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_diary_entries_user_id_occurred_at");
 
                     b.ToTable("diary_entries", "tracking");
                 });
@@ -56,43 +64,55 @@ namespace Anthology.Modules.Tracking.Migrations
             modelBuilder.Entity("Anthology.Modules.Tracking.LibraryItem", b =>
                 {
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
 
                     b.Property<Guid>("TitleId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("title_id");
 
                     b.Property<DateTimeOffset>("AddedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("added_at");
 
                     b.Property<DateTimeOffset?>("FinishedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
 
                     b.Property<string>("MediaType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("media_type");
 
                     b.Property<int?>("Rating")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("status");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("title");
 
                     b.Property<string>("Visibility")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("visibility");
 
-                    b.HasKey("UserId", "TitleId");
+                    b.HasKey("UserId", "TitleId")
+                        .HasName("pk_library_items");
 
                     b.HasIndex("UserId", "AddedAt", "TitleId")
-                        .IsDescending(false, true, false);
+                        .IsDescending(false, true, false)
+                        .HasDatabaseName("ix_library_items_user_id_added_at_title_id");
 
                     b.HasIndex("UserId", "Rating", "TitleId")
-                        .IsDescending(false, true, false);
+                        .IsDescending(false, true, false)
+                        .HasDatabaseName("ix_library_items_user_id_rating_title_id");
 
                     b.ToTable("library_items", "tracking");
                 });

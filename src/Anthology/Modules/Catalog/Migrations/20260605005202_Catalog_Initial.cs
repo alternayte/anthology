@@ -19,24 +19,24 @@ namespace Anthology.Modules.Catalog.Migrations
                 schema: "catalog",
                 columns: table => new
                 {
-                    TitleId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ExternalId = table.Column<string>(type: "text", nullable: false),
-                    MediaType = table.Column<string>(type: "text", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    Year = table.Column<int>(type: "integer", nullable: true),
-                    PosterPath = table.Column<string>(type: "text", nullable: true),
-                    Overview = table.Column<string>(type: "text", nullable: true)
+                    title_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    external_id = table.Column<string>(type: "text", nullable: false),
+                    media_type = table.Column<string>(type: "text", nullable: false),
+                    name = table.Column<string>(type: "text", nullable: false),
+                    year = table.Column<int>(type: "integer", nullable: true),
+                    poster_path = table.Column<string>(type: "text", nullable: true),
+                    overview = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_titles", x => x.TitleId);
+                    table.PrimaryKey("pk_titles", x => x.title_id);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_titles_ExternalId",
+                name: "ix_titles_external_id",
                 schema: "catalog",
                 table: "titles",
-                column: "ExternalId",
+                column: "external_id",
                 unique: true);
         }
 
