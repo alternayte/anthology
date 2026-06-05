@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Anthology.Modules.Tracking.Migrations
 {
     [DbContext(typeof(TrackingDbContext))]
-    [Migration("20260605005218_Tracking_Initial")]
+    [Migration("20260605070405_Tracking_Initial")]
     partial class Tracking_Initial
     {
         /// <inheritdoc />

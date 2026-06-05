@@ -6,7 +6,7 @@ namespace Anthology.Modules.Tracking;
 
 public static class GetDiary
 {
-    public sealed record DiaryEntryDto(Guid TitleId, string Status, int? Rating, DateTimeOffset OccurredAt);
+    public sealed record DiaryEntryDto(Guid TitleId, TrackedStatus Status, int? Rating, DateTimeOffset OccurredAt);
 
     public sealed class Handler(TrackingDbContext db)
     {

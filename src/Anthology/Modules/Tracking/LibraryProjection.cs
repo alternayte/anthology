@@ -1,5 +1,7 @@
+using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
+using Anthology.Modules.Catalog;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,13 +11,13 @@ public sealed class LibraryItem
 {
     public Guid UserId { get; set; }
     public Guid TitleId { get; set; }
-    public string MediaType { get; set; } = "film";
+    public MediaType MediaType { get; set; } = MediaType.Film;
     public string Title { get; set; } = default!;
-    public string Status { get; set; } = default!;
+    public TrackedStatus Status { get; set; }
     public int? Rating { get; set; }
     public DateTimeOffset AddedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
-    public string Visibility { get; set; } = "private";
+    public Visibility Visibility { get; set; } = Visibility.Private;
 }
 
 internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<LibraryItem>
@@ -27,6 +29,9 @@ internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<Librar
         builder.HasIndex(e => new { e.UserId, e.AddedAt, e.TitleId }).IsDescending(false, true, false);
         builder.HasIndex(e => new { e.UserId, e.Rating, e.TitleId }).IsDescending(false, true, false);
         builder.Property(e => e.Title).IsRequired();
+        builder.Property(e => e.Status).HasConversion(new SnakeCaseEnumConverter<TrackedStatus>());
+        builder.Property(e => e.MediaType).HasConversion(new SnakeCaseEnumConverter<MediaType>());
+        builder.Property(e => e.Visibility).HasConversion(new SnakeCaseEnumConverter<Visibility>());
     }
 }
 
@@ -47,28 +52,28 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
                     {
                         UserId = envelope.UserId.Value,
                         TitleId = w.TitleId,
-                        MediaType = w.MediaType,
+                        MediaType = Enum.Parse<MediaType>(w.MediaType, true),
                         Title = w.TitleName,
-                        Status = "want_to_consume",
+                        Status = TrackedStatus.WantToConsume,
                         AddedAt = w.At,
                     });
                     break;
 
                 case ItemStarted:
-                    await Upsert(envelope, item => item.Status = "in_progress", ct);
+                    await Upsert(envelope, item => item.Status = TrackedStatus.InProgress, ct);
                     break;
 
                 case ItemFinished f:
                     await Upsert(envelope, item =>
                     {
-                        item.Status = "finished";
+                        item.Status = TrackedStatus.Finished;
                         item.Rating = f.Rating?.Value;
                         item.FinishedAt = f.At;
                     }, ct);
                     break;
 
                 case ItemAbandoned:
-                    await Upsert(envelope, item => item.Status = "abandoned", ct);
+                    await Upsert(envelope, item => item.Status = TrackedStatus.Abandoned, ct);
                     break;
 
                 case ItemRerated r:

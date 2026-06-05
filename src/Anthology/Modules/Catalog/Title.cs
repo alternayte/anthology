@@ -1,3 +1,4 @@
+using Anthology.Kernel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -23,6 +24,6 @@ internal sealed class TitleConfiguration : IEntityTypeConfiguration<Title>
         builder.HasIndex(t => t.ExternalId).IsUnique();
         builder.Property(t => t.ExternalId).IsRequired();
         builder.Property(t => t.Name).IsRequired();
-        builder.Property(t => t.MediaType).HasConversion<string>();
+        builder.Property(t => t.MediaType).HasConversion(new SnakeCaseEnumConverter<MediaType>());
     }
 }

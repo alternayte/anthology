@@ -90,8 +90,8 @@ public sealed class TrackingIntegrationTests(WebAppFixture fixture)
 
         libraryItem.Should().NotBeNull();
         libraryItem!.Title.Should().Be("The Matrix");
-        libraryItem.MediaType.Should().Be("film");
-        libraryItem.Status.Should().Be("want_to_consume");
+        libraryItem.MediaType.Should().Be(MediaType.Film);
+        libraryItem.Status.Should().Be(TrackedStatus.WantToConsume);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class TrackingIntegrationTests(WebAppFixture fixture)
                 TestContext.Current.CancellationToken);
 
         diaryEntry.Should().NotBeNull();
-        diaryEntry!.Status.Should().Be("want_to_consume");
+        diaryEntry!.Status.Should().Be(TrackedStatus.WantToConsume);
     }
 
     [Fact]

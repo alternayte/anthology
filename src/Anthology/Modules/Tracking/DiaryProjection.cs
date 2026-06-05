@@ -1,3 +1,4 @@
+using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -9,10 +10,10 @@ public sealed class DiaryEntry
 {
     public Guid UserId { get; set; }
     public Guid TitleId { get; set; }
-    public string Status { get; set; } = default!;
+    public TrackedStatus Status { get; set; }
     public int? Rating { get; set; }
     public DateTimeOffset OccurredAt { get; set; }
-    public string Visibility { get; set; } = "private";
+    public Visibility Visibility { get; set; } = Visibility.Private;
 }
 
 internal sealed class DiaryEntryConfiguration : IEntityTypeConfiguration<DiaryEntry>
@@ -22,6 +23,8 @@ internal sealed class DiaryEntryConfiguration : IEntityTypeConfiguration<DiaryEn
         builder.ToTable("diary_entries", "tracking");
         builder.HasKey(e => new { e.UserId, e.TitleId, e.OccurredAt });
         builder.HasIndex(e => new { e.UserId, e.OccurredAt }).IsDescending(false, true);
+        builder.Property(e => e.Status).HasConversion(new SnakeCaseEnumConverter<TrackedStatus>());
+        builder.Property(e => e.Visibility).HasConversion(new SnakeCaseEnumConverter<Visibility>());
     }
 }
 
@@ -41,21 +44,21 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
                 {
                     UserId = envelope.UserId.Value,
                     TitleId = w.TitleId,
-                    Status = "want_to_consume",
+                    Status = TrackedStatus.WantToConsume,
                     OccurredAt = w.At,
                 },
                 ItemStarted s => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
                     TitleId = envelope.TitleId.Value,
-                    Status = "in_progress",
+                    Status = TrackedStatus.InProgress,
                     OccurredAt = s.At,
                 },
                 ItemFinished f => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
                     TitleId = envelope.TitleId.Value,
-                    Status = "finished",
+                    Status = TrackedStatus.Finished,
                     Rating = f.Rating?.Value,
                     OccurredAt = f.At,
                 },
@@ -63,14 +66,14 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
                 {
                     UserId = envelope.UserId.Value,
                     TitleId = envelope.TitleId.Value,
-                    Status = "abandoned",
+                    Status = TrackedStatus.Abandoned,
                     OccurredAt = a.At,
                 },
                 ItemRerated r => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
                     TitleId = envelope.TitleId.Value,
-                    Status = "rerated",
+                    Status = TrackedStatus.Rerated,
                     Rating = r.Rating.Value,
                     OccurredAt = r.At,
                 },

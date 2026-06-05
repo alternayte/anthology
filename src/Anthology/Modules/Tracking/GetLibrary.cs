@@ -8,7 +8,7 @@ namespace Anthology.Modules.Tracking;
 public static class GetLibrary
 {
     public sealed record LibraryItemDto(
-        Guid TitleId, string Title, string MediaType, string Status,
+        Guid TitleId, string Title, MediaType MediaType, TrackedStatus Status,
         int? Rating, DateTimeOffset AddedAt, DateTimeOffset? FinishedAt);
 
     private static readonly HashSet<string> SortableFields = ["added", "finished", "rating", "title"];
@@ -27,8 +27,8 @@ public static class GetLibrary
 
             var query = db.LibraryItems.AsNoTracking().Where(x => x.UserId == userId);
 
-            if (media is { } m) query = query.Where(x => x.MediaType == m.ToString().ToLowerInvariant());
-            if (status is { } s) query = query.Where(x => x.Status == MapStatus(s));
+            if (media is { } m) query = query.Where(x => x.MediaType == m);
+            if (status is { } s) query = query.Where(x => x.Status == s);
             if (minRating is { } r) query = query.Where(x => x.Rating >= r);
 
             var ordered = ApplySort(query, sort, descending);
@@ -124,15 +124,6 @@ public static class GetLibrary
             }
             catch { return false; }
         }
-
-        private static string MapStatus(TrackedStatus s) => s switch
-        {
-            TrackedStatus.WantToConsume => "want_to_consume",
-            TrackedStatus.InProgress => "in_progress",
-            TrackedStatus.Finished => "finished",
-            TrackedStatus.Abandoned => "abandoned",
-            _ => s.ToString().ToLowerInvariant()
-        };
     }
 
     public static void Map(IEndpointRouteBuilder group) =>

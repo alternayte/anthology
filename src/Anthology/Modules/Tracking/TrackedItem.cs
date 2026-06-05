@@ -2,7 +2,9 @@ using Anthology.Kernel;
 
 namespace Anthology.Modules.Tracking;
 
-public enum TrackedStatus { None, WantToConsume, InProgress, Finished, Abandoned }
+public enum TrackedStatus { None, WantToConsume, InProgress, Finished, Abandoned, Rerated }
+
+public enum Visibility { Private, Public }
 
 public readonly record struct Rating
 {
