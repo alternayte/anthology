@@ -188,4 +188,51 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task Rebuild_repopulates_projection_after_truncate()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+        var titleId = await SeedTitleAsync();
+
+        await client.PostAsJsonAsync($"/api/tracking/items/{titleId}/want", new { }, ct);
+
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
+            var count = await trackingDb.DiaryEntries.AsNoTracking()
+                .CountAsync(e => e.TitleId == titleId, ct);
+            count.Should().Be(1);
+        }
+
+        var rebuildResponse = await client.PostAsync(
+            "/admin/projections/DiaryProjection/rebuild", null, ct);
+        rebuildResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var caughtUp = false;
+        for (var i = 0; i < 50; i++)
+        {
+            await Task.Delay(200, ct);
+            var statusResponse = await client.GetAsync(
+                "/admin/projections/DiaryProjection/status", ct);
+            var status = await statusResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+            if (status.GetProperty("isCaughtUp").GetBoolean())
+            {
+                caughtUp = true;
+                break;
+            }
+        }
+
+        caughtUp.Should().BeTrue("projection should catch up within 10 seconds");
+
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
+            var entry = await trackingDb.DiaryEntries.AsNoTracking()
+                .FirstOrDefaultAsync(e => e.TitleId == titleId, ct);
+            entry.Should().NotBeNull("diary entry should be rebuilt from events");
+            entry!.Status.Should().Be(TrackedStatus.WantToConsume);
+        }
+    }
 }
