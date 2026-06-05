@@ -9,6 +9,7 @@ public sealed class EventStoreDbContext(DbContextOptions<EventStoreDbContext> op
     public DbSet<CheckpointRow> Checkpoints => Set<CheckpointRow>();
     public DbSet<OutboxRow> Outbox => Set<OutboxRow>();
     public DbSet<InboxRow> Inbox => Set<InboxRow>();
+    public DbSet<RebuildJobRow> RebuildJobs => Set<RebuildJobRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -18,5 +19,6 @@ public sealed class EventStoreDbContext(DbContextOptions<EventStoreDbContext> op
         modelBuilder.ApplyConfiguration(new CheckpointRowConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxRowConfiguration());
         modelBuilder.ApplyConfiguration(new InboxRowConfiguration());
+        modelBuilder.ApplyConfiguration(new RebuildJobRowConfiguration());
     }
 }
