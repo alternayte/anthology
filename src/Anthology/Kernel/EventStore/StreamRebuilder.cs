@@ -30,7 +30,7 @@ public sealed class StreamRebuilder(
 
         var rebuilder = evolverRegistry.GetRebuilder(stream.StreamType);
         stream.State = rebuilder(events);
-        stream.Version = events.Count;
+        stream.Version = events.Count > 0 ? events[^1].Version : 0;
         stream.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
