@@ -20,7 +20,7 @@ public sealed class AsyncProjectionHost(
             foreach (var name in registry.ProjectionNames)
             {
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandText = "INSERT INTO es.checkpoints (\"ProjectionName\", \"Position\") VALUES ($1, 0) ON CONFLICT DO NOTHING";
+                cmd.CommandText = "INSERT INTO es.checkpoints (\"projection_name\", \"position\") VALUES ($1, 0) ON CONFLICT DO NOTHING";
                 cmd.Parameters.AddWithValue(name);
                 await cmd.ExecuteNonQueryAsync(ct);
             }
@@ -68,8 +68,8 @@ public sealed class AsyncProjectionHost(
 
         var checkpoint = await db.Checkpoints
             .FromSqlInterpolated($"""
-                SELECT * FROM es."checkpoints"
-                WHERE "ProjectionName" = {name}
+                SELECT * FROM es.checkpoints
+                WHERE "projection_name" = {name}
                 FOR UPDATE SKIP LOCKED
                 """)
             .FirstOrDefaultAsync(ct);
@@ -84,9 +84,9 @@ public sealed class AsyncProjectionHost(
         var batch = await db.Events
             .FromSqlInterpolated($"""
                 SELECT * FROM es.events
-                WHERE "GlobalPosition" > {checkpoint.Position}
-                  AND "Xid" < pg_snapshot_xmin(pg_current_snapshot())
-                ORDER BY "GlobalPosition"
+                WHERE "global_position" > {checkpoint.Position}
+                  AND "xid" < pg_snapshot_xmin(pg_current_snapshot())
+                ORDER BY "global_position"
                 LIMIT 500
                 """)
             .AsNoTracking()

@@ -31,9 +31,9 @@ public sealed class EventStore(EventStoreDbContext db, EventRegistry registry, E
         {
             var serializedState = serializer.SerializeState(newState);
             var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
-                UPDATE es.streams SET "Version" = {newVersion},
-                "State" = {serializedState}::jsonb, "UpdatedAt" = now()
-                WHERE "StreamId" = {streamId} AND "Version" = {expectedVersion}
+                UPDATE es.streams SET "version" = {newVersion},
+                "state" = {serializedState}::jsonb, "updated_at" = now()
+                WHERE "stream_id" = {streamId} AND "version" = {expectedVersion}
                 """, ct);
             if (affected == 0) throw new ConcurrencyConflict(streamId, expectedVersion);
         }

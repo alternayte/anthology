@@ -124,9 +124,9 @@ public sealed class AsyncProjectionTests(PostgresFixture fixture) : IClassFixtur
         var batch = await readDb.Events
             .FromSqlInterpolated($"""
                 SELECT * FROM es.events
-                WHERE "GlobalPosition" > {0}
-                  AND "Xid" < pg_snapshot_xmin(pg_current_snapshot())
-                ORDER BY "GlobalPosition"
+                WHERE "global_position" > {0}
+                  AND "xid" < pg_snapshot_xmin(pg_current_snapshot())
+                ORDER BY "global_position"
                 LIMIT 500
                 """)
             .AsNoTracking()
