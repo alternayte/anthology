@@ -35,9 +35,10 @@ internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<Librar
     }
 }
 
-public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbContextProjection
+public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbContextProjection, IRebuildableProjection
 {
     public DbContext DbContext => db;
+    public static string SchemaQualifiedTableName => "tracking.library_items";
 
     public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
     {
@@ -48,15 +49,14 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
             switch (envelope.Event)
             {
                 case ItemWanted w:
-                    db.LibraryItems.Add(new LibraryItem
-                    {
-                        UserId = envelope.UserId.Value,
-                        TitleId = w.TitleId,
-                        MediaType = Enum.Parse<MediaType>(w.MediaType, true),
-                        Title = w.TitleName,
-                        Status = TrackedStatus.WantToConsume,
-                        AddedAt = w.At,
-                    });
+                    var mediaStr = SnakeCaseEnumHelper.ToSnakeCase(Enum.Parse<MediaType>(w.MediaType, true));
+                    var statusStr = SnakeCaseEnumHelper.ToSnakeCase(TrackedStatus.WantToConsume);
+                    var visibilityStr = SnakeCaseEnumHelper.ToSnakeCase(Visibility.Private);
+                    await db.Database.ExecuteSqlInterpolatedAsync($"""
+                        INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility)
+                        VALUES ({envelope.UserId.Value}, {w.TitleId}, {mediaStr}, {w.TitleName}, {statusStr}, {w.At}, {visibilityStr})
+                        ON CONFLICT (user_id, title_id) DO NOTHING
+                        """, ct);
                     break;
 
                 case ItemStarted:

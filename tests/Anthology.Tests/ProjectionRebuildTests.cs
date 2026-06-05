@@ -80,4 +80,32 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
             .CountAsync(e => e.TitleId == titleId, ct);
         count.Should().Be(1);
     }
+
+    [Fact]
+    public async Task Library_projection_insert_is_idempotent()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+        var titleId = await SeedTitleAsync();
+
+        await client.PostAsJsonAsync($"/api/tracking/items/{titleId}/want", new { }, ct);
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var trackingDb = scope.ServiceProvider.GetRequiredService<TrackingDbContext>();
+
+        var item = await trackingDb.LibraryItems.AsNoTracking()
+            .FirstAsync(i => i.TitleId == titleId, ct);
+
+        var affected = await trackingDb.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility)
+            VALUES ({item.UserId}, {item.TitleId}, {Snake(item.MediaType)}, {item.Title}, {Snake(item.Status)}, {item.AddedAt}, {Snake(item.Visibility)})
+            ON CONFLICT (user_id, title_id) DO NOTHING
+            """, ct);
+
+        affected.Should().Be(0, "idempotent insert should not insert a duplicate row");
+
+        var count = await trackingDb.LibraryItems.AsNoTracking()
+            .CountAsync(i => i.TitleId == titleId, ct);
+        count.Should().Be(1);
+    }
 }
