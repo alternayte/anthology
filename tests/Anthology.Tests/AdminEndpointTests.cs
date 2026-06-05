@@ -154,4 +154,22 @@ public sealed class AdminEndpointTests(WebAppFixture fixture)
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task List_stream_types_returns_registered_types()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = await CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/admin/streams/types", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        body.GetArrayLength().Should().BeGreaterThanOrEqualTo(1);
+
+        var types = Enumerable.Range(0, body.GetArrayLength())
+            .Select(i => body[i].GetString())
+            .ToList();
+        types.Should().Contain("tracked_item");
+    }
 }

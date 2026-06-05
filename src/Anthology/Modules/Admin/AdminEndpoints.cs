@@ -34,6 +34,9 @@ public static class AdminEndpoints
             .WithTags("Admin")
             .RequireAuthorization();
 
+        group.MapGet("/types", (StreamEvolverRegistry registry) =>
+            Results.Ok(registry.RegisteredStreamTypes));
+
         group.MapPost("/{streamId:guid}/rebuild", async (
             Guid streamId,
             StreamRebuilder rebuilder,
