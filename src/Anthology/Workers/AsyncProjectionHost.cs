@@ -104,7 +104,7 @@ public sealed class AsyncProjectionHost(
         {
             var domainEvent = serializer.Deserialize(row.EventType, row.Payload);
             var metadata = serializer.DeserializeMetadata(row.Metadata);
-            return new EventEnvelope(row.StreamId, row.Version, domainEvent, metadata);
+            return new EventEnvelope(row.StreamId, string.Empty, row.Version, domainEvent, metadata);
         }).ToList();
 
         if (projection is IDbContextProjection contextProjection)

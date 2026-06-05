@@ -28,8 +28,10 @@ public sealed record ItemAbandoned(DateTimeOffset At) : IDomainEvent;
 public sealed record ItemRerated(Rating Rating, DateTimeOffset At) : IDomainEvent;
 
 public sealed record TrackedItemState(TrackedStatus Status, Rating? Rating, Guid TitleId, int Version)
+    : IAggregateState<TrackedItemState>
 {
-    public static readonly TrackedItemState Initial = new(TrackedStatus.None, null, Guid.Empty, 0);
+    public static TrackedItemState Initial => new(TrackedStatus.None, null, Guid.Empty, 0);
+    public static string StreamType => "tracked_item";
 }
 
 public interface ITrackingCommand : IEventSourcedCommand;

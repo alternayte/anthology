@@ -82,7 +82,7 @@ public sealed class AsyncProjectionTests(PostgresFixture fixture) : IClassFixtur
         {
             var domainEvent = serializer.Deserialize(row.EventType, row.Payload);
             var metadata = serializer.DeserializeMetadata(row.Metadata);
-            return new EventEnvelope(row.StreamId, row.Version, domainEvent, metadata);
+            return new EventEnvelope(row.StreamId, string.Empty, row.Version, domainEvent, metadata);
         }).ToList();
 
         await projection.ApplyAsync(envelopes, CancellationToken.None);

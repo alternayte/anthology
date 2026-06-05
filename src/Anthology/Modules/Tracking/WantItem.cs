@@ -17,6 +17,5 @@ public static class WantItem
         : EventSourcedHandler<Command, TrackedItemState, TrackedItemDto>(
             store, projector, outboxWriter,
             TrackedItem.Decide, TrackedItem.Evolve,
-            "tracked_item", TrackedItemState.Initial,
             (streamId, cmd, state) => new TrackedItemDto(streamId, cmd.TitleId, state.Status, state.Rating));
 }

@@ -20,7 +20,7 @@ public sealed class OutboxWriter(EventStoreDbContext db, IntegrationEventTransla
             db.Outbox.Add(new OutboxRow
             {
                 Id = Guid.NewGuid(),
-                AggregateType = "TrackedItem",
+                AggregateType = envelope.StreamType,
                 AggregateId = envelope.StreamId.ToString(),
                 Type = eventType,
                 Payload = JsonSerializer.Serialize(payload, EventSerializer.Options),

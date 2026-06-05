@@ -53,7 +53,7 @@ public sealed class EventStore(EventStoreDbContext db, EventRegistry registry, E
                 Metadata = serializer.SerializeMetadata(metadata),
                 OccurredAt = metadata.OccurredAt
             });
-            envelopes.Add(new EventEnvelope(streamId, version, e, metadata, userId, titleId));
+            envelopes.Add(new EventEnvelope(streamId, streamType, version, e, metadata, userId, titleId));
         }
 
         try
