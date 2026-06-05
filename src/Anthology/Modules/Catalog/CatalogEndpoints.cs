@@ -10,7 +10,7 @@ public static class CatalogEndpoints
 
         group.MapGet("/search", async (string term, SearchTitles.Handler handler, CancellationToken ct) =>
             Results.Ok(await handler.Handle(new SearchTitles.Query(term), ct)))
-            .WithName("searchCatalog").Produces<IReadOnlyList<SearchTitles.TitleSearchResult>>();
+            .WithName("searchCatalog").Produces<List<SearchTitles.TitleSearchResult>>();
 
         group.MapPost("/titles", async (AddTitle.AddTitleCommand command, AddTitle.Handler handler, CancellationToken ct) =>
             (await handler.Handle(command, ct)).ToHttpResult())

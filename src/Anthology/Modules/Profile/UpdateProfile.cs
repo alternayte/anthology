@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Anthology.Kernel;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +7,7 @@ namespace Anthology.Modules.Profile;
 
 public static class UpdateProfile
 {
-    public sealed record UpdateProfileCommand(string DisplayName, Guid UserId = default)
+    public sealed record UpdateProfileCommand(string DisplayName, [property: JsonIgnore] Guid UserId = default)
         : ICommand<Result<ProfileDto>>;
 
     public sealed class Validator : AbstractValidator<UpdateProfileCommand>
