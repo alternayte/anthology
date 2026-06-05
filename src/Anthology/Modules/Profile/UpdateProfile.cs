@@ -1,6 +1,4 @@
-using System.Security.Claims;
 using Anthology.Kernel;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace Anthology.Modules.Profile;
@@ -10,14 +8,6 @@ public static class UpdateProfile
     public sealed record Command(string DisplayName);
 
     public sealed record ProfileDto(Guid UserId, string DisplayName);
-
-    public sealed class Validator : AbstractValidator<Command>
-    {
-        public Validator()
-        {
-            RuleFor(x => x.DisplayName).NotEmpty().MaximumLength(100);
-        }
-    }
 
     public sealed class Handler(ProfileDbContext db)
     {
@@ -39,11 +29,4 @@ public static class UpdateProfile
             return new ProfileDto(profile.UserId, profile.DisplayName);
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapPut("/me", async (
-            Command command, ClaimsPrincipal user, Handler handler, CancellationToken ct) =>
-            (await handler.Handle(user.UserId(), command, ct)).ToHttpResult())
-            .AddEndpointFilter<ValidationFilter<Command>>()
-            .RequireAuthorization();
 }

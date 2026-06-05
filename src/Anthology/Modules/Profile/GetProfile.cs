@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Anthology.Kernel;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,10 +19,4 @@ public static class GetProfile
                 : new ProfileDto(profile.UserId, profile.DisplayName);
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapGet("/me", async (
-            ClaimsPrincipal user, Handler handler, CancellationToken ct) =>
-            (await handler.Handle(user.UserId(), ct)).ToHttpResult())
-            .RequireAuthorization();
 }

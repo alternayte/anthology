@@ -15,12 +15,4 @@ public static class ProfileModule
 
         return services;
     }
-
-    public static WebApplication MapProfileEndpoints(this WebApplication app)
-    {
-        var group = app.MapGroup("/api/profile").WithTags("Profile");
-        GetProfile.Map(group);
-        UpdateProfile.Map(group);
-        return app;
-    }
 }
