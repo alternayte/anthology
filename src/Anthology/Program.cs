@@ -73,11 +73,9 @@ builder.Services.AddScoped<InlineProjector>();
 
 builder.Services.AddHostedService<RebuildJobHost>();
 
-// Async projection host — registered when async projections exist (M5+)
-// Infrastructure lives in Workers/AsyncProjectionHost.cs; wire it with:
-//   builder.Services.AddNpgsqlDataSource(connectionString);
-//   builder.Services.AddSingleton(sp => sp.GetService<AsyncProjectionRegistry>() ?? new AsyncProjectionRegistry());
-//   builder.Services.AddHostedService<AsyncProjectionHost>();
+builder.Services.AddSingleton<NpgsqlDataSource>(sp =>
+    NpgsqlDataSource.Create(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!));
+builder.Services.AddHostedService<AsyncProjectionHost>();
 
 // Command handler scanning + decoration via Scrutor
 builder.Services.Scan(s => s.FromAssemblyOf<Program>()

@@ -16,6 +16,8 @@ public static class TrackingModule
 
         services.AddInlineProjection<DiaryProjection>();
         services.AddInlineProjection<LibraryProjection>();
+        services.AddAsyncProjection<DiaryProjection>();
+        services.AddAsyncProjection<LibraryProjection>();
 
         services.AddScoped<GetDiary.Handler>();
         services.AddScoped<GetLibrary.Handler>();
