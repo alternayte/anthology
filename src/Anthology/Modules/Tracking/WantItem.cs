@@ -7,7 +7,11 @@ namespace Anthology.Modules.Tracking;
 public static class WantItem
 {
     public sealed record Command(Guid TitleId, string TitleName, string MediaType, Guid UserId, DateTimeOffset At)
-        : ICommand<Result<TrackedItemDto>>, ITrackingCommand;
+        : ICommand<Result<TrackedItemDto>>, ITrackingCommand
+    {
+        public Guid StreamId => Kernel.StreamId.For(UserId, TitleId);
+        public (Guid? UserId, Guid? ContextId) GetCorrelationHints() => (UserId, TitleId);
+    }
 
     public sealed class Handler(EventStore store, InlineProjector projector, OutboxWriter outboxWriter)
         : ICommandHandler<Command, Result<TrackedItemDto>>

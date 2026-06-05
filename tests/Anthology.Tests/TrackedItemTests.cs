@@ -1,4 +1,5 @@
 using Anthology.Kernel;
+using Anthology.Kernel.EventStore;
 using Anthology.Modules.Tracking;
 using FluentAssertions;
 using Xunit;
@@ -150,5 +151,20 @@ public class TrackedItemTests
     {
         var r = new Rating(5);
         ((int)r).Should().Be(5);
+    }
+
+    [Fact]
+    public void Tracking_commands_provide_stream_id_and_correlation_hints()
+    {
+        var userId = Guid.NewGuid();
+        var titleId = Guid.NewGuid();
+        var command = new WantItem.Command(titleId, "Test", "film", userId, DateTimeOffset.UtcNow);
+
+        var esCommand = (IEventSourcedCommand)command;
+        esCommand.StreamId.Should().Be(StreamId.For(userId, titleId));
+
+        var (hintUserId, hintContextId) = esCommand.GetCorrelationHints();
+        hintUserId.Should().Be(userId);
+        hintContextId.Should().Be(titleId);
     }
 }
