@@ -30,15 +30,12 @@ public class ConventionTests
     }
 
     [Fact]
-    public void All_tracking_command_endpoints_require_authorization()
+    public void All_tracking_endpoints_are_centralized()
     {
-        var trackingSlices = typeof(Anthology.Modules.Tracking.TrackingModule).Assembly.GetTypes()
-            .Where(t => t.Namespace == "Anthology.Modules.Tracking")
-            .Where(t => t.IsAbstract && t.IsSealed)
-            .Where(t => t.GetMethod("Map", BindingFlags.Public | BindingFlags.Static) is not null)
-            .ToList();
+        var endpointsType = typeof(Anthology.Modules.Tracking.TrackingEndpoints);
+        var mapMethod = endpointsType.GetMethod("MapTrackingEndpoints", BindingFlags.Public | BindingFlags.Static);
 
-        trackingSlices.Should().NotBeEmpty("tracking module should have slice types with Map methods");
+        mapMethod.Should().NotBeNull("TrackingEndpoints should have a MapTrackingEndpoints method");
     }
 
     [Fact]

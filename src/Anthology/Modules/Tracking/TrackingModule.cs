@@ -23,19 +23,6 @@ public static class TrackingModule
         return services;
     }
 
-    public static WebApplication MapTrackingEndpoints(this WebApplication app)
-    {
-        var group = app.MapGroup("/api/tracking").WithTags("Tracking");
-        WantItem.Map(group);
-        StartItem.Map(group);
-        FinishItem.Map(group);
-        AbandonItem.Map(group);
-        RerateItem.Map(group);
-        GetDiary.Map(group);
-        GetLibrary.Map(group);
-        return app;
-    }
-
     public static void RegisterEvents(EventRegistry registry)
     {
         registry.Map<ItemWanted>("tracking.item.wanted", currentVersion: 2, upcasters:

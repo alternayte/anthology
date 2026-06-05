@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Anthology.Kernel;
 using Anthology.Modules.Catalog;
 using Microsoft.EntityFrameworkCore;
@@ -125,25 +124,4 @@ public static class GetLibrary
             catch { return false; }
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapGet("/library", async (
-            ClaimsPrincipal user,
-            string? media,
-            string? status,
-            int? minRating,
-            string? sort,
-            string? dir,
-            string? cursor,
-            int? size,
-            Handler handler,
-            CancellationToken ct) =>
-        {
-            MediaType? mediaFilter = Enum.TryParse<MediaType>(media, true, out var m) ? m : null;
-            TrackedStatus? statusFilter = Enum.TryParse<TrackedStatus>(status, true, out var s) ? s : null;
-
-            return (await handler.Handle(
-                user.UserId(), mediaFilter, statusFilter, minRating,
-                sort ?? "added", dir ?? "desc", cursor, size ?? 20, ct)).ToHttpResult();
-        }).RequireAuthorization();
 }

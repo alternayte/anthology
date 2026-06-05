@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
@@ -34,13 +33,4 @@ public static class StartItem
             return new TrackedItemDto(streamId, command.TitleId, newState.Status, newState.Rating);
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapPost("/items/{titleId:guid}/start", async (
-            Guid titleId,
-            ClaimsPrincipal user,
-            ICommandHandler<Command, Result<TrackedItemDto>> handler,
-            CancellationToken ct) =>
-            (await handler.Handle(new Command(DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-            .RequireAuthorization();
 }

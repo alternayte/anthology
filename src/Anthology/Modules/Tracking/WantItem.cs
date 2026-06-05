@@ -1,9 +1,6 @@
-using System.Security.Claims;
 using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
-using Anthology.Modules.Catalog;
-using Microsoft.EntityFrameworkCore;
 
 namespace Anthology.Modules.Tracking;
 
@@ -36,26 +33,4 @@ public static class WantItem
             return new TrackedItemDto(streamId, command.TitleId, newState.Status, newState.Rating);
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapPost("/items/{titleId:guid}/want", async (
-            Guid titleId,
-            ClaimsPrincipal user,
-            CatalogDbContext catalogDb,
-            ICommandHandler<Command, Result<TrackedItemDto>> handler,
-            CancellationToken ct) =>
-        {
-            var title = await catalogDb.Titles.AsNoTracking()
-                .FirstOrDefaultAsync(t => t.TitleId == titleId, ct);
-
-            if (title is null)
-                return Results.NotFound();
-
-            return (await handler.Handle(
-                new Command(titleId, title.Name, title.MediaType.ToString().ToLowerInvariant(),
-                            user.UserId(), DateTimeOffset.UtcNow), ct)).ToHttpResult();
-        })
-        .RequireAuthorization();
 }
-
-public sealed record TrackedItemDto(Guid StreamId, Guid TitleId, TrackedStatus Status, Rating? Rating);

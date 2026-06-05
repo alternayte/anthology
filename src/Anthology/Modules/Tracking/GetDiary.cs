@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Anthology.Kernel;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,14 +59,4 @@ public static class GetDiary
             catch { return false; }
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapGet("/diary", async (
-            ClaimsPrincipal user,
-            string? cursor,
-            int? size,
-            Handler handler,
-            CancellationToken ct) =>
-            Results.Ok(await handler.Handle(user.UserId(), cursor, size ?? 20, ct)))
-            .RequireAuthorization();
 }

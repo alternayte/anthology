@@ -1,8 +1,6 @@
-using System.Security.Claims;
 using Anthology.Kernel;
 using Anthology.Kernel.EventStore;
 using Anthology.Kernel.Messaging;
-using FluentValidation;
 
 namespace Anthology.Modules.Tracking;
 
@@ -10,16 +8,6 @@ public static class RerateItem
 {
     public sealed record Command(Rating Rating, DateTimeOffset At, Guid UserId = default, Guid TitleId = default)
         : ICommand<Result<TrackedItemDto>>, ITrackingCommand;
-
-    public sealed record Request(int Rating);
-
-    public sealed class RequestValidator : AbstractValidator<Request>
-    {
-        public RequestValidator()
-        {
-            RuleFor(x => x.Rating).InclusiveBetween(1, 10);
-        }
-    }
 
     public sealed class Handler(EventStore store, InlineProjector projector, OutboxWriter outboxWriter)
         : ICommandHandler<Command, Result<TrackedItemDto>>
@@ -45,15 +33,4 @@ public static class RerateItem
             return new TrackedItemDto(streamId, command.TitleId, newState.Status, newState.Rating);
         }
     }
-
-    public static void Map(IEndpointRouteBuilder group) =>
-        group.MapPost("/items/{titleId:guid}/rerate", async (
-            Guid titleId,
-            Request request,
-            ClaimsPrincipal user,
-            ICommandHandler<Command, Result<TrackedItemDto>> handler,
-            CancellationToken ct) =>
-            (await handler.Handle(new Command(new Rating(request.Rating), DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-            .AddEndpointFilter<ValidationFilter<Request>>()
-            .RequireAuthorization();
 }

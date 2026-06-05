@@ -96,3 +96,5 @@ public static class TrackedItem
     private static Result<IReadOnlyList<IDomainEvent>> Ok(IDomainEvent e) =>
         Result<IReadOnlyList<IDomainEvent>>.FromValue(new List<IDomainEvent> { e });
 }
+
+public sealed record TrackedItemDto(Guid StreamId, Guid TitleId, TrackedStatus Status, Rating? Rating);
