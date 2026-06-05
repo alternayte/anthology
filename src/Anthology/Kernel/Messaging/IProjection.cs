@@ -6,3 +6,8 @@ public interface IProjection
 {
     Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct);
 }
+
+public interface IRebuildableProjection
+{
+    static abstract string SchemaQualifiedTableName { get; }
+}

@@ -71,6 +71,24 @@ public class ConventionTests
     }
 
     [Fact]
+    public void All_projections_implement_IRebuildableProjection()
+    {
+        var projectionTypes = typeof(Program).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface)
+            .Where(t => t.GetInterfaces().Contains(typeof(Anthology.Kernel.Messaging.IProjection)))
+            .ToList();
+
+        projectionTypes.Should().NotBeEmpty("there should be projection implementations in the assembly");
+
+        foreach (var projection in projectionTypes)
+        {
+            projection.GetInterfaces().Should().Contain(
+                typeof(Anthology.Kernel.Messaging.IRebuildableProjection),
+                $"{projection.Name} must implement IRebuildableProjection so it can be rebuilt via admin endpoint");
+        }
+    }
+
+    [Fact]
     public void All_aggregate_states_have_registered_evolvers()
     {
         var stateTypes = typeof(Program).Assembly.GetTypes()
