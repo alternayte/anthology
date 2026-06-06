@@ -83,8 +83,8 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
 
             if (entry is not null)
             {
-                var statusStr = SnakeCaseEnumHelper.ToSnakeCase(entry.Status);
-                var visibilityStr = SnakeCaseEnumHelper.ToSnakeCase(entry.Visibility);
+                var statusStr = entry.Status.ToSnakeCase();
+                var visibilityStr = entry.Visibility.ToSnakeCase();
                 await db.Database.ExecuteSqlInterpolatedAsync($"""
                     INSERT INTO tracking.diary_entries (user_id, title_id, status, rating, occurred_at, visibility)
                     VALUES ({entry.UserId}, {entry.TitleId}, {statusStr}, {entry.Rating}, {entry.OccurredAt}, {visibilityStr})
@@ -95,8 +95,8 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
     }
 }
 
-internal static class SnakeCaseEnumHelper
+internal static class EnumExtensions
 {
-    public static string ToSnakeCase<T>(T value) where T : struct, Enum =>
+    public static string ToSnakeCase<T>(this T value) where T : struct, Enum =>
         System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(value.ToString());
 }

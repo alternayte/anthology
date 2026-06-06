@@ -49,9 +49,9 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
             switch (envelope.Event)
             {
                 case ItemWanted w:
-                    var mediaStr = SnakeCaseEnumHelper.ToSnakeCase(Enum.Parse<MediaType>(w.MediaType, true));
-                    var statusStr = SnakeCaseEnumHelper.ToSnakeCase(TrackedStatus.WantToConsume);
-                    var visibilityStr = SnakeCaseEnumHelper.ToSnakeCase(Visibility.Private);
+                    var mediaStr = Enum.Parse<MediaType>(w.MediaType, true).ToSnakeCase();
+                    var statusStr = TrackedStatus.WantToConsume.ToSnakeCase();
+                    var visibilityStr = Visibility.Private.ToSnakeCase();
                     await db.Database.ExecuteSqlInterpolatedAsync($"""
                         INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility)
                         VALUES ({envelope.UserId.Value}, {w.TitleId}, {mediaStr}, {w.TitleName}, {statusStr}, {w.At}, {visibilityStr})
