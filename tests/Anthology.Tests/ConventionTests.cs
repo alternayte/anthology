@@ -89,6 +89,34 @@ public class ConventionTests
     }
 
     [Fact]
+    public void Every_command_has_a_handler()
+    {
+        var commandInterface = typeof(ICommand<>);
+        var handlerInterface = typeof(ICommandHandler<,>);
+
+        var commands = typeof(Program).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface)
+            .Where(t => t.GetInterfaces().Any(i =>
+                i.IsGenericType && i.GetGenericTypeDefinition() == commandInterface))
+            .ToList();
+
+        var handledCommandTypes = typeof(Program).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface && !t.IsGenericTypeDefinition)
+            .SelectMany(t => t.GetInterfaces()
+                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterface)
+                .Select(i => i.GetGenericArguments()[0]))
+            .ToHashSet();
+
+        commands.Should().NotBeEmpty("there should be command types in the assembly");
+
+        foreach (var cmd in commands)
+        {
+            handledCommandTypes.Should().Contain(cmd,
+                $"{cmd.DeclaringType?.Name}.{cmd.Name} has no ICommandHandler<,> implementation");
+        }
+    }
+
+    [Fact]
     public void All_aggregate_states_have_registered_evolvers()
     {
         var stateTypes = typeof(Program).Assembly.GetTypes()
