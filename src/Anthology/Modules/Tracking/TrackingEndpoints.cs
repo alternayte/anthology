@@ -10,6 +10,14 @@ public sealed record FinishRequest(int? Rating);
 
 public sealed record RerateRequest(int Rating);
 
+public sealed record CreateListRequest(string Name, string? Description, string? Visibility);
+
+public sealed record UpdateListRequest(string? Name, string? Description, string? Visibility);
+
+public sealed record AddItemToListRequest(Guid TitleId);
+
+public sealed record ReorderItemRequest(Guid? AfterTitleId);
+
 public static class TrackingEndpoints
 {
     public static WebApplication MapTrackingEndpoints(this WebApplication app)
@@ -97,6 +105,93 @@ public static class TrackingEndpoints
                 user.UserId(), mediaFilter, statusFilter, minRating,
                 sort ?? "added", dir ?? "desc", cursor, size ?? 20, ct)).ToHttpResult();
         }).RequireAuthorization().WithName("getLibrary").Produces<Page<GetLibrary.LibraryItemDto>>();
+
+        var lists = group.MapGroup("/lists").WithTags("Lists");
+
+        lists.MapPost("/", async (
+            CreateListRequest request,
+            ClaimsPrincipal user,
+            ICommandHandler<CreateList.Command, Result<CuratedListDto>> handler,
+            CancellationToken ct) =>
+        {
+            var visibility = Enum.TryParse<ListVisibility>(request.Visibility, true, out var v)
+                ? v : ListVisibility.Private;
+            return (await handler.Handle(
+                new CreateList.Command(request.Name, request.Description, visibility,
+                    user.UserId(), Guid.NewGuid(), DateTimeOffset.UtcNow), ct)).ToHttpResult();
+        }).RequireAuthorization().WithName("createList").Produces<CuratedListDto>();
+
+        lists.MapPut("/{listId:guid}", async (
+            Guid listId,
+            UpdateListRequest request,
+            ClaimsPrincipal user,
+            ICommandHandler<UpdateList.Command, Result<CuratedListDto>> handler,
+            CancellationToken ct) =>
+        {
+            ListVisibility? visibility = Enum.TryParse<ListVisibility>(request.Visibility, true, out var v)
+                ? v : null;
+            return (await handler.Handle(
+                new UpdateList.Command(request.Name, request.Description, request.Description is not null, visibility,
+                    user.UserId(), listId, DateTimeOffset.UtcNow), ct)).ToHttpResult();
+        }).RequireAuthorization().WithName("updateList").Produces<CuratedListDto>();
+
+        lists.MapDelete("/{listId:guid}", async (
+            Guid listId,
+            ClaimsPrincipal user,
+            ICommandHandler<DeleteList.Command, Result<CuratedListDto>> handler,
+            CancellationToken ct) =>
+            (await handler.Handle(
+                new DeleteList.Command(user.UserId(), listId, DateTimeOffset.UtcNow), ct)).ToHttpResult())
+            .RequireAuthorization().WithName("deleteList").Produces<CuratedListDto>();
+
+        lists.MapPost("/{listId:guid}/items", async (
+            Guid listId,
+            AddItemToListRequest request,
+            ClaimsPrincipal user,
+            ICommandHandler<AddItemToList.Command, Result<CuratedListDto>> handler,
+            CancellationToken ct) =>
+            (await handler.Handle(
+                new AddItemToList.Command(request.TitleId, user.UserId(), listId, DateTimeOffset.UtcNow), ct)).ToHttpResult())
+            .RequireAuthorization().WithName("addItemToList").Produces<CuratedListDto>();
+
+        lists.MapDelete("/{listId:guid}/items/{titleId:guid}", async (
+            Guid listId,
+            Guid titleId,
+            ClaimsPrincipal user,
+            ICommandHandler<RemoveItemFromList.Command, Result<CuratedListDto>> handler,
+            CancellationToken ct) =>
+            (await handler.Handle(
+                new RemoveItemFromList.Command(titleId, user.UserId(), listId, DateTimeOffset.UtcNow), ct)).ToHttpResult())
+            .RequireAuthorization().WithName("removeItemFromList").Produces<CuratedListDto>();
+
+        lists.MapPut("/{listId:guid}/items/{titleId:guid}/position", async (
+            Guid listId,
+            Guid titleId,
+            ReorderItemRequest request,
+            ClaimsPrincipal user,
+            ICommandHandler<ReorderItem.Command, Result<CuratedListDto>> handler,
+            CancellationToken ct) =>
+            (await handler.Handle(
+                new ReorderItem.Command(titleId, request.AfterTitleId, user.UserId(), listId, DateTimeOffset.UtcNow), ct)).ToHttpResult())
+            .RequireAuthorization().WithName("reorderItem").Produces<CuratedListDto>();
+
+        lists.MapGet("/", async (
+            ClaimsPrincipal user,
+            GetUserLists.Handler handler,
+            CancellationToken ct) =>
+            Results.Ok(await handler.Handle(user.UserId(), ct)))
+            .RequireAuthorization().WithName("getUserLists").Produces<IReadOnlyList<GetUserLists.ListSummaryDto>>();
+
+        lists.MapGet("/{listId:guid}", async (
+            Guid listId,
+            ClaimsPrincipal? user,
+            GetList.Handler handler,
+            CancellationToken ct) =>
+        {
+            Guid? requestingUserId = null;
+            try { requestingUserId = user?.UserId(); } catch { }
+            return (await handler.Handle(listId, requestingUserId, ct)).ToHttpResult();
+        }).WithName("getList").Produces<GetList.ListDetailDto>();
 
         return app;
     }

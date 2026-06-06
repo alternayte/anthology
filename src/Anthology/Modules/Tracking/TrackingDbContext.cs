@@ -6,11 +6,15 @@ public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> option
 {
     public DbSet<DiaryEntry> DiaryEntries => Set<DiaryEntry>();
     public DbSet<LibraryItem> LibraryItems => Set<LibraryItem>();
+    public DbSet<ListRow> Lists => Set<ListRow>();
+    public DbSet<ListItemRow> ListItems => Set<ListItemRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("tracking");
         modelBuilder.ApplyConfiguration(new DiaryEntryConfiguration());
         modelBuilder.ApplyConfiguration(new LibraryItemConfiguration());
+        modelBuilder.ApplyConfiguration(new ListRowConfiguration());
+        modelBuilder.ApplyConfiguration(new ListItemRowConfiguration());
     }
 }

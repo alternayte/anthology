@@ -16,11 +16,15 @@ public static class TrackingModule
 
         services.AddInlineProjection<DiaryProjection>();
         services.AddInlineProjection<LibraryProjection>();
+        services.AddInlineProjection<ListProjection>();
         services.AddAsyncProjection<DiaryProjection>();
         services.AddAsyncProjection<LibraryProjection>();
+        services.AddAsyncProjection<ListProjection>();
 
         services.AddScoped<GetDiary.Handler>();
         services.AddScoped<GetLibrary.Handler>();
+        services.AddScoped<GetList.Handler>();
+        services.AddScoped<GetUserLists.Handler>();
 
         return services;
     }
@@ -28,6 +32,7 @@ public static class TrackingModule
     public static void RegisterEvolvers(StreamEvolverRegistry registry, EventSerializer serializer)
     {
         registry.Register<TrackedItemState>(serializer, TrackedItem.Evolve);
+        registry.Register<CuratedListState>(serializer, CuratedList.Evolve);
     }
 
     public static void RegisterEvents(EventRegistry registry)
@@ -44,5 +49,14 @@ public static class TrackingModule
         registry.Map<ItemFinished>("tracking.item.finished");
         registry.Map<ItemAbandoned>("tracking.item.abandoned");
         registry.Map<ItemRerated>("tracking.item.rerated");
+
+        registry.Map<ListCreated>("tracking.list.created");
+        registry.Map<ListRenamed>("tracking.list.renamed");
+        registry.Map<ListDescriptionChanged>("tracking.list.description_changed");
+        registry.Map<ListVisibilityChanged>("tracking.list.visibility_changed");
+        registry.Map<ListDeleted>("tracking.list.deleted");
+        registry.Map<ItemAddedToList>("tracking.list.item_added");
+        registry.Map<ItemRemovedFromList>("tracking.list.item_removed");
+        registry.Map<ListItemReordered>("tracking.list.item_reordered");
     }
 }
