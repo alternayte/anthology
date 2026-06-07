@@ -2,5 +2,8 @@ namespace Anthology.Modules.Catalog;
 
 public enum MediaType
 {
-    Film
+    Film,
+    TvShow,
+    Season,
+    Episode
 }
