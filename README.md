@@ -190,4 +190,10 @@ The cursor encodes the sort value + a `title_id` tiebreaker as base64. The query
 
 ## Status
 
-Currently building M1 — the personal spine for film tracking end to end.
+| Milestone | Scope | Status |
+|-----------|-------|--------|
+| **M1** | Personal spine — ES loop end to end (film tracking, diary, library, auth, React UI) | Done |
+| **M2** | Lists — second aggregate (create, reorder, visibility) | Done |
+| **M3** | TV catalog + episode tracking (TMDB TV endpoints, show→season→episode hierarchy, show-progress projection) | Done |
+| **M4** | Async projections — gap-safe ordering, LISTEN/NOTIFY wake-up, checkpointing | Done |
+| **M5** | Social platform — profiles, follows, fan-out-on-write feed, visibility, retraction | Next |
