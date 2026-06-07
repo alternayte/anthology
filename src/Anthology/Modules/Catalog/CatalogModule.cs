@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Refit;
 
 namespace Anthology.Modules.Catalog;
 
@@ -11,7 +12,10 @@ public static class CatalogModule
                 .UseSnakeCaseNamingConvention());
 
         services.Configure<TmdbOptions>(configuration.GetSection(TmdbOptions.Section));
-        services.AddHttpClient<TmdbClient>();
+        services.AddTransient<TmdbAuthHandler>();
+        services.AddRefitClient<ITmdbApi>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.themoviedb.org/3"))
+            .AddHttpMessageHandler<TmdbAuthHandler>();
 
         services.AddScoped<SearchTitles.Handler>();
         services.AddScoped<AddTitle.Handler>();

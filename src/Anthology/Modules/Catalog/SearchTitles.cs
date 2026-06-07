@@ -11,7 +11,7 @@ public static class SearchTitles
         string? PosterPath,
         string? Overview);
 
-    public sealed class Handler(TmdbClient tmdb)
+    public sealed class Handler(ITmdbApi tmdb)
     {
         public async Task<IReadOnlyList<TitleSearchResult>> Handle(Query query, CancellationToken ct)
         {
@@ -20,12 +20,15 @@ public static class SearchTitles
                 r.Id,
                 r.Title,
                 ParseYear(r.Release_Date),
-                r.Poster_Path is not null ? $"https://image.tmdb.org/t/p/w342{r.Poster_Path}" : null,
+                PosterUrl(r.Poster_Path),
                 r.Overview
             )).ToList();
         }
 
-        private static int? ParseYear(string? date) =>
+        internal static int? ParseYear(string? date) =>
             DateTime.TryParse(date, out var d) ? d.Year : null;
+
+        internal static string? PosterUrl(string? posterPath) =>
+            posterPath is not null ? $"https://image.tmdb.org/t/p/w342{posterPath}" : null;
     }
 }

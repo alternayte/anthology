@@ -9,7 +9,7 @@ public static class AddTitle
 
     public sealed record TitleDto(Guid TitleId, string Name, int? Year, string? PosterPath, MediaType MediaType);
 
-    public sealed class Handler(CatalogDbContext db, TmdbClient tmdb)
+    public sealed class Handler(CatalogDbContext db, ITmdbApi tmdb)
     {
         public async Task<Result<TitleDto>> Handle(AddTitleCommand command, CancellationToken ct)
         {
@@ -19,8 +19,6 @@ public static class AddTitle
                 return new TitleDto(existing.TitleId, existing.Name, existing.Year, existing.PosterPath, existing.MediaType);
 
             var movie = await tmdb.GetMovieAsync(command.TmdbId, ct);
-            if (movie is null)
-                return Error.NotFound("catalog.tmdb_not_found", $"TMDB movie {command.TmdbId} not found.");
 
             var title = new Title
             {
@@ -28,8 +26,8 @@ public static class AddTitle
                 ExternalId = movie.Id.ToString(),
                 MediaType = MediaType.Film,
                 Name = movie.Title,
-                Year = DateTime.TryParse(movie.Release_Date, out var d) ? d.Year : null,
-                PosterPath = movie.Poster_Path is not null ? $"https://image.tmdb.org/t/p/w342{movie.Poster_Path}" : null,
+                Year = SearchTitles.Handler.ParseYear(movie.Release_Date),
+                PosterPath = SearchTitles.Handler.PosterUrl(movie.Poster_Path),
                 Overview = movie.Overview
             };
 
