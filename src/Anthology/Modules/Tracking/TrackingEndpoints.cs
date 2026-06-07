@@ -130,8 +130,10 @@ public static class TrackingEndpoints
         {
             ListVisibility? visibility = Enum.TryParse<ListVisibility>(request.Visibility, true, out var v)
                 ? v : null;
+            var descProvided = request.Description is not null;
+            var desc = request.Description == "" ? null : request.Description;
             return (await handler.Handle(
-                new UpdateList.Command(request.Name, request.Description, request.Description is not null, visibility,
+                new UpdateList.Command(request.Name, desc, descProvided, visibility,
                     user.UserId(), listId, DateTimeOffset.UtcNow), ct)).ToHttpResult();
         }).RequireAuthorization().WithName("updateList").Produces<CuratedListDto>();
 
