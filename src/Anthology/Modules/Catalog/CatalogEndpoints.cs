@@ -8,9 +8,12 @@ public static class CatalogEndpoints
     {
         var group = app.MapGroup("/api/catalog").WithTags("Catalog");
 
-        group.MapGet("/search", async (string term, SearchTitles.Handler handler, CancellationToken ct) =>
-            Results.Ok(await handler.Handle(new SearchTitles.Query(term), ct)))
-            .WithName("searchCatalog").Produces<List<SearchTitles.TitleSearchResult>>();
+        group.MapGet("/search", async (string term, string? mediaType, SearchTitles.Handler handler, CancellationToken ct) =>
+        {
+            var media = Enum.TryParse<MediaType>(mediaType, true, out var m) ? m : MediaType.Film;
+            return Results.Ok(await handler.Handle(new SearchTitles.Query(term, media), ct));
+        })
+        .WithName("searchCatalog").Produces<List<SearchTitles.TitleSearchResult>>();
 
         group.MapPost("/titles", async (AddTitle.AddTitleCommand command, AddTitle.Handler handler, CancellationToken ct) =>
             (await handler.Handle(command, ct)).ToHttpResult())
