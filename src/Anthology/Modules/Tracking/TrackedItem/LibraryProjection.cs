@@ -37,7 +37,8 @@ internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<Librar
     }
 }
 
-public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbContextProjection, IRebuildableProjection
+public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext catalogDb)
+    : IProjection, IDbContextProjection, IRebuildableProjection
 {
     public DbContext DbContext => db;
     public static string SchemaQualifiedTableName => "tracking.library_items";
@@ -51,7 +52,8 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
             switch (envelope.Event)
             {
                 case ItemWanted w:
-                    var mediaStr = Enum.Parse<MediaType>(w.MediaType, true).ToSnakeCase();
+                    var mediaType = Enum.Parse<MediaType>(w.MediaType, true);
+                    var mediaStr = mediaType.ToSnakeCase();
                     var statusStr = TrackedStatus.WantToConsume.ToSnakeCase();
                     var visibilityStr = Visibility.Private.ToSnakeCase();
                     await db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -59,10 +61,20 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
                         VALUES ({envelope.UserId.Value}, {w.TitleId}, {mediaStr}, {w.TitleName}, {statusStr}, {w.At}, {visibilityStr})
                         ON CONFLICT (user_id, title_id) DO NOTHING
                         """, ct);
+
+                    if (mediaType == MediaType.Episode)
+                        await UpsertShowSummaryAsync(envelope.UserId.Value, w.TitleId, TrackedStatus.WantToConsume, ct);
                     break;
 
                 case ItemStarted:
                     await Upsert(envelope, item => item.Status = TrackedStatus.InProgress, ct);
+
+                    if (await IsEpisodeAsync(envelope.ContextId.Value, ct))
+                    {
+                        // Flush the episode status change before counting finished episodes
+                        await db.SaveChangesAsync(ct);
+                        await UpsertShowSummaryAsync(envelope.UserId.Value, envelope.ContextId.Value, TrackedStatus.InProgress, ct);
+                    }
                     break;
 
                 case ItemFinished f:
@@ -72,6 +84,13 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
                         item.Rating = f.Rating?.Value;
                         item.FinishedAt = f.At;
                     }, ct);
+
+                    if (await IsEpisodeAsync(envelope.ContextId.Value, ct))
+                    {
+                        // Flush the episode status change before counting finished episodes
+                        await db.SaveChangesAsync(ct);
+                        await UpsertShowSummaryAsync(envelope.UserId.Value, envelope.ContextId.Value, TrackedStatus.Finished, ct);
+                    }
                     break;
 
                 case ItemAbandoned:
@@ -83,6 +102,89 @@ public sealed class LibraryProjection(TrackingDbContext db) : IProjection, IDbCo
                     break;
             }
         }
+    }
+
+    private async Task<bool> IsEpisodeAsync(Guid titleId, CancellationToken ct)
+    {
+        var title = await catalogDb.Titles.AsNoTracking()
+            .Where(t => t.TitleId == titleId)
+            .Select(t => new { t.MediaType })
+            .FirstOrDefaultAsync(ct);
+        return title?.MediaType == MediaType.Episode;
+    }
+
+    private async Task UpsertShowSummaryAsync(
+        Guid userId, Guid episodeTitleId, TrackedStatus episodeEventStatus, CancellationToken ct)
+    {
+        // Resolve show: episode → season → show
+        var episode = await catalogDb.Titles.AsNoTracking()
+            .Where(t => t.TitleId == episodeTitleId && t.MediaType == MediaType.Episode)
+            .Select(t => new { t.ParentTitleId })
+            .FirstOrDefaultAsync(ct);
+        if (episode?.ParentTitleId is null) return;
+
+        var season = await catalogDb.Titles.AsNoTracking()
+            .Where(t => t.TitleId == episode.ParentTitleId && t.MediaType == MediaType.Season)
+            .Select(t => new { t.TitleId, t.ParentTitleId, t.Name })
+            .FirstOrDefaultAsync(ct);
+        if (season?.ParentTitleId is null) return;
+
+        var show = await catalogDb.Titles.AsNoTracking()
+            .Where(t => t.TitleId == season.ParentTitleId && t.MediaType == MediaType.TvShow)
+            .Select(t => new { t.TitleId, t.Name })
+            .FirstOrDefaultAsync(ct);
+        if (show is null) return;
+
+        // Count total episodes and finished episodes for this show in the user's library
+        var seasonIds = await catalogDb.Titles.AsNoTracking()
+            .Where(t => t.ParentTitleId == show.TitleId && t.MediaType == MediaType.Season)
+            .Select(t => t.TitleId)
+            .ToListAsync(ct);
+
+        var episodeIds = await catalogDb.Titles.AsNoTracking()
+            .Where(t => seasonIds.Contains(t.ParentTitleId!.Value) && t.MediaType == MediaType.Episode)
+            .Select(t => t.TitleId)
+            .ToListAsync(ct);
+
+        var partsTotal = episodeIds.Count;
+
+        var partsCompleted = await db.LibraryItems.AsNoTracking()
+            .CountAsync(li =>
+                li.UserId == userId &&
+                episodeIds.Contains(li.TitleId) &&
+                li.Status == TrackedStatus.Finished, ct);
+
+        // Determine show status
+        TrackedStatus showStatus;
+        var existing = await db.LibraryItems.AsNoTracking()
+            .Where(li => li.UserId == userId && li.TitleId == show.TitleId)
+            .Select(li => new { li.Status })
+            .FirstOrDefaultAsync(ct);
+
+        if (partsTotal > 0 && partsCompleted == partsTotal)
+            showStatus = TrackedStatus.Finished;
+        else if (episodeEventStatus is TrackedStatus.InProgress or TrackedStatus.Finished)
+            showStatus = TrackedStatus.InProgress;
+        else if (existing is not null)
+            showStatus = existing.Status;
+        else
+            showStatus = TrackedStatus.WantToConsume;
+
+        var showStatusStr = showStatus.ToSnakeCase();
+        var showMediaStr = MediaType.TvShow.ToSnakeCase();
+        var visibilityStr = Visibility.Private.ToSnakeCase();
+        var now = DateTimeOffset.UtcNow;
+
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO tracking.library_items
+                (user_id, title_id, media_type, title, status, added_at, visibility, parts_completed, parts_total)
+            VALUES
+                ({userId}, {show.TitleId}, {showMediaStr}, {show.Name}, {showStatusStr}, {now}, {visibilityStr}, {partsCompleted}, {partsTotal})
+            ON CONFLICT (user_id, title_id) DO UPDATE
+                SET status = EXCLUDED.status,
+                    parts_completed = EXCLUDED.parts_completed,
+                    parts_total = EXCLUDED.parts_total
+            """, ct);
     }
 
     private async Task Upsert(EventEnvelope envelope, Action<LibraryItem> update, CancellationToken ct)
