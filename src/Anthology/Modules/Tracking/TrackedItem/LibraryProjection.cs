@@ -18,6 +18,8 @@ public sealed class LibraryItem
     public DateTimeOffset AddedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
     public Visibility Visibility { get; set; } = Visibility.Private;
+    public int? PartsCompleted { get; set; }
+    public int? PartsTotal { get; set; }
 }
 
 internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<LibraryItem>
