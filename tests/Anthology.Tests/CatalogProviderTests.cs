@@ -132,4 +132,69 @@ public class CatalogProviderTests
         var provider = new MusicBrainzProvider(null);
         provider.OwnsExternalId(externalId).Should().Be(expected);
     }
+
+    [Fact]
+    public async Task SearchTitles_fans_out_to_all_providers_when_no_filter()
+    {
+        var providerA = new FakeCatalogProvider(MediaType.Film, "tmdb-",
+            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]);
+        var providerB = new FakeCatalogProvider(MediaType.Book, "ol-",
+            [new CatalogSearchResult("ol-1", MediaType.Book, "Book A", 2020, null, null)]);
+
+        var handler = new SearchTitles.Handler([providerA, providerB]);
+        var results = await handler.Handle(new SearchTitles.Query("test", null), CancellationToken.None);
+
+        results.Should().HaveCount(2);
+        results.Should().Contain(r => r.ExternalId == "tmdb-1");
+        results.Should().Contain(r => r.ExternalId == "ol-1");
+    }
+
+    [Fact]
+    public async Task SearchTitles_filters_to_matching_provider()
+    {
+        var providerA = new FakeCatalogProvider(MediaType.Film, "tmdb-",
+            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]);
+        var providerB = new FakeCatalogProvider(MediaType.Book, "ol-",
+            [new CatalogSearchResult("ol-1", MediaType.Book, "Book A", 2020, null, null)]);
+
+        var handler = new SearchTitles.Handler([providerA, providerB]);
+        var results = await handler.Handle(new SearchTitles.Query("test", MediaType.Book), CancellationToken.None);
+
+        results.Should().HaveCount(1);
+        results.Should().Contain(r => r.ExternalId == "ol-1");
+    }
+
+    [Fact]
+    public async Task SearchTitles_returns_partial_results_when_provider_fails()
+    {
+        var good = new FakeCatalogProvider(MediaType.Film, "tmdb-",
+            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]);
+        var bad = new FailingCatalogProvider(MediaType.Book);
+
+        var handler = new SearchTitles.Handler([good, bad]);
+        var results = await handler.Handle(new SearchTitles.Query("test", null), CancellationToken.None);
+
+        results.Should().HaveCount(1);
+        results.Should().Contain(r => r.ExternalId == "tmdb-1");
+    }
+
+    private sealed class FakeCatalogProvider(MediaType type, string prefix, IReadOnlyList<CatalogSearchResult> results) : ICatalogProvider
+    {
+        public IReadOnlySet<MediaType> SupportedTypes { get; } = new HashSet<MediaType> { type }.AsReadOnly();
+        public bool OwnsExternalId(string externalId) => externalId.StartsWith(prefix);
+        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct) =>
+            Task.FromResult(results);
+        public Task<Title?> GetDetailsAsync(string externalId, CancellationToken ct) =>
+            Task.FromResult<Title?>(null);
+    }
+
+    private sealed class FailingCatalogProvider(MediaType type) : ICatalogProvider
+    {
+        public IReadOnlySet<MediaType> SupportedTypes { get; } = new HashSet<MediaType> { type }.AsReadOnly();
+        public bool OwnsExternalId(string externalId) => false;
+        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct) =>
+            throw new HttpRequestException("Simulated failure");
+        public Task<Title?> GetDetailsAsync(string externalId, CancellationToken ct) =>
+            throw new HttpRequestException("Simulated failure");
+    }
 }

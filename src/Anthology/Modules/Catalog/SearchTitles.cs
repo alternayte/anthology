@@ -1,55 +1,48 @@
+using Microsoft.Extensions.Logging;
+
 namespace Anthology.Modules.Catalog;
 
 public static class SearchTitles
 {
-    public sealed record Query(string Term, MediaType MediaType = MediaType.Film);
+    public sealed record Query(string Term, MediaType? MediaType);
 
-    public sealed record TitleSearchResult(
-        int TmdbId,
-        string Name,
-        int? Year,
-        string? PosterPath,
-        string? Overview);
+    private static readonly MediaType[] TypeOrder =
+        [MediaType.Film, MediaType.TvShow, MediaType.Book, MediaType.Game, MediaType.Music];
 
-    public sealed class Handler(ITmdbApi tmdb)
+    public sealed class Handler(IEnumerable<ICatalogProvider> providers, ILogger<Handler>? logger = null)
     {
-        public async Task<IReadOnlyList<TitleSearchResult>> Handle(Query query, CancellationToken ct)
+        private static readonly TimeSpan ProviderTimeout = TimeSpan.FromSeconds(3);
+
+        public async Task<IReadOnlyList<CatalogSearchResult>> Handle(Query query, CancellationToken ct)
         {
-            return query.MediaType switch
+            var matching = providers
+                .Where(p => query.MediaType is null || p.SupportedTypes.Contains(query.MediaType.Value))
+                .ToList();
+
+            var tasks = matching.Select(p => SearchWithTimeout(p, query.Term, ct));
+            var resultSets = await Task.WhenAll(tasks);
+
+            return resultSets
+                .SelectMany(r => r)
+                .OrderBy(r => Array.IndexOf(TypeOrder, r.MediaType))
+                .ToList();
+        }
+
+        private async Task<IReadOnlyList<CatalogSearchResult>> SearchWithTimeout(
+            ICatalogProvider provider, string term, CancellationToken ct)
+        {
+            try
             {
-                MediaType.TvShow => await SearchTv(query.Term, ct),
-                _ => await SearchMovies(query.Term, ct)
-            };
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(ProviderTimeout);
+                return await provider.SearchAsync(term, cts.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                logger?.LogWarning(ex, "Provider {Provider} failed for term '{Term}'",
+                    provider.GetType().Name, term);
+                return [];
+            }
         }
-
-        private async Task<IReadOnlyList<TitleSearchResult>> SearchMovies(string term, CancellationToken ct)
-        {
-            var result = await tmdb.SearchMoviesAsync(term, ct);
-            return result.Results.Select(r => new TitleSearchResult(
-                r.Id,
-                r.Title,
-                ParseYear(r.Release_Date),
-                PosterUrl(r.Poster_Path),
-                r.Overview
-            )).ToList();
-        }
-
-        private async Task<IReadOnlyList<TitleSearchResult>> SearchTv(string term, CancellationToken ct)
-        {
-            var result = await tmdb.SearchTvAsync(term, ct);
-            return result.Results.Select(r => new TitleSearchResult(
-                r.Id,
-                r.Name,
-                ParseYear(r.First_Air_Date),
-                PosterUrl(r.Poster_Path),
-                r.Overview
-            )).ToList();
-        }
-
-        internal static int? ParseYear(string? date) =>
-            DateTime.TryParse(date, out var d) ? d.Year : null;
-
-        internal static string? PosterUrl(string? posterPath) =>
-            posterPath is not null ? $"https://image.tmdb.org/t/p/w342{posterPath}" : null;
     }
 }

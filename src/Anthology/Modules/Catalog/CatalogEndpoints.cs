@@ -10,10 +10,10 @@ public static class CatalogEndpoints
 
         group.MapGet("/search", async (string term, string? mediaType, SearchTitles.Handler handler, CancellationToken ct) =>
         {
-            var media = Enum.TryParse<MediaType>(mediaType, true, out var m) ? m : MediaType.Film;
+            MediaType? media = Enum.TryParse<MediaType>(mediaType, true, out var m) ? m : null;
             return Results.Ok(await handler.Handle(new SearchTitles.Query(term, media), ct));
         })
-        .WithName("searchCatalog").Produces<List<SearchTitles.TitleSearchResult>>();
+        .WithName("searchCatalog").Produces<List<CatalogSearchResult>>();
 
         group.MapPost("/titles", async (AddTitle.AddTitleCommand command, AddTitle.Handler handler, CancellationToken ct) =>
             (await handler.Handle(command, ct)).ToHttpResult())

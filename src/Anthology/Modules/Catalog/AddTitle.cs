@@ -35,8 +35,8 @@ public static class AddTitle
                 ExternalId = movie.Id.ToString(),
                 MediaType = MediaType.Film,
                 Name = movie.Title,
-                Year = SearchTitles.Handler.ParseYear(movie.Release_Date),
-                PosterPath = SearchTitles.Handler.PosterUrl(movie.Poster_Path),
+                Year = TmdbProvider.ParseYear(movie.Release_Date),
+                PosterPath = TmdbProvider.PosterUrl(movie.Poster_Path),
                 Overview = movie.Overview
             };
 
@@ -62,8 +62,8 @@ public static class AddTitle
                 ExternalId = showExternalId,
                 MediaType = MediaType.TvShow,
                 Name = show.Name,
-                Year = SearchTitles.Handler.ParseYear(show.First_Air_Date),
-                PosterPath = SearchTitles.Handler.PosterUrl(show.Poster_Path),
+                Year = TmdbProvider.ParseYear(show.First_Air_Date),
+                PosterPath = TmdbProvider.PosterUrl(show.Poster_Path),
                 Overview = show.Overview
             };
             showTitle.SetMediaData(new TvShowData(show.Number_Of_Seasons, show.Number_Of_Episodes));
@@ -80,8 +80,8 @@ public static class AddTitle
                     ExternalId = $"tv-{tmdbId}-s{s}",
                     MediaType = MediaType.Season,
                     Name = $"Season {s}",
-                    Year = SearchTitles.Handler.ParseYear(season.Air_Date),
-                    PosterPath = SearchTitles.Handler.PosterUrl(season.Poster_Path),
+                    Year = TmdbProvider.ParseYear(season.Air_Date),
+                    PosterPath = TmdbProvider.PosterUrl(season.Poster_Path),
                     SortOrder = s
                 };
                 seasonTitle.SetMediaData(new SeasonData(season.Season_Number, season.Episodes.Count, season.Air_Date));
