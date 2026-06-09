@@ -3,22 +3,60 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useState } from 'react'
 import { searchCatalogOptions, addTitleMutation } from '../generated/@tanstack/react-query.gen'
-import type { TitleSearchResult } from '../generated/types.gen'
+import type { CatalogSearchResult } from '../generated/types.gen'
+import { Poster } from '../components/poster'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/search')({
   component: SearchPage,
 })
+
+const mediaFilters = [
+  { value: '', label: 'All', color: 'bg-teal/15 text-teal' },
+  { value: 'Film', label: 'Film', color: 'bg-film-amber/15 text-film-amber' },
+  { value: 'TvShow', label: 'TV', color: 'bg-teal/15 text-teal' },
+  { value: 'Book', label: 'Book', color: 'bg-book-sage/15 text-book-sage' },
+  { value: 'Game', label: 'Game', color: 'bg-game-electric/15 text-game-electric' },
+  { value: 'Music', label: 'Music', color: 'bg-music-violet/15 text-music-violet' },
+] as const
+
+const mediaTypeLabels: Record<string, string> = {
+  film: 'Films',
+  tv_show: 'TV Shows',
+  book: 'Books',
+  game: 'Games',
+  music: 'Music',
+}
+
+const mediaBadgeColors: Record<string, string> = {
+  film: 'bg-film-amber/15 text-film-amber',
+  tv_show: 'bg-teal/15 text-teal',
+  book: 'bg-book-sage/15 text-book-sage',
+  game: 'bg-game-electric/15 text-game-electric',
+  music: 'bg-music-violet/15 text-music-violet',
+}
+
+const posterAspect: Record<string, '2/3' | '3/4' | '1/1'> = {
+  film: '2/3',
+  tv_show: '2/3',
+  book: '3/4',
+  game: '2/3',
+  music: '1/1',
+}
 
 function SearchPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [term, setTerm] = useState('')
   const [search, setSearch] = useState('')
+  const [mediaFilter, setMediaFilter] = useState('')
 
   if (!user) return <Navigate to="/login" />
 
   const { data: results, isLoading } = useQuery({
-    ...searchCatalogOptions({ query: { term: search } }),
+    ...searchCatalogOptions({
+      query: { term: search, ...(mediaFilter && { mediaType: mediaFilter }) },
+    }),
     enabled: search.length > 0,
   })
 
@@ -29,30 +67,154 @@ function SearchPage() {
     },
   })
 
+  const grouped = groupByMediaType(results ?? [])
+  const showGroups = !mediaFilter
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-zinc-900 mb-6">Search films</h1>
-      <form onSubmit={e => { e.preventDefault(); setSearch(term) }} className="flex gap-2 mb-6">
-        <input value={term} onChange={e => setTerm(e.target.value)} placeholder="Search TMDB..."
-          className="max-w-md rounded-md border px-3 py-2 text-sm flex-1" />
-        <button type="submit" className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800">Search</button>
+      <h1 className="text-[1.5rem] font-semibold tracking-tight text-text-primary mb-6">Search</h1>
+
+      <form onSubmit={e => { e.preventDefault(); setSearch(term) }} className="flex gap-2 mb-4">
+        <div className="relative flex-1 max-w-lg">
+          <svg
+            viewBox="0 0 24 24"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            value={term}
+            onChange={e => setTerm(e.target.value)}
+            placeholder="Search films, books, games, music..."
+            className="w-full rounded-md bg-smoke border border-transparent pl-9 pr-3 py-2.5 text-[0.875rem] text-text-primary placeholder:text-text-muted focus:border-teal focus:outline-none transition-colors"
+          />
+        </div>
+        <button
+          type="submit"
+          className="rounded-md bg-teal px-4 py-2.5 text-[0.8125rem] font-medium text-void hover:bg-teal-glow transition-colors"
+        >
+          Search
+        </button>
       </form>
 
-      {isLoading && <p className="text-zinc-500">Searching...</p>}
-
-      <div className="grid gap-3">
-        {results?.map((r: TitleSearchResult) => (
-          <div key={r.tmdbId} onClick={() => addMutation.mutate({ body: { tmdbId: r.tmdbId } })}
-            className="cursor-pointer border rounded-lg bg-white p-4 hover:shadow-md transition-shadow flex items-center gap-4">
-            {r.posterPath && <img src={r.posterPath} alt="" className="w-12 h-18 rounded object-cover" />}
-            <div>
-              <p className="font-medium text-zinc-900">{r.name}</p>
-              <p className="text-sm text-zinc-500">{r.year}</p>
-              {r.overview && <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{r.overview}</p>}
-            </div>
-          </div>
+      {/* Media type filter chips */}
+      <div className="flex items-center gap-1.5 mb-6">
+        {mediaFilters.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => { setMediaFilter(f.value); if (search) setSearch(search) }}
+            className={cn(
+              'rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition-colors',
+              mediaFilter === f.value
+                ? f.color
+                : 'text-text-muted hover:text-text-secondary hover:bg-smoke',
+            )}
+          >
+            {f.label}
+          </button>
         ))}
+      </div>
+
+      {isLoading && (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 rounded-md bg-abyss animate-skeleton">
+              <div className="w-12 h-[72px] rounded bg-smoke" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-48 rounded bg-smoke" />
+                <div className="h-3 w-24 rounded bg-smoke" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isLoading && search && results?.length === 0 && (
+        <p className="text-text-muted text-[0.875rem]">No results for &ldquo;{search}&rdquo;</p>
+      )}
+
+      {!isLoading && results && results.length > 0 && (
+        showGroups ? (
+          <div className="flex flex-col gap-6">
+            {Object.entries(grouped).map(([type, items]) => (
+              items.length > 0 && (
+                <div key={type}>
+                  <h2 className="text-[0.8125rem] font-semibold text-text-secondary uppercase tracking-wider mb-3">
+                    {mediaTypeLabels[type] ?? type}
+                  </h2>
+                  <div className="flex flex-col gap-2">
+                    {items.map((r) => (
+                      <SearchResultCard key={r.externalId} result={r} onAdd={addMutation.mutate} />
+                    ))}
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {results.map((r: CatalogSearchResult) => (
+              <SearchResultCard key={r.externalId} result={r} onAdd={addMutation.mutate} />
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
+function SearchResultCard({
+  result: r,
+  onAdd,
+}: {
+  result: CatalogSearchResult
+  onAdd: (opts: { body: { externalId: string } }) => void
+}) {
+  const aspect = posterAspect[r.mediaType ?? 'film'] ?? '2/3'
+
+  return (
+    <div
+      onClick={() => onAdd({ body: { externalId: r.externalId! } })}
+      className="cursor-pointer rounded-md bg-abyss p-4 hover:bg-slate transition-colors flex items-center gap-4 group"
+    >
+      <div className="w-12 shrink-0">
+        <Poster path={r.posterUrl} alt={r.name ?? ''} size="sm" aspect={aspect} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-[0.875rem] font-medium text-text-primary group-hover:text-teal-glow transition-colors truncate">
+            {r.name}
+          </p>
+          {r.mediaType && (
+            <span className={cn(
+              'rounded px-1.5 py-0.5 text-[0.625rem] font-medium shrink-0',
+              mediaBadgeColors[r.mediaType] ?? 'bg-ash/20 text-text-muted',
+            )}>
+              {r.mediaType.replace(/_/g, ' ')}
+            </span>
+          )}
+        </div>
+        <p className="text-[0.75rem] text-text-muted">{r.year ? String(r.year) : ''}</p>
+        {r.overview && (
+          <p className="text-[0.75rem] text-text-muted mt-1 line-clamp-2">{r.overview}</p>
+        )}
       </div>
     </div>
   )
+}
+
+function groupByMediaType(results: CatalogSearchResult[]): Record<string, CatalogSearchResult[]> {
+  const order = ['film', 'tv_show', 'book', 'game', 'music']
+  const groups: Record<string, CatalogSearchResult[]> = {}
+  for (const type of order) groups[type] = []
+  for (const r of results) {
+    const type = r.mediaType ?? 'film'
+    if (!groups[type]) groups[type] = []
+    groups[type].push(r)
+  }
+  return groups
 }
