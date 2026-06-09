@@ -8,7 +8,13 @@ import { Poster } from '../components/poster'
 import { cn, getErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
 
+type SearchParams = { term: string; media: string }
+
 export const Route = createFileRoute('/search')({
+  validateSearch: (search: Record<string, unknown>): SearchParams => ({
+    term: typeof search.term === 'string' ? search.term : '',
+    media: typeof search.media === 'string' ? search.media : '',
+  }),
   component: SearchPage,
 })
 
@@ -47,18 +53,26 @@ const posterAspect: Record<string, '2/3' | '3/4' | '1/1'> = {
 
 function SearchPage() {
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const [term, setTerm] = useState('')
-  const [search, setSearch] = useState('')
-  const [mediaFilter, setMediaFilter] = useState('')
+  const navigate = useNavigate({ from: '/search' })
+  const { term: searchTerm, media: mediaFilter } = Route.useSearch()
+  const [inputValue, setInputValue] = useState(searchTerm)
 
   if (!user) return <Navigate to="/login" />
 
+  const submitSearch = (newTerm: string, newMedia?: string) => {
+    navigate({
+      search: {
+        term: newTerm || undefined,
+        media: (newMedia !== undefined ? newMedia : mediaFilter) || undefined,
+      } as SearchParams,
+    })
+  }
+
   const { data: results, isLoading } = useQuery({
     ...searchCatalogOptions({
-      query: { term: search, ...(mediaFilter && { mediaType: mediaFilter }) },
+      query: { term: searchTerm, ...(mediaFilter && { mediaType: mediaFilter }) },
     }),
-    enabled: search.length > 0,
+    enabled: searchTerm.length > 0,
   })
 
   const addMutation = useMutation({
@@ -76,7 +90,7 @@ function SearchPage() {
     <div>
       <h1 className="text-[1.5rem] font-semibold tracking-tight text-text-primary mb-6">Search</h1>
 
-      <form onSubmit={e => { e.preventDefault(); setSearch(term) }} className="flex gap-2 mb-4">
+      <form onSubmit={e => { e.preventDefault(); submitSearch(inputValue) }} className="flex gap-2 mb-4">
         <div className="relative flex-1 max-w-lg">
           <svg
             viewBox="0 0 24 24"
@@ -89,8 +103,8 @@ function SearchPage() {
             <path d="m21 21-4.3-4.3" />
           </svg>
           <input
-            value={term}
-            onChange={e => setTerm(e.target.value)}
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
             placeholder="Search films, books, games, music..."
             className="w-full rounded-md bg-smoke border border-transparent pl-9 pr-3 py-2.5 text-[0.875rem] text-text-primary placeholder:text-text-muted focus:border-teal focus:outline-none transition-colors"
           />
@@ -108,7 +122,7 @@ function SearchPage() {
         {mediaFilters.map((f) => (
           <button
             key={f.value}
-            onClick={() => { setMediaFilter(f.value); if (search) setSearch(search) }}
+            onClick={() => submitSearch(searchTerm, f.value)}
             className={cn(
               'rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition-colors',
               mediaFilter === f.value
@@ -135,8 +149,8 @@ function SearchPage() {
         </div>
       )}
 
-      {!isLoading && search && results?.length === 0 && (
-        <p className="text-text-muted text-[0.875rem]">No results for &ldquo;{search}&rdquo;</p>
+      {!isLoading && searchTerm && results?.length === 0 && (
+        <p className="text-text-muted text-[0.875rem]">No results for &ldquo;{searchTerm}&rdquo;</p>
       )}
 
       {!isLoading && results && results.length > 0 && (
