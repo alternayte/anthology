@@ -71,4 +71,35 @@ public class CatalogProviderTests
         var provider = new OpenLibraryProvider(null!);
         provider.OwnsExternalId(externalId).Should().Be(expected);
     }
+
+    [Fact]
+    public void IgdbProvider_maps_game_to_CatalogSearchResult()
+    {
+        var game = new IgdbGame
+        {
+            Id = 1942,
+            Name = "The Witcher 3",
+            First_Release_Date = 1431993600,
+            Summary = "An RPG...",
+            Cover = new IgdbCover { Image_Id = "co1234" },
+            Involved_Companies = [new IgdbInvolvedCompany { Developer = true, Company = new IgdbCompany { Name = "CD Projekt Red" } }],
+            Platforms = [new IgdbPlatform { Name = "PC" }, new IgdbPlatform { Name = "PlayStation 4" }]
+        };
+        var result = IgdbProvider.MapSearchResult(game);
+
+        result.ExternalId.Should().Be("igdb-1942");
+        result.MediaType.Should().Be(MediaType.Game);
+        result.Name.Should().Be("The Witcher 3");
+        result.Year.Should().Be(2015);
+        result.PosterUrl.Should().Be("https://images.igdb.com/igdb/image/upload/t_cover_big/co1234.jpg");
+    }
+
+    [Theory]
+    [InlineData("igdb-1942", true)]
+    [InlineData("tmdb-550", false)]
+    public void IgdbProvider_OwnsExternalId(string externalId, bool expected)
+    {
+        var provider = new IgdbProvider(null);
+        provider.OwnsExternalId(externalId).Should().Be(expected);
+    }
 }
