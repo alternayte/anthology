@@ -102,4 +102,34 @@ public class CatalogProviderTests
         var provider = new IgdbProvider(null);
         provider.OwnsExternalId(externalId).Should().Be(expected);
     }
+
+    [Fact]
+    public void MusicBrainzProvider_maps_release_group_to_CatalogSearchResult()
+    {
+        var rg = new MusicBrainzReleaseGroup
+        {
+            Id = "67a63246-0de4-3c8b-9f44-7146b2890e94",
+            Title = "OK Computer",
+            Primary_Type = "Album",
+            First_Release_Date = "1997-05-21",
+            Artist_Credit = [new MusicBrainzArtistCredit { Name = "Radiohead" }]
+        };
+        var result = MusicBrainzProvider.MapSearchResult(rg);
+
+        result.ExternalId.Should().Be("mb-67a63246-0de4-3c8b-9f44-7146b2890e94");
+        result.MediaType.Should().Be(MediaType.Music);
+        result.Name.Should().Be("OK Computer");
+        result.Year.Should().Be(1997);
+        result.PosterUrl.Should().Be("https://coverartarchive.org/release-group/67a63246-0de4-3c8b-9f44-7146b2890e94/front-250");
+        result.Overview.Should().Be("Radiohead — Album");
+    }
+
+    [Theory]
+    [InlineData("mb-67a63246-0de4-3c8b-9f44-7146b2890e94", true)]
+    [InlineData("tmdb-550", false)]
+    public void MusicBrainzProvider_OwnsExternalId(string externalId, bool expected)
+    {
+        var provider = new MusicBrainzProvider(null);
+        provider.OwnsExternalId(externalId).Should().Be(expected);
+    }
 }
