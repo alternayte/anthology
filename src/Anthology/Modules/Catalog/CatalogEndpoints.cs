@@ -15,7 +15,7 @@ public static class CatalogEndpoints
         })
         .WithName("searchCatalog").Produces<List<CatalogSearchResult>>();
 
-        group.MapPost("/titles", async (AddTitle.AddTitleCommand command, AddTitle.Handler handler, CancellationToken ct) =>
+        group.MapPost("/titles", async (AddTitle.Command command, AddTitle.Handler handler, CancellationToken ct) =>
             (await handler.Handle(command, ct)).ToHttpResult())
             .RequireAuthorization().WithName("addTitle").Produces<AddTitle.TitleDto>();
 
