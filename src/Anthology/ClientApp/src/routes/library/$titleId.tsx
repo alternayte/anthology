@@ -1,11 +1,36 @@
-import { createFileRoute, Navigate } from '@tanstack/react-router'
+import { createFileRoute, Navigate, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../lib/auth'
-import { getTitleOptions, wantItemMutation, startItemMutation, finishItemMutation, abandonItemMutation } from '../../generated/@tanstack/react-query.gen'
+import { useState } from 'react'
+import {
+  getTitleOptions,
+  getLibraryOptions,
+  wantItemMutation,
+  startItemMutation,
+  finishItemMutation,
+  abandonItemMutation,
+  rerateItemMutation,
+} from '../../generated/@tanstack/react-query.gen'
+import { Poster } from '../../components/poster'
+import { StarRating } from '../../components/star-rating'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/library/$titleId')({
   component: ItemDetailPage,
 })
+
+const statusLabelsByMedia: Record<string, Record<string, string>> = {
+  film: { want_to_consume: 'Want to watch', in_progress: 'Watching', finished: 'Finished', abandoned: 'Abandoned' },
+  tv_show: { want_to_consume: 'Want to watch', in_progress: 'Watching', finished: 'Finished', abandoned: 'Abandoned' },
+  book: { want_to_consume: 'Want to read', in_progress: 'Reading', finished: 'Finished', abandoned: 'Abandoned' },
+  game: { want_to_consume: 'Want to play', in_progress: 'Playing', finished: 'Finished', abandoned: 'Abandoned' },
+  music: { want_to_consume: 'Want to listen', in_progress: 'Listening', finished: 'Finished', abandoned: 'Abandoned' },
+}
+
+function getStatusLabel(status: string, mediaType?: string): string {
+  const labels = statusLabelsByMedia[mediaType ?? 'film'] ?? statusLabelsByMedia.film
+  return labels[status] ?? status
+}
 
 function ItemDetailPage() {
   const { titleId } = Route.useParams()
@@ -14,28 +39,330 @@ function ItemDetailPage() {
 
   if (!user) return <Navigate to="/login" />
 
-  const onSuccess = () => qc.invalidateQueries({ queryKey: ['library'] })
+  const onSuccess = () => {
+    qc.invalidateQueries({ queryKey: ['library'] })
+    qc.invalidateQueries({ queryKey: ['getTitle'] })
+  }
 
-  const { data: title } = useQuery({
+  const { data: title, isLoading } = useQuery({
     ...getTitleOptions({ path: { titleId } }),
   })
+
+  const { data: libraryData } = useQuery({
+    ...getLibraryOptions({ query: { size: 100 } }),
+  })
+
+  const libraryItem = libraryData?.items?.find((i) => i.titleId === titleId)
 
   const want = useMutation({ ...wantItemMutation(), onSuccess })
   const start = useMutation({ ...startItemMutation(), onSuccess })
   const finish = useMutation({ ...finishItemMutation(), onSuccess })
   const abandon = useMutation({ ...abandonItemMutation(), onSuccess })
+  const rate = useMutation({ ...rerateItemMutation(), onSuccess })
+
+  const currentStatus = libraryItem?.status
+
+  const handleRate = (rating: number) => {
+    rate.mutate({ path: { titleId }, body: { rating } })
+  }
+
+  if (isLoading) return <DetailSkeleton />
+
+  if (!title) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="text-text-secondary">Title not found</p>
+        <Link to="/library" className="text-teal text-[0.8125rem] mt-2 hover:text-teal-glow transition-colors">
+          Back to library
+        </Link>
+      </div>
+    )
+  }
+
+  const isTvShow = title.mediaType === 'tv_show'
+
+  const actionLabels = {
+    film: { want: 'Want to watch', progress: 'Watching', finish: 'Finished', abandon: 'Abandon' },
+    tv_show: { want: 'Want to watch', progress: 'Watching', finish: 'Finished', abandon: 'Abandon' },
+    book: { want: 'Want to read', progress: 'Reading', finish: 'Finished', abandon: 'Abandon' },
+    game: { want: 'Want to play', progress: 'Playing', finish: 'Finished', abandon: 'Abandon' },
+    music: { want: 'Want to listen', progress: 'Listening', finish: 'Finished', abandon: 'Abandon' },
+  }[title.mediaType ?? 'film'] ?? { want: 'Want', progress: 'In progress', finish: 'Finished', abandon: 'Abandon' }
+
+  const accentClass = {
+    film: 'text-film-amber',
+    tv_show: 'text-teal',
+    book: 'text-book-sage',
+    game: 'text-game-electric',
+    music: 'text-music-violet',
+  }[title.mediaType ?? 'film'] ?? 'text-teal'
+
+  const posterAspect = {
+    film: '2/3', tv_show: '2/3', book: '3/4', game: '2/3', music: '1/1',
+  }[title.mediaType ?? 'film'] ?? '2/3'
+
+  const tvData = isTvShow ? (title as Record<string, unknown>) : null
+  const seasons = (tvData?.seasons as Array<{
+    titleId: string
+    name: string
+    seasonNumber: number
+    episodes: Array<{
+      titleId: string
+      name: string
+      episodeNumber: number
+      airDate?: string | null
+      stillPath?: string | null
+    }>
+  }>) ?? []
 
   return (
-    <div className="max-w-2xl">
-      <div className="border rounded-lg bg-white p-6">
-        <h1 className="text-xl font-semibold">{title?.name || 'Loading...'}</h1>
-        {title?.year && <p className="text-sm text-zinc-500 mt-1">{title.year}</p>}
-        {title?.overview && <p className="text-sm text-zinc-600 mt-3">{title.overview}</p>}
-        <div className="flex gap-2 flex-wrap mt-4">
-          <button onClick={() => want.mutate({ path: { titleId } })} className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800">Want to watch</button>
-          <button onClick={() => start.mutate({ path: { titleId } })} className="rounded-md border px-3 py-1.5 text-sm hover:bg-zinc-50">Start watching</button>
-          <button onClick={() => finish.mutate({ path: { titleId }, body: { rating: null } })} className="rounded-md border px-3 py-1.5 text-sm hover:bg-zinc-50">Finish</button>
-          <button onClick={() => abandon.mutate({ path: { titleId } })} className="rounded-md border px-3 py-1.5 text-sm hover:bg-zinc-50">Abandon</button>
+    <div className="max-w-4xl mx-auto">
+      {/* Back link */}
+      <Link
+        to="/library"
+        className="inline-flex items-center gap-1.5 text-[0.8125rem] text-text-muted hover:text-text-secondary transition-colors mb-6"
+      >
+        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M10 12L6 8l4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Library
+      </Link>
+
+      {/* Hero section */}
+      <div className="flex gap-6 mb-8">
+        {/* Poster */}
+        <div className="w-48 shrink-0">
+          <Poster
+            path={title.posterPath}
+            alt={title.name ?? ''}
+            size="xl"
+            aspect={posterAspect as '2/3' | '3/4' | '1/1'}
+            className="shadow-[var(--shadow-hover-lift)]"
+          />
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0 pt-2">
+          <h1 className="text-[1.75rem] font-bold tracking-tight text-text-primary leading-tight">
+            {title.name}
+          </h1>
+          <div className="flex items-center gap-3 mt-2">
+            {title.year && (
+              <span className="text-[0.875rem] text-text-secondary">{String(title.year)}</span>
+            )}
+            <span className="text-[0.75rem] text-text-muted capitalize">
+              {title.mediaType?.replace(/_/g, ' ')}
+            </span>
+            {isTvShow && tvData?.showData && (
+              <span className="text-[0.75rem] text-text-muted">
+                {String((tvData.showData as Record<string, unknown>).numberOfSeasons)} seasons
+              </span>
+            )}
+          </div>
+
+          {/* Rating */}
+          <div className="mt-4">
+            <StarRating
+              value={libraryItem?.rating != null ? Number(libraryItem.rating) : null}
+              onChange={handleRate}
+              size="lg"
+              accentClass={accentClass}
+            />
+            {libraryItem?.rating != null && (
+              <span className="ml-2 text-[0.8125rem] text-text-secondary tabular-nums">
+                {Number(libraryItem.rating) / 2}/5
+              </span>
+            )}
+          </div>
+
+          {/* Status actions */}
+          <div className="flex items-center gap-2 mt-5">
+            <StatusButton
+              label={actionLabels.want}
+              active={currentStatus === 'want_to_consume'}
+              onClick={() => want.mutate({ path: { titleId } })}
+              loading={want.isPending}
+            />
+            <StatusButton
+              label={actionLabels.progress}
+              active={currentStatus === 'in_progress'}
+              onClick={() => start.mutate({ path: { titleId } })}
+              loading={start.isPending}
+            />
+            <StatusButton
+              label={actionLabels.finish}
+              active={currentStatus === 'finished'}
+              onClick={() => finish.mutate({ path: { titleId }, body: { rating: null } })}
+              loading={finish.isPending}
+            />
+            <StatusButton
+              label={actionLabels.abandon}
+              active={currentStatus === 'abandoned'}
+              onClick={() => abandon.mutate({ path: { titleId } })}
+              loading={abandon.isPending}
+              variant="ghost"
+            />
+          </div>
+
+          {/* Current status indicator */}
+          {currentStatus && (
+            <p className="text-[0.75rem] text-text-muted mt-3">
+              Status: <span className="text-text-secondary">{getStatusLabel(currentStatus, title.mediaType)}</span>
+              {libraryItem?.partsCompleted != null && libraryItem?.partsTotal != null && (
+                <span className="ml-2 tabular-nums">
+                  ({String(libraryItem.partsCompleted)}/{String(libraryItem.partsTotal)} episodes)
+                </span>
+              )}
+            </p>
+          )}
+
+          {/* Overview */}
+          {title.overview && (
+            <p className="text-[0.875rem] text-text-secondary leading-relaxed mt-5 max-w-prose">
+              {title.overview}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* TV Show Seasons */}
+      {isTvShow && seasons.length > 0 && (
+        <div className="mt-2">
+          <h2 className="text-[1.125rem] font-semibold text-text-primary mb-4">Seasons</h2>
+          <div className="flex flex-col gap-2">
+            {seasons.map((season) => (
+              <SeasonAccordion key={season.titleId} season={season} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatusButton({
+  label,
+  active,
+  onClick,
+  loading,
+  variant = 'default',
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+  loading: boolean
+  variant?: 'default' | 'ghost'
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={cn(
+        'rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-all duration-150',
+        active && variant !== 'ghost' && 'bg-teal text-void',
+        active && variant === 'ghost' && 'bg-danger/15 text-danger',
+        !active && variant !== 'ghost' && 'bg-smoke text-text-secondary hover:bg-slate hover:text-text-primary',
+        !active && variant === 'ghost' && 'text-text-muted hover:text-text-secondary hover:bg-smoke',
+        loading && 'opacity-50 pointer-events-none',
+      )}
+    >
+      {label}
+    </button>
+  )
+}
+
+function SeasonAccordion({
+  season,
+}: {
+  season: {
+    titleId: string
+    name: string
+    seasonNumber: number
+    episodes: Array<{
+      titleId: string
+      name: string
+      episodeNumber: number
+      airDate?: string | null
+      stillPath?: string | null
+    }>
+  }
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="rounded-md bg-abyss overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-smoke/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-[0.875rem] font-medium text-text-primary">
+            {season.name}
+          </span>
+          <span className="text-[0.75rem] text-text-muted">
+            {season.episodes.length} episodes
+          </span>
+        </div>
+        <svg
+          viewBox="0 0 16 16"
+          className={cn(
+            'w-4 h-4 text-text-muted transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="border-t border-border">
+          {season.episodes.map((ep) => (
+            <div
+              key={ep.titleId}
+              className="flex items-center gap-3 px-4 py-2.5 hover:bg-smoke/20 transition-colors"
+            >
+              <span className="text-[0.75rem] text-text-muted tabular-nums w-6 shrink-0">
+                {String(ep.episodeNumber)}
+              </span>
+              <span className="text-[0.8125rem] text-text-secondary flex-1 truncate">
+                {ep.name}
+              </span>
+              {ep.airDate && (
+                <span className="text-[0.6875rem] text-text-muted shrink-0">
+                  {ep.airDate}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="h-4 w-16 rounded bg-abyss animate-skeleton mb-6" />
+      <div className="flex gap-6">
+        <div className="w-48 shrink-0 rounded-md bg-abyss animate-skeleton" style={{ aspectRatio: '2/3' }} />
+        <div className="flex-1 pt-2 space-y-4">
+          <div className="h-7 w-64 rounded bg-abyss animate-skeleton" />
+          <div className="h-4 w-32 rounded bg-abyss animate-skeleton" />
+          <div className="h-5 w-28 rounded bg-abyss animate-skeleton" />
+          <div className="flex gap-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="h-8 w-24 rounded-md bg-abyss animate-skeleton" />
+            ))}
+          </div>
+          <div className="space-y-2 pt-2">
+            <div className="h-4 w-full rounded bg-abyss animate-skeleton" />
+            <div className="h-4 w-3/4 rounded bg-abyss animate-skeleton" />
+            <div className="h-4 w-1/2 rounded bg-abyss animate-skeleton" />
+          </div>
         </div>
       </div>
     </div>
