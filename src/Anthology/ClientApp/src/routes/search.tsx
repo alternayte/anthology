@@ -5,7 +5,8 @@ import { useState } from 'react'
 import { searchCatalogOptions, addTitleMutation } from '../generated/@tanstack/react-query.gen'
 import type { CatalogSearchResult } from '../generated/types.gen'
 import { Poster } from '../components/poster'
-import { cn } from '@/lib/utils'
+import { cn, getErrorMessage } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/search')({
   component: SearchPage,
@@ -65,6 +66,7 @@ function SearchPage() {
     onSuccess: (data) => {
       if (data?.titleId) navigate({ to: '/library/$titleId', params: { titleId: data.titleId } })
     },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   })
 
   const grouped = groupByMediaType(results ?? [])

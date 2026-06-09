@@ -13,7 +13,8 @@ import {
 } from '../../generated/@tanstack/react-query.gen'
 import { Poster } from '../../components/poster'
 import { StarRating } from '../../components/star-rating'
-import { cn } from '@/lib/utils'
+import { cn, getErrorMessage } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/library/$titleId')({
   component: ItemDetailPage,
@@ -39,10 +40,12 @@ function ItemDetailPage() {
 
   if (!user) return <Navigate to="/login" />
 
-  const onSuccess = () => {
+  const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['library'] })
     qc.invalidateQueries({ queryKey: ['getTitle'] })
   }
+
+  const onError = (error: unknown) => toast.error(getErrorMessage(error))
 
   const { data: title, isLoading } = useQuery({
     ...getTitleOptions({ path: { titleId } }),
@@ -54,16 +57,70 @@ function ItemDetailPage() {
 
   const libraryItem = libraryData?.items?.find((i) => i.titleId === titleId)
 
-  const want = useMutation({ ...wantItemMutation(), onSuccess })
-  const start = useMutation({ ...startItemMutation(), onSuccess })
-  const finish = useMutation({ ...finishItemMutation(), onSuccess })
-  const abandon = useMutation({ ...abandonItemMutation(), onSuccess })
-  const rate = useMutation({ ...rerateItemMutation(), onSuccess })
+  const want = useMutation({
+    ...wantItemMutation(),
+    onSuccess: () => { invalidate(); toast.success('Added to library') },
+    onError,
+  })
+  const start = useMutation({
+    ...startItemMutation(),
+    onSuccess: () => { invalidate(); toast.success('Started!') },
+    onError,
+  })
+  const finish = useMutation({
+    ...finishItemMutation(),
+    onSuccess: () => { invalidate(); toast.success('Finished!') },
+    onError,
+  })
+  const abandon = useMutation({
+    ...abandonItemMutation(),
+    onSuccess: () => { invalidate(); toast.success('Abandoned') },
+    onError,
+  })
+  const rate = useMutation({
+    ...rerateItemMutation(),
+    onSuccess: () => { invalidate(); toast.success('Rating updated') },
+    onError,
+  })
 
   const currentStatus = libraryItem?.status
 
   const handleRate = (rating: number) => {
     rate.mutate({ path: { titleId }, body: { rating } })
+  }
+
+  const handleWant = () => {
+    want.mutate({ path: { titleId } })
+  }
+
+  const handleStart = () => {
+    if (!currentStatus) {
+      want.mutate({ path: { titleId } }, {
+        onSuccess: () => start.mutate({ path: { titleId } }),
+      })
+    } else {
+      start.mutate({ path: { titleId } })
+    }
+  }
+
+  const handleFinish = () => {
+    if (!currentStatus) {
+      want.mutate({ path: { titleId } }, {
+        onSuccess: () => finish.mutate({ path: { titleId }, body: { rating: null } }),
+      })
+    } else {
+      finish.mutate({ path: { titleId }, body: { rating: null } })
+    }
+  }
+
+  const handleAbandon = () => {
+    if (!currentStatus) {
+      want.mutate({ path: { titleId } }, {
+        onSuccess: () => abandon.mutate({ path: { titleId } }),
+      })
+    } else {
+      abandon.mutate({ path: { titleId } })
+    }
   }
 
   if (isLoading) return <DetailSkeleton />
@@ -180,26 +237,26 @@ function ItemDetailPage() {
             <StatusButton
               label={actionLabels.want}
               active={currentStatus === 'want_to_consume'}
-              onClick={() => want.mutate({ path: { titleId } })}
+              onClick={handleWant}
               loading={want.isPending}
             />
             <StatusButton
               label={actionLabels.progress}
               active={currentStatus === 'in_progress'}
-              onClick={() => start.mutate({ path: { titleId } })}
-              loading={start.isPending}
+              onClick={handleStart}
+              loading={want.isPending || start.isPending}
             />
             <StatusButton
               label={actionLabels.finish}
               active={currentStatus === 'finished'}
-              onClick={() => finish.mutate({ path: { titleId }, body: { rating: null } })}
-              loading={finish.isPending}
+              onClick={handleFinish}
+              loading={want.isPending || finish.isPending}
             />
             <StatusButton
               label={actionLabels.abandon}
               active={currentStatus === 'abandoned'}
-              onClick={() => abandon.mutate({ path: { titleId } })}
-              loading={abandon.isPending}
+              onClick={handleAbandon}
+              loading={want.isPending || abandon.isPending}
               variant="ghost"
             />
           </div>
