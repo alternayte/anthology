@@ -127,4 +127,92 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
         result.Value.MediaType.Should().Be(MediaType.Film);
         result.Value.Name.Should().Be("Inception");
     }
+
+    [Fact]
+    public async Task Title_persists_and_retrieves_BookData()
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+
+        var book = new Title
+        {
+            TitleId = Guid.NewGuid(),
+            ExternalId = $"book-test-{Guid.NewGuid():N}",
+            MediaType = MediaType.Book,
+            Name = "The Name of the Wind",
+            Year = 2007
+        };
+        book.SetMediaData(new BookData("Patrick Rothfuss", 662, "978-0756404741"));
+        db.Titles.Add(book);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saved = await db.Titles.FindAsync([book.TitleId], TestContext.Current.CancellationToken);
+        saved.Should().NotBeNull();
+        saved!.MediaType.Should().Be(MediaType.Book);
+
+        var data = saved.GetMediaData<BookData>();
+        data.Should().NotBeNull();
+        data!.Author.Should().Be("Patrick Rothfuss");
+        data.PageCount.Should().Be(662);
+        data.Isbn.Should().Be("978-0756404741");
+    }
+
+    [Fact]
+    public async Task Title_persists_and_retrieves_GameData()
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+
+        var game = new Title
+        {
+            TitleId = Guid.NewGuid(),
+            ExternalId = $"game-test-{Guid.NewGuid():N}",
+            MediaType = MediaType.Game,
+            Name = "Elden Ring",
+            Year = 2022
+        };
+        game.SetMediaData(new GameData("FromSoftware", "Bandai Namco", ["PC", "PS5", "Xbox Series X"]));
+        db.Titles.Add(game);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saved = await db.Titles.FindAsync([game.TitleId], TestContext.Current.CancellationToken);
+        saved.Should().NotBeNull();
+        saved!.MediaType.Should().Be(MediaType.Game);
+
+        var data = saved.GetMediaData<GameData>();
+        data.Should().NotBeNull();
+        data!.Developer.Should().Be("FromSoftware");
+        data.Publisher.Should().Be("Bandai Namco");
+        data.Platforms.Should().BeEquivalentTo(["PC", "PS5", "Xbox Series X"]);
+    }
+
+    [Fact]
+    public async Task Title_persists_and_retrieves_MusicData()
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+
+        var album = new Title
+        {
+            TitleId = Guid.NewGuid(),
+            ExternalId = $"music-test-{Guid.NewGuid():N}",
+            MediaType = MediaType.Music,
+            Name = "OK Computer",
+            Year = 1997
+        };
+        album.SetMediaData(new MusicData("Radiohead", "Parlophone", 12, "album"));
+        db.Titles.Add(album);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saved = await db.Titles.FindAsync([album.TitleId], TestContext.Current.CancellationToken);
+        saved.Should().NotBeNull();
+        saved!.MediaType.Should().Be(MediaType.Music);
+
+        var data = saved.GetMediaData<MusicData>();
+        data.Should().NotBeNull();
+        data!.Artist.Should().Be("Radiohead");
+        data.Label.Should().Be("Parlophone");
+        data.TrackCount.Should().Be(12);
+        data.ReleaseType.Should().Be("album");
+    }
 }

@@ -5,5 +5,8 @@ public enum MediaType
     Film,
     TvShow,
     Season,
-    Episode
+    Episode,
+    Book,
+    Game,
+    Music
 }

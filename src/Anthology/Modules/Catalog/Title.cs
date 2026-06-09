@@ -33,6 +33,9 @@ public sealed class Title
 public sealed record TvShowData(int NumberOfSeasons, int NumberOfEpisodes);
 public sealed record SeasonData(int SeasonNumber, int EpisodeCount, string? AirDate);
 public sealed record EpisodeData(int SeasonNumber, int EpisodeNumber, string? AirDate, string? StillPath);
+public sealed record BookData(string? Author, int? PageCount, string? Isbn);
+public sealed record GameData(string? Developer, string? Publisher, string[]? Platforms);
+public sealed record MusicData(string? Artist, string? Label, int? TrackCount, string? ReleaseType);
 
 internal sealed class TitleConfiguration : IEntityTypeConfiguration<Title>
 {
