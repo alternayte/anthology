@@ -41,4 +41,34 @@ public class CatalogProviderTests
         var provider = new TmdbProvider(null!);
         provider.OwnsExternalId(externalId).Should().Be(expected);
     }
+
+    [Fact]
+    public void OpenLibraryProvider_maps_doc_to_CatalogSearchResult()
+    {
+        var doc = new OpenLibraryDoc
+        {
+            Key = "/works/OL45883W",
+            Title = "Fight Club",
+            First_Publish_Year = 1996,
+            Author_Name = ["Chuck Palahniuk"],
+            Cover_I = 8739161,
+            Number_Of_Pages_Median = 218
+        };
+        var result = OpenLibraryProvider.MapSearchResult(doc);
+
+        result.ExternalId.Should().Be("ol-OL45883W");
+        result.MediaType.Should().Be(MediaType.Book);
+        result.Name.Should().Be("Fight Club");
+        result.Year.Should().Be(1996);
+        result.PosterUrl.Should().Be("https://covers.openlibrary.org/b/id/8739161-M.jpg");
+    }
+
+    [Theory]
+    [InlineData("ol-OL45883W", true)]
+    [InlineData("tmdb-550", false)]
+    public void OpenLibraryProvider_OwnsExternalId(string externalId, bool expected)
+    {
+        var provider = new OpenLibraryProvider(null!);
+        provider.OwnsExternalId(externalId).Should().Be(expected);
+    }
 }
