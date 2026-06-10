@@ -41,8 +41,8 @@ function ItemDetailPage() {
   if (!user) return <Navigate to="/login" />
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['library'] })
-    qc.invalidateQueries({ queryKey: ['getTitle'] })
+    qc.invalidateQueries({ predicate: (q) => (q.queryKey[0] as Record<string, unknown>)?._id === 'getLibrary' })
+    qc.invalidateQueries({ predicate: (q) => (q.queryKey[0] as Record<string, unknown>)?._id === 'getTitle' })
   }
 
   const onError = (error: unknown) => toast.error(getErrorMessage(error))
