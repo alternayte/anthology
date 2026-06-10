@@ -1,11 +1,113 @@
+using System.Runtime.CompilerServices;
+
 namespace Anthology.Modules.Catalog;
 
-public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider
+public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider, ISeedableProvider
 {
     private static readonly IReadOnlySet<MediaType> Types =
         new HashSet<MediaType> { MediaType.Book }.AsReadOnly();
 
     public IReadOnlySet<MediaType> SupportedTypes => Types;
+
+    public string ProviderName => "openlibrary";
+    public IReadOnlySet<MediaType> SeedableTypes => Types;
+
+    private static readonly string[] PopularSubjects = ["fiction", "science_fiction", "fantasy", "mystery", "romance"];
+
+    public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
+        SeedOptions options, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var seen = new HashSet<string>();
+        var yielded = 0;
+
+        foreach (var list in options.Lists)
+        {
+            if (yielded >= options.Count) break;
+
+            if (list == "trending")
+            {
+                await foreach (var result in DiscoverTrendingAsync(options.Count - yielded, seen, ct))
+                {
+                    if (yielded >= options.Count) break;
+                    yielded++;
+                    yield return result;
+                }
+            }
+            else if (list == "popular")
+            {
+                await foreach (var result in DiscoverSubjectsAsync(options.Count - yielded, seen, ct))
+                {
+                    if (yielded >= options.Count) break;
+                    yielded++;
+                    yield return result;
+                }
+            }
+        }
+    }
+
+    private async IAsyncEnumerable<CatalogSearchResult> DiscoverTrendingAsync(
+        int remaining, HashSet<string> seen, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var yielded = 0;
+        for (var page = 1; yielded < remaining; page++)
+        {
+            OpenLibraryTrendingResponse response;
+            try { response = await api.GetTrendingAsync("weekly", 20, page, ct); }
+            catch { break; }
+
+            if (response.Works.Count == 0) break;
+
+            foreach (var work in response.Works)
+            {
+                if (yielded >= remaining) break;
+                var externalId = $"ol-{work.Key.Replace("/works/", "")}";
+                if (seen.Add(externalId))
+                {
+                    yielded++;
+                    yield return new CatalogSearchResult(externalId, MediaType.Book,
+                        work.Title, work.First_Publish_Year, CoverUrl(work.Cover_I), null);
+                }
+            }
+        }
+    }
+
+    private async IAsyncEnumerable<CatalogSearchResult> DiscoverSubjectsAsync(
+        int remaining, HashSet<string> seen, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var yielded = 0;
+        var perSubject = Math.Max(remaining / PopularSubjects.Length, 20);
+
+        foreach (var subject in PopularSubjects)
+        {
+            if (yielded >= remaining) break;
+
+            for (var offset = 0; yielded < remaining; offset += 20)
+            {
+                var fetched = 0;
+                OpenLibrarySubjectResponse response;
+                try { response = await api.GetSubjectAsync(subject, 20, offset, ct); }
+                catch { break; }
+
+                if (response.Works.Count == 0) break;
+
+                foreach (var work in response.Works)
+                {
+                    if (yielded >= remaining) break;
+                    var workId = work.Key.Replace("/works/", "");
+                    var externalId = $"ol-{workId}";
+                    if (seen.Add(externalId))
+                    {
+                        yielded++;
+                        fetched++;
+                        yield return new CatalogSearchResult(externalId, MediaType.Book,
+                            work.Title, work.First_Publish_Year, CoverUrl(work.Cover_Id), null);
+                    }
+                }
+
+                if (fetched >= perSubject) break;
+            }
+        }
+    }
 
     public bool OwnsExternalId(string externalId) => externalId.StartsWith("ol-");
 

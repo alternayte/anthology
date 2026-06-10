@@ -1,11 +1,59 @@
+using System.Runtime.CompilerServices;
+
 namespace Anthology.Modules.Catalog;
 
-public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider
+public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedableProvider
 {
     private static readonly IReadOnlySet<MediaType> Types =
         new HashSet<MediaType> { MediaType.Game }.AsReadOnly();
 
     public IReadOnlySet<MediaType> SupportedTypes => Types;
+
+    public string ProviderName => "igdb";
+    public IReadOnlySet<MediaType> SeedableTypes => Types;
+
+    private static readonly string Fields =
+        "name,first_release_date,summary,cover.image_id,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,platforms.name,genres.name,themes.name,keywords.name,total_rating,total_rating_count";
+
+    public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
+        SeedOptions options, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var seen = new HashSet<string>();
+        var yielded = 0;
+
+        foreach (var list in options.Lists)
+        {
+            if (yielded >= options.Count) break;
+
+            var (sort, where) = list switch
+            {
+                "popular" => ("total_rating_count desc", "where total_rating_count > 0;"),
+                "top_rated" => ("total_rating desc", "where total_rating_count > 50;"),
+                "trending" => ("first_release_date desc", "where total_rating_count > 10;"),
+                _ => (null, null)
+            };
+
+            if (sort is null) continue;
+
+            for (var offset = 0; yielded < options.Count; offset += 50)
+            {
+                var body = $"fields {Fields}; sort {sort}; {where} offset {offset}; limit 50;";
+                var games = await client!.DiscoverGamesAsync(body, ct);
+                if (games.Count == 0) break;
+
+                foreach (var game in games)
+                {
+                    if (yielded >= options.Count) break;
+                    var result = MapSearchResult(game);
+                    if (seen.Add(result.ExternalId))
+                    {
+                        yielded++;
+                        yield return result;
+                    }
+                }
+            }
+        }
+    }
 
     public bool OwnsExternalId(string externalId) => externalId.StartsWith("igdb-");
 

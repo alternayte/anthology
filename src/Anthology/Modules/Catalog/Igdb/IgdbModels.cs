@@ -36,6 +36,9 @@ public sealed class IgdbGame
 
     [JsonPropertyName("total_rating")]
     public double? Total_Rating { get; set; }
+
+    [JsonPropertyName("total_rating_count")]
+    public int? Total_Rating_Count { get; set; }
 }
 
 public sealed class IgdbCover
