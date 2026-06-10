@@ -1,6 +1,6 @@
 namespace Anthology.Modules.Catalog;
 
-public sealed record TmdbPagedResult<T>(List<T> Results);
+public sealed record TmdbPagedResult<T>(List<T> Results, int Total_Pages = 1, int Total_Results = 0);
 
 public sealed record TmdbMovie(
     int Id, string Title, string? Overview, string? Release_Date, string? Poster_Path);

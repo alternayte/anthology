@@ -25,4 +25,22 @@ public interface ITmdbApi
 
     [Get("/tv/{id}/season/{seasonNumber}")]
     Task<TmdbSeason> GetSeasonAsync(int id, int seasonNumber, CancellationToken ct = default);
+
+    [Get("/movie/popular")]
+    Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync([AliasAs("page")] int page, CancellationToken ct = default);
+
+    [Get("/movie/top_rated")]
+    Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync([AliasAs("page")] int page, CancellationToken ct = default);
+
+    [Get("/trending/movie/week")]
+    Task<TmdbPagedResult<TmdbMovie>> GetTrendingMoviesAsync([AliasAs("page")] int page, CancellationToken ct = default);
+
+    [Get("/tv/popular")]
+    Task<TmdbPagedResult<TmdbTvShow>> GetPopularTvAsync([AliasAs("page")] int page, CancellationToken ct = default);
+
+    [Get("/tv/top_rated")]
+    Task<TmdbPagedResult<TmdbTvShow>> GetTopRatedTvAsync([AliasAs("page")] int page, CancellationToken ct = default);
+
+    [Get("/trending/tv/week")]
+    Task<TmdbPagedResult<TmdbTvShow>> GetTrendingTvAsync([AliasAs("page")] int page, CancellationToken ct = default);
 }

@@ -1,11 +1,117 @@
+using System.Runtime.CompilerServices;
+
 namespace Anthology.Modules.Catalog;
 
-public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider
+public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedableProvider
 {
     private static readonly IReadOnlySet<MediaType> Types =
         new HashSet<MediaType> { MediaType.Film, MediaType.TvShow }.AsReadOnly();
 
     public IReadOnlySet<MediaType> SupportedTypes => Types;
+
+    public string ProviderName => "tmdb";
+    public IReadOnlySet<MediaType> SeedableTypes => Types;
+
+    public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
+        SeedOptions options, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var seen = new HashSet<string>();
+        var yielded = 0;
+
+        foreach (var list in options.Lists)
+        {
+            if (yielded >= options.Count) break;
+
+            await foreach (var result in DiscoverListAsync(list, options.Count - yielded, ct))
+            {
+                if (yielded >= options.Count) break;
+                if (seen.Add(result.ExternalId))
+                {
+                    yielded++;
+                    yield return result;
+                }
+            }
+        }
+    }
+
+    private async IAsyncEnumerable<CatalogSearchResult> DiscoverListAsync(
+        string list, int remaining, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var movieFetcher = GetMovieFetcher(list);
+        var tvFetcher = GetTvFetcher(list);
+
+        if (movieFetcher is not null)
+        {
+            await foreach (var result in FetchMoviePagesAsync(movieFetcher, remaining, ct))
+                yield return result;
+        }
+
+        if (tvFetcher is not null)
+        {
+            await foreach (var result in FetchTvPagesAsync(tvFetcher, remaining, ct))
+                yield return result;
+        }
+    }
+
+    private Func<int, CancellationToken, Task<TmdbPagedResult<TmdbMovie>>>? GetMovieFetcher(string list) =>
+        list switch
+        {
+            "popular" => tmdb.GetPopularMoviesAsync,
+            "top_rated" => tmdb.GetTopRatedMoviesAsync,
+            "trending" => tmdb.GetTrendingMoviesAsync,
+            _ => null
+        };
+
+    private Func<int, CancellationToken, Task<TmdbPagedResult<TmdbTvShow>>>? GetTvFetcher(string list) =>
+        list switch
+        {
+            "popular" => tmdb.GetPopularTvAsync,
+            "top_rated" => tmdb.GetTopRatedTvAsync,
+            "trending" => tmdb.GetTrendingTvAsync,
+            _ => null
+        };
+
+    private static async IAsyncEnumerable<CatalogSearchResult> FetchMoviePagesAsync(
+        Func<int, CancellationToken, Task<TmdbPagedResult<TmdbMovie>>> fetch,
+        int remaining, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var yielded = 0;
+        for (var page = 1; yielded < remaining; page++)
+        {
+            var result = await fetch(page, ct);
+            if (result.Results.Count == 0) break;
+
+            foreach (var movie in result.Results)
+            {
+                if (yielded >= remaining) break;
+                yielded++;
+                yield return MapMovieResult(movie);
+            }
+
+            if (page >= result.Total_Pages) break;
+        }
+    }
+
+    private static async IAsyncEnumerable<CatalogSearchResult> FetchTvPagesAsync(
+        Func<int, CancellationToken, Task<TmdbPagedResult<TmdbTvShow>>> fetch,
+        int remaining, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var yielded = 0;
+        for (var page = 1; yielded < remaining; page++)
+        {
+            var result = await fetch(page, ct);
+            if (result.Results.Count == 0) break;
+
+            foreach (var show in result.Results)
+            {
+                if (yielded >= remaining) break;
+                yielded++;
+                yield return MapTvResult(show);
+            }
+
+            if (page >= result.Total_Pages) break;
+        }
+    }
 
     public bool OwnsExternalId(string externalId) => externalId.StartsWith("tmdb-");
 
