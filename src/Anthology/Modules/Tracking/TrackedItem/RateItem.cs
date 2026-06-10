@@ -5,7 +5,7 @@ using FluentValidation;
 
 namespace Anthology.Modules.Tracking;
 
-public static class RerateItem
+public static class RateItem
 {
     public sealed record Command(int Rating, DateTimeOffset At, Guid UserId = default, Guid TitleId = default)
         : ICommand<Result<TrackedItemDto>>, ITrackingCommand

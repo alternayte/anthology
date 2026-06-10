@@ -70,7 +70,7 @@ public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbCont
                     Status = TrackedStatus.Abandoned,
                     OccurredAt = a.At,
                 },
-                ItemRerated r => new DiaryEntry
+                ItemRated r => new DiaryEntry
                 {
                     UserId = envelope.UserId.Value,
                     TitleId = envelope.ContextId.Value,

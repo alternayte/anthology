@@ -48,7 +48,8 @@ public static class TrackingModule
         registry.Map<ItemStarted>("tracking.item.started");
         registry.Map<ItemFinished>("tracking.item.finished");
         registry.Map<ItemAbandoned>("tracking.item.abandoned");
-        registry.Map<ItemRerated>("tracking.item.rerated");
+        registry.Map<ItemRated>("tracking.item.rated");
+        registry.Map<ItemRated>("tracking.item.rerated");
 
         registry.Map<ListCreated>("tracking.list.created");
         registry.Map<ListRenamed>("tracking.list.renamed");

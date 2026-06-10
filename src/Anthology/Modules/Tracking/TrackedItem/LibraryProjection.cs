@@ -20,6 +20,7 @@ public sealed class LibraryItem
     public Visibility Visibility { get; set; } = Visibility.Private;
     public int? PartsCompleted { get; set; }
     public int? PartsTotal { get; set; }
+    public string? PosterPath { get; set; }
 }
 
 internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<LibraryItem>
@@ -56,9 +57,13 @@ public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext cat
                     var mediaStr = mediaType.ToSnakeCase();
                     var statusStr = TrackedStatus.WantToConsume.ToSnakeCase();
                     var visibilityStr = Visibility.Private.ToSnakeCase();
+                    var posterPath = await catalogDb.Titles.AsNoTracking()
+                        .Where(t => t.TitleId == w.TitleId)
+                        .Select(t => t.PosterPath)
+                        .FirstOrDefaultAsync(ct);
                     await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility)
-                        VALUES ({envelope.UserId.Value}, {w.TitleId}, {mediaStr}, {w.TitleName}, {statusStr}, {w.At}, {visibilityStr})
+                        INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility, poster_path)
+                        VALUES ({envelope.UserId.Value}, {w.TitleId}, {mediaStr}, {w.TitleName}, {statusStr}, {w.At}, {visibilityStr}, {posterPath})
                         ON CONFLICT (user_id, title_id) DO NOTHING
                         """, ct);
 
@@ -97,7 +102,7 @@ public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext cat
                     await Upsert(envelope, item => item.Status = TrackedStatus.Abandoned, ct);
                     break;
 
-                case ItemRerated r:
+                case ItemRated r:
                     await Upsert(envelope, item => item.Rating = r.Rating.Value, ct);
                     break;
             }
@@ -131,7 +136,7 @@ public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext cat
 
         var show = await catalogDb.Titles.AsNoTracking()
             .Where(t => t.TitleId == season.ParentTitleId && t.MediaType == MediaType.TvShow)
-            .Select(t => new { t.TitleId, t.Name })
+            .Select(t => new { t.TitleId, t.Name, t.PosterPath })
             .FirstOrDefaultAsync(ct);
         if (show is null) return;
 
@@ -177,13 +182,14 @@ public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext cat
 
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO tracking.library_items
-                (user_id, title_id, media_type, title, status, added_at, visibility, parts_completed, parts_total)
+                (user_id, title_id, media_type, title, status, added_at, visibility, parts_completed, parts_total, poster_path)
             VALUES
-                ({userId}, {show.TitleId}, {showMediaStr}, {show.Name}, {showStatusStr}, {now}, {visibilityStr}, {partsCompleted}, {partsTotal})
+                ({userId}, {show.TitleId}, {showMediaStr}, {show.Name}, {showStatusStr}, {now}, {visibilityStr}, {partsCompleted}, {partsTotal}, {show.PosterPath})
             ON CONFLICT (user_id, title_id) DO UPDATE
                 SET status = EXCLUDED.status,
                     parts_completed = EXCLUDED.parts_completed,
-                    parts_total = EXCLUDED.parts_total
+                    parts_total = EXCLUDED.parts_total,
+                    poster_path = EXCLUDED.poster_path
             """, ct);
     }
 

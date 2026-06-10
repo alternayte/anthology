@@ -9,7 +9,7 @@ import {
   startItemMutation,
   finishItemMutation,
   abandonItemMutation,
-  rerateItemMutation,
+  rateItemMutation,
 } from '../../generated/@tanstack/react-query.gen'
 import { Poster } from '../../components/poster'
 import { StarRating } from '../../components/star-rating'
@@ -78,7 +78,7 @@ function ItemDetailPage() {
     onError,
   })
   const rate = useMutation({
-    ...rerateItemMutation(),
+    ...rateItemMutation(),
     onSuccess: () => { invalidate(); toast.success('Rating updated') },
     onError,
   })
@@ -106,10 +106,10 @@ function ItemDetailPage() {
   const handleFinish = () => {
     if (!currentStatus) {
       want.mutate({ path: { titleId } }, {
-        onSuccess: () => finish.mutate({ path: { titleId }, body: { rating: null } }),
+        onSuccess: () => finish.mutate({ path: { titleId } }),
       })
     } else {
-      finish.mutate({ path: { titleId }, body: { rating: null } })
+      finish.mutate({ path: { titleId } })
     }
   }
 
@@ -217,20 +217,22 @@ function ItemDetailPage() {
             )}
           </div>
 
-          {/* Rating */}
-          <div className="mt-4">
-            <StarRating
-              value={libraryItem?.rating != null ? Number(libraryItem.rating) : null}
-              onChange={handleRate}
-              size="lg"
-              accentClass={accentClass}
-            />
-            {libraryItem?.rating != null && (
-              <span className="ml-2 text-[0.8125rem] text-text-secondary tabular-nums">
-                {Number(libraryItem.rating) / 2}/5
-              </span>
-            )}
-          </div>
+          {/* Rating — only shown when in_progress, finished, or abandoned */}
+          {currentStatus && currentStatus !== 'want_to_consume' && (
+            <div className="mt-4">
+              <StarRating
+                value={libraryItem?.rating != null ? Number(libraryItem.rating) : null}
+                onChange={handleRate}
+                size="lg"
+                accentClass={accentClass}
+              />
+              {libraryItem?.rating != null && (
+                <span className="ml-2 text-[0.8125rem] text-text-secondary tabular-nums">
+                  {Number(libraryItem.rating) / 2}/5
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Status actions */}
           <div className="flex items-center gap-2 mt-5">

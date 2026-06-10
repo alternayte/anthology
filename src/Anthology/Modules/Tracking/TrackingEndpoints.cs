@@ -6,9 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Anthology.Modules.Tracking;
 
-public sealed record FinishRequest(int? Rating);
-
-public sealed record RerateRequest(int Rating);
+public sealed record RateRequest(int Rating);
 
 public sealed record CreateListRequest(string Name, string? Description, string? Visibility);
 
@@ -53,11 +51,10 @@ public static class TrackingEndpoints
 
         group.MapPost("/items/{titleId:guid}/finish", async (
             Guid titleId,
-            FinishRequest request,
             ClaimsPrincipal user,
             ICommandHandler<FinishItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
-            (await handler.Handle(new FinishItem.Command(request.Rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
+            (await handler.Handle(new FinishItem.Command(DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
         .RequireAuthorization().WithName("finishItem").Produces<TrackedItemDto>();
 
         group.MapPost("/items/{titleId:guid}/abandon", async (
@@ -68,14 +65,14 @@ public static class TrackingEndpoints
             (await handler.Handle(new AbandonItem.Command(DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
             .RequireAuthorization().WithName("abandonItem").Produces<TrackedItemDto>();
 
-        group.MapPost("/items/{titleId:guid}/rerate", async (
+        group.MapPost("/items/{titleId:guid}/rate", async (
             Guid titleId,
-            RerateRequest request,
+            RateRequest request,
             ClaimsPrincipal user,
-            ICommandHandler<RerateItem.Command, Result<TrackedItemDto>> handler,
+            ICommandHandler<RateItem.Command, Result<TrackedItemDto>> handler,
             CancellationToken ct) =>
-            (await handler.Handle(new RerateItem.Command(request.Rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
-            .RequireAuthorization().WithName("rerateItem").Produces<TrackedItemDto>();
+            (await handler.Handle(new RateItem.Command(request.Rating, DateTimeOffset.UtcNow, user.UserId(), titleId), ct)).ToHttpResult())
+            .RequireAuthorization().WithName("rateItem").Produces<TrackedItemDto>();
 
         group.MapGet("/diary", async (
             ClaimsPrincipal user,

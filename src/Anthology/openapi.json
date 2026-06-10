@@ -278,16 +278,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FinishRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "OK",
@@ -333,12 +323,12 @@
         }
       }
     },
-    "/api/tracking/items/{titleId}/rerate": {
+    "/api/tracking/items/{titleId}/rate": {
       "post": {
         "tags": [
           "Tracking"
         ],
-        "operationId": "rerateItem",
+        "operationId": "rateItem",
         "parameters": [
           {
             "name": "titleId",
@@ -354,7 +344,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RerateRequest"
+                "$ref": "#/components/schemas/RateRequest"
               }
             }
           },
@@ -1138,23 +1128,6 @@
           }
         }
       },
-      "FinishRequest": {
-        "required": [
-          "rating"
-        ],
-        "type": "object",
-        "properties": {
-          "rating": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
       "LibraryItemDto": {
         "required": [
           "titleId",
@@ -1445,6 +1418,22 @@
           }
         }
       },
+      "RateRequest": {
+        "required": [
+          "rating"
+        ],
+        "type": "object",
+        "properties": {
+          "rating": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "Rating": {
         "type": "object",
         "properties": {
@@ -1496,22 +1485,6 @@
               "string"
             ],
             "format": "uuid"
-          }
-        }
-      },
-      "RerateRequest": {
-        "required": [
-          "rating"
-        ],
-        "type": "object",
-        "properties": {
-          "rating": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
           }
         }
       },
