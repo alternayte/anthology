@@ -15,7 +15,7 @@ namespace Anthology.Tests.Fixtures;
 public sealed class WebAppFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        .WithImage("postgres:17")
+        .WithImage("pgvector/pgvector:pg17")
         .Build();
 
     public WebApplicationFactory<Program> Factory { get; private set; } = default!;
