@@ -11,6 +11,10 @@
   </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Anthology.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
         <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />

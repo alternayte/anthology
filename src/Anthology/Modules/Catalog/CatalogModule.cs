@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
 using Pgvector.EntityFrameworkCore;
 using Refit;
@@ -8,6 +9,17 @@ public static class CatalogModule
 {
     public static IServiceCollection AddCatalogModule(this IServiceCollection services, IConfiguration configuration)
     {
+        // Embedding
+        services.Configure<EmbeddingOptions>(configuration.GetSection(EmbeddingOptions.Section));
+        services.AddHttpClient("EmbeddingApi", (sp, client) =>
+        {
+            var opts = configuration.GetSection(EmbeddingOptions.Section).Get<EmbeddingOptions>()!;
+            if (!string.IsNullOrWhiteSpace(opts.ApiKey))
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", opts.ApiKey);
+        });
+
+
         services.AddDbContext<CatalogDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),
                     o => o.UseVector())

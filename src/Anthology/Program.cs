@@ -11,6 +11,7 @@ using Anthology.Modules.Tracking;
 using Anthology.Workers;
 using FluentValidation;
 using Npgsql;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,6 +77,12 @@ builder.Services.AddHostedService<RebuildJobHost>();
 builder.Services.AddSingleton<NpgsqlDataSource>(sp =>
     NpgsqlDataSource.Create(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!));
 builder.Services.AddHostedService<AsyncProjectionHost>();
+builder.Services.AddHostedService(sp =>
+    new EmbeddingWorker(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient("EmbeddingApi"),
+        sp.GetRequiredService<IOptions<EmbeddingOptions>>(),
+        sp.GetRequiredService<ILogger<EmbeddingWorker>>()));
 
 // Command handler scanning + decoration via Scrutor
 builder.Services.Scan(s => s.FromAssemblyOf<Program>()
