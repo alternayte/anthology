@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => {
         if (data) setUser(data)
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [])
 
@@ -35,7 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (email: string, password: string) => {
     const { error } = await registerSdk({ body: { email, password } })
-    if (error) throw new Error(JSON.stringify(error))
+    console.log(error)
+    if (error) {
+      const problem = error as Record<string, unknown>
+      const validationErrors = problem.errors as Record<string, string[]> | undefined
+      if (validationErrors) {
+        const firstMessage = Object.values(validationErrors).flat()[0]
+        if (firstMessage) throw new Error(firstMessage)
+      }
+      throw new Error((problem.title as string) || 'Registration failed')
+    }
     await login(email, password)
   }
 

@@ -9,7 +9,7 @@ public static class GetLibrary
     public sealed record LibraryItemDto(
         Guid TitleId, string Title, MediaType MediaType, TrackedStatus Status,
         int? Rating, DateTimeOffset AddedAt, DateTimeOffset? FinishedAt,
-        int? PartsCompleted, int? PartsTotal);
+        int? PartsCompleted, int? PartsTotal, string? PosterPath);
 
     private static readonly HashSet<string> SortableFields = ["added", "finished", "rating", "title"];
 
@@ -41,7 +41,7 @@ public static class GetLibrary
                 .Select(x => new LibraryItemDto(
                     x.TitleId, x.Title, x.MediaType, x.Status,
                     x.Rating, x.AddedAt, x.FinishedAt,
-                    x.PartsCompleted, x.PartsTotal))
+                    x.PartsCompleted, x.PartsTotal, x.PosterPath))
                 .ToListAsync(ct);
 
             string? nextCursor = null;

@@ -10,11 +10,7 @@ import './index.css'
 
 client.setConfig({
   baseUrl: '',
-})
-
-client.interceptors.request.use((request) => {
-  request.credentials = 'include'
-  return request
+  fetch: (request) => fetch(new Request(request, { credentials: 'include' })),
 })
 
 const router = createRouter({ routeTree })

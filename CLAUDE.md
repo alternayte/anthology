@@ -69,6 +69,28 @@ dotnet test
 
 Test categories: aggregate given/when/then tests (pure, fast), Testcontainers Postgres integration tests, convention tests (choke-point guardrails), endpoint tests, query/keyset-pagination tests.
 
+## Frontend stack
+
+- React 19 / TypeScript / Vite
+- Tailwind CSS v4 (OKLCH native, `@theme inline` in `index.css`)
+- shadcn/ui v4 (base-nova style, `@base-ui/react` primitives)
+- TanStack Router (file-based routes in `ClientApp/src/routes/`)
+- TanStack Query for server state
+- `@hey-api/openapi-ts` for API client codegen (`npm run generate` in ClientApp)
+- Plus Jakarta Sans (via `@fontsource-variable/plus-jakarta-sans`)
+- Path alias: `@/` → `ClientApp/src/`
+
+### Design system
+
+- **PRODUCT.md** (project root): strategic context — users, personality, anti-references, design principles
+- **DESIGN.md** (project root): visual spec — "The Midnight Gallery" theme with full token definitions
+- Dark-first: `:root` IS the dark theme (no `.dark` class toggle)
+- Design tokens defined as CSS custom properties in `index.css` and exposed via Tailwind `@theme`
+- shadcn semantic tokens (`--primary`, `--background`, etc.) mapped to Anthology palette
+- Custom tokens: `--color-void` through `--color-ash` (tonal ramp), `--color-teal` (primary accent), media accents (`--color-film-amber`, `--color-game-electric`, `--color-book-sage`, `--color-music-violet`)
+- Use Tailwind utilities directly: `bg-teal`, `text-text-secondary`, `bg-smoke`, `border-ash`
+- Install new shadcn components with `npx shadcn@latest add <component>` from the ClientApp directory
+
 ## Code style
 
 - Slices are static classes with nested types (Command, Validator, Handler, endpoint Map method)

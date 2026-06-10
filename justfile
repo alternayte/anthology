@@ -5,8 +5,7 @@ build:
     dotnet build Anthology.slnx
 
 run:
-    ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Anthology --no-launch-profile
-
+    ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Anthology -lp http
 test:
     dotnet test Anthology.slnx
 
