@@ -45,6 +45,7 @@ public static class CatalogModule
         services.AddScoped<AddTitle.Handler>();
         services.AddScoped<GetTitle.Handler>();
         services.AddScoped<GetSimilar.Handler>();
+        services.AddScoped<GetCreatorTitles.Handler>();
 
         return services;
     }

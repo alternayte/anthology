@@ -34,6 +34,10 @@ public static class CatalogEndpoints
             Results.Ok(await handler.Handle(titleId, ct)))
             .WithName("getSimilar").Produces<List<GetSimilar.SimilarTitleDto>>();
 
+        group.MapGet("/titles/{titleId:guid}/creators", async (Guid titleId, GetCreatorTitles.Handler handler, CancellationToken ct) =>
+            Results.Ok(await handler.Handle(titleId, ct)))
+            .WithName("getCreatorTitles").Produces<List<GetCreatorTitles.CreatorTitleDto>>();
+
         return app;
     }
 }
