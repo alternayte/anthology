@@ -41,6 +41,7 @@ public static class CatalogModule
         services.AddScoped<ICatalogProvider, MusicBrainzProvider>();
 
         services.AddScoped<SearchTitles.Handler>();
+        services.AddScoped<SearchLocal.Handler>();
         services.AddScoped<AddTitle.Handler>();
         services.AddScoped<GetTitle.Handler>();
 

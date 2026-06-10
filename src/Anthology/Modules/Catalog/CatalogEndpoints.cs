@@ -15,6 +15,13 @@ public static class CatalogEndpoints
         })
         .WithName("searchCatalog").Produces<List<CatalogSearchResult>>();
 
+        group.MapGet("/search/local", async (string term, string? mediaType, SearchLocal.Handler handler, CancellationToken ct) =>
+        {
+            MediaType? media = Enum.TryParse<MediaType>(mediaType, true, out var m) ? m : null;
+            return Results.Ok(await handler.Handle(new SearchLocal.Query(term, media, null), ct));
+        })
+        .WithName("searchLocal").Produces<List<SearchLocal.LocalSearchResult>>();
+
         group.MapPost("/titles", async (AddTitle.Command command, AddTitle.Handler handler, CancellationToken ct) =>
             (await handler.Handle(command, ct)).ToHttpResult())
             .RequireAuthorization().WithName("addTitle").Produces<AddTitle.TitleDto>();
