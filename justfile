@@ -9,6 +9,9 @@ run:
 test:
     dotnet test Anthology.slnx
 
+seed-catalog *args:
+    ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Anthology -- seed-catalog {{args}}
+
 watch:
     ASPNETCORE_ENVIRONMENT=Development dotnet watch run --project src/Anthology --no-launch-profile
 

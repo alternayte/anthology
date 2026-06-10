@@ -94,6 +94,18 @@ builder.Services.Decorate(typeof(ICommandHandler<,>), typeof(TransactionDecorato
 
 var app = builder.Build();
 
+if (args.Length > 0 && args[0] == "seed-catalog")
+{
+    using var scope = app.Services.CreateScope();
+    var sp = scope.ServiceProvider;
+    await sp.GetRequiredService<CatalogDbContext>().Database.MigrateAsync();
+
+    var seeder = sp.GetRequiredService<CatalogSeeder>();
+    var cmdOptions = ParseSeedArgs(args);
+    await seeder.SeedAsync(cmdOptions, CancellationToken.None);
+    return;
+}
+
 // Middleware
 app.UseExceptionHandler();
 
@@ -130,5 +142,36 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+static SeedCommandOptions ParseSeedArgs(string[] args)
+{
+    var count = 500;
+    string[]? providers = null;
+    string[] lists = ["popular", "top_rated", "trending"];
+    MediaType[]? mediaTypes = null;
+
+    for (var i = 1; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--count" when i + 1 < args.Length:
+                count = int.Parse(args[++i]);
+                break;
+            case "--providers" when i + 1 < args.Length:
+                providers = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries);
+                break;
+            case "--lists" when i + 1 < args.Length:
+                lists = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries);
+                break;
+            case "--media-types" when i + 1 < args.Length:
+                mediaTypes = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => Enum.Parse<MediaType>(s, ignoreCase: true))
+                    .ToArray();
+                break;
+        }
+    }
+
+    return new SeedCommandOptions(count, providers, lists, mediaTypes);
+}
 
 public partial class Program;

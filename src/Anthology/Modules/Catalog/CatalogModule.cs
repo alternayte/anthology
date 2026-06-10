@@ -32,11 +32,13 @@ public static class CatalogModule
             .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.themoviedb.org/3"))
             .AddHttpMessageHandler<TmdbAuthHandler>();
         services.AddScoped<ICatalogProvider, TmdbProvider>();
+        services.AddScoped<ISeedableProvider, TmdbProvider>();
 
         // Open Library
         services.AddRefitClient<IOpenLibraryApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://openlibrary.org"));
         services.AddScoped<ICatalogProvider, OpenLibraryProvider>();
+        services.AddScoped<ISeedableProvider, OpenLibraryProvider>();
 
         // IGDB
         services.Configure<IgdbOptions>(configuration.GetSection(IgdbOptions.Section));
@@ -44,6 +46,7 @@ public static class CatalogModule
         services.AddHttpClient<IgdbClient>(c => c.BaseAddress = new Uri("https://api.igdb.com/v4/"))
             .AddHttpMessageHandler<IgdbAuthHandler>();
         services.AddScoped<ICatalogProvider, IgdbProvider>();
+        services.AddScoped<ISeedableProvider, IgdbProvider>();
 
         // MusicBrainz
         services.AddTransient<MusicBrainzUserAgentHandler>();
@@ -58,6 +61,7 @@ public static class CatalogModule
         services.AddScoped<GetTitle.Handler>();
         services.AddScoped<GetSimilar.Handler>();
         services.AddScoped<GetCreatorTitles.Handler>();
+        services.AddScoped<CatalogSeeder>();
 
         return services;
     }
