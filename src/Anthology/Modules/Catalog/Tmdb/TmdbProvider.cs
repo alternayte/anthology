@@ -10,7 +10,6 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
     public IReadOnlySet<MediaType> SupportedTypes => Types;
 
     public string ProviderName => "tmdb";
-    public IReadOnlySet<MediaType> SeedableTypes => Types;
 
     public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
         SeedOptions options, [EnumeratorCancellation] CancellationToken ct)

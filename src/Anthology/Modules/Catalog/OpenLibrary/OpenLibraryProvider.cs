@@ -10,7 +10,6 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider,
     public IReadOnlySet<MediaType> SupportedTypes => Types;
 
     public string ProviderName => "openlibrary";
-    public IReadOnlySet<MediaType> SeedableTypes => Types;
 
     private static readonly string[] PopularSubjects = ["fiction", "science_fiction", "fantasy", "mystery", "romance"];
 

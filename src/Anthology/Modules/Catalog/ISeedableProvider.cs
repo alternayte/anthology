@@ -3,7 +3,6 @@ namespace Anthology.Modules.Catalog;
 public interface ISeedableProvider
 {
     string ProviderName { get; }
-    IReadOnlySet<MediaType> SeedableTypes { get; }
     IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(SeedOptions options, CancellationToken ct);
 }
 

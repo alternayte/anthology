@@ -31,22 +31,25 @@ public static class CatalogModule
         services.AddRefitClient<ITmdbApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.themoviedb.org/3"))
             .AddHttpMessageHandler<TmdbAuthHandler>();
-        services.AddScoped<ICatalogProvider, TmdbProvider>();
-        services.AddScoped<ISeedableProvider, TmdbProvider>();
+        services.AddScoped<TmdbProvider>();
+        services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<TmdbProvider>());
+        services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<TmdbProvider>());
 
         // Open Library
         services.AddRefitClient<IOpenLibraryApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://openlibrary.org"));
-        services.AddScoped<ICatalogProvider, OpenLibraryProvider>();
-        services.AddScoped<ISeedableProvider, OpenLibraryProvider>();
+        services.AddScoped<OpenLibraryProvider>();
+        services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<OpenLibraryProvider>());
+        services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<OpenLibraryProvider>());
 
         // IGDB
         services.Configure<IgdbOptions>(configuration.GetSection(IgdbOptions.Section));
         services.AddTransient<IgdbAuthHandler>();
         services.AddHttpClient<IgdbClient>(c => c.BaseAddress = new Uri("https://api.igdb.com/v4/"))
             .AddHttpMessageHandler<IgdbAuthHandler>();
-        services.AddScoped<ICatalogProvider, IgdbProvider>();
-        services.AddScoped<ISeedableProvider, IgdbProvider>();
+        services.AddScoped<IgdbProvider>();
+        services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<IgdbProvider>());
+        services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<IgdbProvider>());
 
         // MusicBrainz
         services.AddTransient<MusicBrainzUserAgentHandler>();

@@ -10,7 +10,6 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
     public IReadOnlySet<MediaType> SupportedTypes => Types;
 
     public string ProviderName => "igdb";
-    public IReadOnlySet<MediaType> SeedableTypes => Types;
 
     private static readonly string Fields =
         "name,first_release_date,summary,cover.image_id,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,platforms.name,genres.name,themes.name,keywords.name,total_rating,total_rating_count";
