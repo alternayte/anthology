@@ -5,6 +5,8 @@ import { useState } from 'react'
 import {
   getTitleOptions,
   getLibraryOptions,
+  getSimilarOptions,
+  getCreatorTitlesOptions,
   wantItemMutation,
   startItemMutation,
   finishItemMutation,
@@ -53,6 +55,14 @@ function ItemDetailPage() {
 
   const { data: libraryData } = useQuery({
     ...getLibraryOptions({ query: { size: 100 } }),
+  })
+
+  const { data: similarTitles } = useQuery({
+    ...getSimilarOptions({ path: { titleId } }),
+  })
+
+  const { data: creatorTitles } = useQuery({
+    ...getCreatorTitlesOptions({ path: { titleId } }),
   })
 
   const libraryItem = libraryData?.items?.find((i) => i.titleId === titleId)
@@ -295,6 +305,12 @@ function ItemDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Similar Titles */}
+      <TitleRow titles={similarTitles ?? []} label="Similar" />
+
+      {/* More from the Creators */}
+      <CreatorRow titles={creatorTitles ?? []} />
     </div>
   )
 }
@@ -398,6 +414,47 @@ function SeasonAccordion({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function TitleRow({ titles, label }: { titles: Array<{ titleId?: string; name?: string; year?: null | number | string; posterPath?: null | string }>; label: string }) {
+  if (!titles?.length) return null
+  return (
+    <div className="mt-8">
+      <h2 className="text-[0.9375rem] font-semibold text-text-primary mb-4">{label}</h2>
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+        {titles.map((t) => (
+          <Link key={t.titleId} to="/library/$titleId" params={{ titleId: t.titleId! }} className="shrink-0 w-[120px] group">
+            <Poster path={t.posterPath} alt={t.name ?? ''} size="sm" aspect="2/3" />
+            <p className="text-[0.75rem] font-medium text-text-secondary group-hover:text-teal-glow transition-colors mt-1.5 line-clamp-2">{t.name}</p>
+            {t.year && <p className="text-[0.6875rem] text-text-muted">{String(typeof t.year === 'string' ? t.year : t.year)}</p>}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CreatorRow({ titles }: { titles: Array<{ titleId?: string; name?: string; year?: null | number | string; posterPath?: null | string; sharedPerson?: string; sharedRole?: string }> }) {
+  if (!titles?.length) return null
+  return (
+    <div className="mt-8">
+      <h2 className="text-[0.9375rem] font-semibold text-text-primary mb-4">More from the Creators</h2>
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+        {titles.map((t) => (
+          <Link key={t.titleId} to="/library/$titleId" params={{ titleId: t.titleId! }} className="shrink-0 w-[120px] group">
+            <Poster path={t.posterPath} alt={t.name ?? ''} size="sm" aspect="2/3" />
+            <p className="text-[0.75rem] font-medium text-text-secondary group-hover:text-teal-glow transition-colors mt-1.5 line-clamp-2">{t.name}</p>
+            {t.year && <p className="text-[0.6875rem] text-text-muted">{String(typeof t.year === 'string' ? t.year : t.year)}</p>}
+            {t.sharedPerson && (
+              <p className="text-[0.625rem] text-text-muted truncate">
+                {t.sharedRole === 'director' ? 'Directed by' : t.sharedRole === 'actor' ? 'Starring' : 'By'} {t.sharedPerson}
+              </p>
+            )}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

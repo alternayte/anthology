@@ -1,9 +1,9 @@
 import { createFileRoute, Navigate, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
-import { useState } from 'react'
-import { searchCatalogOptions, addTitleMutation } from '../generated/@tanstack/react-query.gen'
-import type { CatalogSearchResult } from '../generated/types.gen'
+import { useState, useMemo } from 'react'
+import { searchCatalogOptions, searchLocalOptions, addTitleMutation } from '../generated/@tanstack/react-query.gen'
+import type { CatalogSearchResult, LocalSearchResult } from '../generated/types.gen'
 import { Poster } from '../components/poster'
 import { cn, getErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -68,12 +68,51 @@ function SearchPage() {
     })
   }
 
-  const { data: results, isLoading } = useQuery({
+  const { data: providerResults, isLoading: isLoadingProvider } = useQuery({
     ...searchCatalogOptions({
       query: { term: searchTerm, ...(mediaFilter && { mediaType: mediaFilter }) },
     }),
     enabled: searchTerm.length > 0,
   })
+
+  const { data: localResults, isLoading: isLoadingLocal } = useQuery({
+    ...searchLocalOptions({
+      query: { term: searchTerm, ...(mediaFilter && { mediaType: mediaFilter }) },
+    }),
+    enabled: searchTerm.length > 0,
+  })
+
+  const isLoading = isLoadingProvider || isLoadingLocal
+
+  const mergedResults = useMemo<UnifiedResult[]>(() => {
+    const local: UnifiedResult[] = (localResults ?? []).map((r: LocalSearchResult) => ({
+      id: r.titleId,
+      titleId: r.titleId,
+      name: r.name,
+      year: typeof r.year === 'string' ? parseInt(r.year, 10) : r.year,
+      posterUrl: r.posterPath,
+      overview: r.overview,
+      mediaType: r.mediaType,
+      isLocal: true,
+    }))
+
+    const localTitleIds = new Set(local.map((r) => r.titleId))
+
+    const provider: UnifiedResult[] = (providerResults ?? [])
+      .filter((r: CatalogSearchResult) => !localTitleIds.has(r.externalId))
+      .map((r: CatalogSearchResult) => ({
+        id: r.externalId,
+        externalId: r.externalId,
+        name: r.name,
+        year: typeof r.year === 'string' ? parseInt(r.year, 10) : r.year,
+        posterUrl: r.posterUrl,
+        overview: r.overview,
+        mediaType: r.mediaType,
+        isLocal: false,
+      }))
+
+    return [...local, ...provider]
+  }, [localResults, providerResults])
 
   const addMutation = useMutation({
     ...addTitleMutation(),
@@ -83,7 +122,7 @@ function SearchPage() {
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   })
 
-  const grouped = groupByMediaType(results ?? [])
+  const grouped = groupByMediaType(mergedResults)
   const showGroups = !mediaFilter
 
   return (
@@ -149,11 +188,11 @@ function SearchPage() {
         </div>
       )}
 
-      {!isLoading && searchTerm && results?.length === 0 && (
+      {!isLoading && searchTerm && mergedResults.length === 0 && (
         <p className="text-text-muted text-[0.875rem]">No results for &ldquo;{searchTerm}&rdquo;</p>
       )}
 
-      {!isLoading && results && results.length > 0 && (
+      {!isLoading && mergedResults.length > 0 && (
         showGroups ? (
           <div className="flex flex-col gap-6">
             {Object.entries(grouped).map(([type, items]) => (
@@ -164,7 +203,13 @@ function SearchPage() {
                   </h2>
                   <div className="flex flex-col gap-2">
                     {items.map((r) => (
-                      <SearchResultCard key={r.externalId} result={r} onAdd={addMutation.mutate} />
+                      <SearchResultCard
+                        key={r.id}
+                        result={r}
+                        isLocal={r.isLocal}
+                        onAdd={addMutation.mutate}
+                        onNavigate={(titleId) => navigate({ to: '/library/$titleId', params: { titleId } })}
+                      />
                     ))}
                   </div>
                 </div>
@@ -173,8 +218,14 @@ function SearchPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {results.map((r: CatalogSearchResult) => (
-              <SearchResultCard key={r.externalId} result={r} onAdd={addMutation.mutate} />
+            {mergedResults.map((r) => (
+              <SearchResultCard
+                key={r.id}
+                result={r}
+                isLocal={r.isLocal}
+                onAdd={addMutation.mutate}
+                onNavigate={(titleId) => navigate({ to: '/library/$titleId', params: { titleId } })}
+              />
             ))}
           </div>
         )
@@ -185,16 +236,28 @@ function SearchPage() {
 
 function SearchResultCard({
   result: r,
+  isLocal,
   onAdd,
+  onNavigate,
 }: {
-  result: CatalogSearchResult
+  result: { id: string; titleId?: string; externalId?: string; name: string; year: number | null; posterUrl: string | null; overview: string | null; mediaType: string; isLocal: boolean }
+  isLocal: boolean
   onAdd: (opts: { body: { externalId: string } }) => void
+  onNavigate: (titleId: string) => void
 }) {
   const aspect = posterAspect[r.mediaType ?? 'film'] ?? '2/3'
 
+  const handleClick = () => {
+    if (isLocal && r.titleId) {
+      onNavigate(r.titleId)
+    } else if (r.externalId) {
+      onAdd({ body: { externalId: r.externalId } })
+    }
+  }
+
   return (
     <div
-      onClick={() => onAdd({ body: { externalId: r.externalId! } })}
+      onClick={handleClick}
       className="cursor-pointer rounded-md bg-abyss p-4 hover:bg-slate transition-colors flex items-center gap-4 group"
     >
       <div className="w-12 shrink-0">
@@ -213,6 +276,9 @@ function SearchResultCard({
               {r.mediaType.replace(/_/g, ' ')}
             </span>
           )}
+          {isLocal && (
+            <span className="rounded px-1.5 py-0.5 text-[0.625rem] font-medium bg-teal/10 text-teal shrink-0">In library</span>
+          )}
         </div>
         <p className="text-[0.75rem] text-text-muted">{r.year ? String(r.year) : ''}</p>
         {r.overview && (
@@ -223,9 +289,21 @@ function SearchResultCard({
   )
 }
 
-function groupByMediaType(results: CatalogSearchResult[]): Record<string, CatalogSearchResult[]> {
+type UnifiedResult = {
+  id: string
+  titleId?: string
+  externalId?: string
+  name: string
+  year: number | null
+  posterUrl: string | null
+  overview: string | null
+  mediaType: string
+  isLocal: boolean
+}
+
+function groupByMediaType(results: UnifiedResult[]): Record<string, UnifiedResult[]> {
   const order = ['film', 'tv_show', 'book', 'game', 'music']
-  const groups: Record<string, CatalogSearchResult[]> = {}
+  const groups: Record<string, UnifiedResult[]> = {}
   for (const type of order) groups[type] = []
   for (const r of results) {
     const type = r.mediaType ?? 'film'

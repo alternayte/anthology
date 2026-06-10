@@ -138,6 +138,46 @@
         }
       }
     },
+    "/api/catalog/search/local": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "searchLocal",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocalSearchResult"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/catalog/titles": {
       "post": {
         "tags": [
@@ -192,6 +232,74 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TitleDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/titles/{titleId}/similar": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "getSimilar",
+        "parameters": [
+          {
+            "name": "titleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SimilarTitleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/titles/{titleId}/creators": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "getCreatorTitles",
+        "parameters": [
+          {
+            "name": "titleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CreatorTitleDto"
+                  }
                 }
               }
             }
@@ -1061,6 +1169,51 @@
           }
         }
       },
+      "CreatorTitleDto": {
+        "required": [
+          "titleId",
+          "name",
+          "year",
+          "posterPath",
+          "mediaType",
+          "sharedPerson",
+          "sharedRole"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "sharedPerson": {
+            "type": "string"
+          },
+          "sharedRole": {
+            "type": "string"
+          }
+        }
+      },
       "CuratedListDto": {
         "required": [
           "listId",
@@ -1334,6 +1487,69 @@
           "public_by_link"
         ]
       },
+      "LocalSearchResult": {
+        "required": [
+          "titleId",
+          "name",
+          "year",
+          "posterPath",
+          "overview",
+          "mediaType",
+          "genres",
+          "score"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "overview": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "genres": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "score": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "LoginRequest": {
         "required": [
           "email",
@@ -1485,6 +1701,53 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "SimilarTitleDto": {
+        "required": [
+          "titleId",
+          "name",
+          "year",
+          "posterPath",
+          "mediaType",
+          "genres"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "genres": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
