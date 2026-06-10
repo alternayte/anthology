@@ -1,6 +1,7 @@
 using Anthology.Modules.Catalog;
 using Anthology.Tests.Fixtures;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -214,5 +215,71 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
         data.Label.Should().Be("Parlophone");
         data.TrackCount.Should().Be(12);
         data.ReleaseType.Should().Be("album");
+    }
+
+    [Fact]
+    public async Task Title_persists_genres_keywords_and_popularity()
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+
+        var film = new Title
+        {
+            TitleId = Guid.NewGuid(),
+            ExternalId = $"enrich-test-{Guid.NewGuid():N}",
+            MediaType = MediaType.Film,
+            Name = "Interstellar",
+            Year = 2014,
+            Overview = "A team of explorers travel through a wormhole in space.",
+            Genres = ["Science Fiction", "Drama", "Adventure"],
+            Keywords = ["space travel", "wormhole", "time dilation"],
+            Popularity = 82.5,
+            VoteAverage = 8.6
+        };
+        db.Titles.Add(film);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saved = await db.Titles.FindAsync([film.TitleId], TestContext.Current.CancellationToken);
+        saved.Should().NotBeNull();
+        saved!.Genres.Should().BeEquivalentTo(["Science Fiction", "Drama", "Adventure"]);
+        saved.Keywords.Should().BeEquivalentTo(["space travel", "wormhole", "time dilation"]);
+        saved.Popularity.Should().Be(82.5);
+        saved.VoteAverage.Should().Be(8.6);
+        saved.Embedding.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TitleCredit_persists_and_queries_by_person()
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+
+        var titleId = Guid.NewGuid();
+        var film = new Title
+        {
+            TitleId = titleId,
+            ExternalId = $"credit-test-{Guid.NewGuid():N}",
+            MediaType = MediaType.Film,
+            Name = "Inception",
+            Year = 2010
+        };
+        db.Titles.Add(film);
+
+        db.TitleCredits.AddRange(
+            new TitleCredit { TitleId = titleId, ExternalPersonId = "tmdb-525", Name = "Christopher Nolan", Role = "director", DisplayOrder = 0 },
+            new TitleCredit { TitleId = titleId, ExternalPersonId = "tmdb-6193", Name = "Leonardo DiCaprio", Role = "actor", DisplayOrder = 1 }
+        );
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var credits = await db.TitleCredits.AsNoTracking()
+            .Where(c => c.TitleId == titleId)
+            .OrderBy(c => c.DisplayOrder)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        credits.Should().HaveCount(2);
+        credits[0].Name.Should().Be("Christopher Nolan");
+        credits[0].Role.Should().Be("director");
+        credits[1].Name.Should().Be("Leonardo DiCaprio");
+        credits[1].Role.Should().Be("actor");
     }
 }
