@@ -30,6 +30,10 @@ public static class CatalogEndpoints
             (await handler.Handle(titleId, ct)).ToHttpResult())
             .WithName("getTitle").Produces<GetTitle.TitleDetailDto>();
 
+        group.MapGet("/titles/{titleId:guid}/similar", async (Guid titleId, GetSimilar.Handler handler, CancellationToken ct) =>
+            Results.Ok(await handler.Handle(titleId, ct)))
+            .WithName("getSimilar").Produces<List<GetSimilar.SimilarTitleDto>>();
+
         return app;
     }
 }
