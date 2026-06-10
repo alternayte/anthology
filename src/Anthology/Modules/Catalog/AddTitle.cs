@@ -22,13 +22,16 @@ public static class AddTitle
             if (provider is null)
                 return Error.Validation("catalog.unknown_provider", $"No provider found for external ID '{command.ExternalId}'.");
 
-            var title = await provider.GetDetailsAsync(command.ExternalId, ct);
-            if (title is null)
+            var result = await provider.GetDetailsAsync(command.ExternalId, ct);
+            if (result is null)
                 return Error.NotFound("catalog.title_not_found", $"Title '{command.ExternalId}' not found in external catalog.");
 
+            var title = result.Title;
             db.Titles.Add(title);
 
-            // TV show cascade: fetch seasons and episodes (TMDB-specific)
+            if (result.Credits.Count > 0)
+                db.TitleCredits.AddRange(result.Credits);
+
             if (title.MediaType == MediaType.TvShow && command.ExternalId.StartsWith("tmdb-tv-"))
                 await AddTvShowChildren(title, command.ExternalId, ct);
 

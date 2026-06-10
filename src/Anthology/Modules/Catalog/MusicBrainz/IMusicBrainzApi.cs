@@ -15,7 +15,7 @@ public interface IMusicBrainzApi
     [Get("/release-group/{id}")]
     Task<MusicBrainzReleaseGroup> GetReleaseGroupAsync(
         string id,
-        [AliasAs("inc")] string inc = "artist-credits",
+        [AliasAs("inc")] string inc = "artist-credits+tags",
         [AliasAs("fmt")] string fmt = "json",
         CancellationToken ct = default);
 }

@@ -24,10 +24,22 @@ public sealed class MusicBrainzReleaseGroup
 
     [JsonPropertyName("artist-credit")]
     public List<MusicBrainzArtistCredit>? Artist_Credit { get; set; }
+
+    [JsonPropertyName("tags")]
+    public List<MusicBrainzTag>? Tags { get; set; }
 }
 
 public sealed class MusicBrainzArtistCredit
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = default!;
+}
+
+public sealed class MusicBrainzTag
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = default!;
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
 }

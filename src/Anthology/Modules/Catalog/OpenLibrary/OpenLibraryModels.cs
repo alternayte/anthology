@@ -27,6 +27,9 @@ public sealed class OpenLibraryDoc
 
     [JsonPropertyName("isbn")]
     public List<string>? Isbn { get; set; }
+
+    [JsonPropertyName("subject")]
+    public List<string>? Subject { get; set; }
 }
 
 public sealed class OpenLibraryWork

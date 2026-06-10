@@ -184,8 +184,8 @@ public class CatalogProviderTests
         public bool OwnsExternalId(string externalId) => externalId.StartsWith(prefix);
         public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct) =>
             Task.FromResult(results);
-        public Task<Title?> GetDetailsAsync(string externalId, CancellationToken ct) =>
-            Task.FromResult<Title?>(null);
+        public Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct) =>
+            Task.FromResult<TitleWithCredits?>(null);
     }
 
     private sealed class FailingCatalogProvider(MediaType type) : ICatalogProvider
@@ -194,7 +194,7 @@ public class CatalogProviderTests
         public bool OwnsExternalId(string externalId) => false;
         public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct) =>
             throw new HttpRequestException("Simulated failure");
-        public Task<Title?> GetDetailsAsync(string externalId, CancellationToken ct) =>
+        public Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct) =>
             throw new HttpRequestException("Simulated failure");
     }
 }

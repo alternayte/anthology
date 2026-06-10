@@ -7,7 +7,7 @@ public sealed class IgdbClient(HttpClient http)
 {
     public async Task<List<IgdbGame>> SearchGamesAsync(string query, CancellationToken ct)
     {
-        var body = $"""search "{query}"; fields name,first_release_date,summary,cover.image_id,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,platforms.name; limit 20;""";
+        var body = $"""search "{query}"; fields name,first_release_date,summary,cover.image_id,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,platforms.name,genres.name,themes.name,keywords.name,total_rating; limit 20;""";
         using var content = new StringContent(body, Encoding.UTF8, "text/plain");
         var response = await http.PostAsync("games", content, ct);
         response.EnsureSuccessStatusCode();
@@ -16,7 +16,7 @@ public sealed class IgdbClient(HttpClient http)
 
     public async Task<IgdbGame?> GetGameAsync(int id, CancellationToken ct)
     {
-        var body = $"fields name,first_release_date,summary,cover.image_id,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,platforms.name; where id = {id};";
+        var body = $"fields name,first_release_date,summary,cover.image_id,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,platforms.name,genres.name,themes.name,keywords.name,total_rating; where id = {id};";
         using var content = new StringContent(body, Encoding.UTF8, "text/plain");
         var response = await http.PostAsync("games", content, ct);
         response.EnsureSuccessStatusCode();

@@ -24,6 +24,18 @@ public sealed class IgdbGame
 
     [JsonPropertyName("platforms")]
     public List<IgdbPlatform>? Platforms { get; set; }
+
+    [JsonPropertyName("genres")]
+    public List<IgdbGenre>? Genres { get; set; }
+
+    [JsonPropertyName("themes")]
+    public List<IgdbTheme>? Themes { get; set; }
+
+    [JsonPropertyName("keywords")]
+    public List<IgdbKeyword>? Keywords { get; set; }
+
+    [JsonPropertyName("total_rating")]
+    public double? Total_Rating { get; set; }
 }
 
 public sealed class IgdbCover
@@ -51,6 +63,24 @@ public sealed class IgdbCompany
 }
 
 public sealed class IgdbPlatform
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = default!;
+}
+
+public sealed class IgdbGenre
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = default!;
+}
+
+public sealed class IgdbTheme
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = default!;
+}
+
+public sealed class IgdbKeyword
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = default!;

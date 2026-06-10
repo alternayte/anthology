@@ -8,10 +8,12 @@ public record CatalogSearchResult(
     string? PosterUrl,
     string? Overview);
 
+public record TitleWithCredits(Title Title, IReadOnlyList<TitleCredit> Credits);
+
 public interface ICatalogProvider
 {
     IReadOnlySet<MediaType> SupportedTypes { get; }
     bool OwnsExternalId(string externalId);
     Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct);
-    Task<Title?> GetDetailsAsync(string externalId, CancellationToken ct);
+    Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct);
 }

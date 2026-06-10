@@ -21,7 +21,7 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider
         return results;
     }
 
-    public async Task<Title?> GetDetailsAsync(string externalId, CancellationToken ct)
+    public async Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct)
     {
         if (externalId.StartsWith("tmdb-tv-"))
             return await GetTvShowDetails(externalId, ct);
@@ -45,12 +45,12 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider
         PosterUrl(s.Poster_Path),
         s.Overview);
 
-    private async Task<Title> GetFilmDetails(string externalId, CancellationToken ct)
+    private async Task<TitleWithCredits> GetFilmDetails(string externalId, CancellationToken ct)
     {
         var tmdbId = int.Parse(externalId.Replace("tmdb-", ""));
-        var movie = await tmdb.GetMovieAsync(tmdbId, ct);
+        var movie = await tmdb.GetMovieDetailAsync(tmdbId, ct);
 
-        return new Title
+        var title = new Title
         {
             TitleId = Guid.NewGuid(),
             ExternalId = $"tmdb-{movie.Id}",
@@ -58,14 +58,21 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider
             Name = movie.Title,
             Year = ParseYear(movie.Release_Date),
             PosterPath = PosterUrl(movie.Poster_Path),
-            Overview = movie.Overview
+            Overview = movie.Overview,
+            Genres = movie.Genres.Select(g => g.Name).ToArray(),
+            Keywords = movie.Keywords.Keywords.Select(k => k.Name).ToArray(),
+            Popularity = movie.Popularity,
+            VoteAverage = movie.Vote_Average
         };
+
+        var credits = BuildCredits(title.TitleId, movie.Credits);
+        return new TitleWithCredits(title, credits);
     }
 
-    private async Task<Title> GetTvShowDetails(string externalId, CancellationToken ct)
+    private async Task<TitleWithCredits> GetTvShowDetails(string externalId, CancellationToken ct)
     {
         var tmdbId = int.Parse(externalId.Replace("tmdb-tv-", ""));
-        var show = await tmdb.GetTvShowAsync(tmdbId, ct);
+        var show = await tmdb.GetTvShowDetailAsync(tmdbId, ct);
 
         var showTitle = new Title
         {
@@ -75,11 +82,59 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider
             Name = show.Name,
             Year = ParseYear(show.First_Air_Date),
             PosterPath = PosterUrl(show.Poster_Path),
-            Overview = show.Overview
+            Overview = show.Overview,
+            Genres = show.Genres.Select(g => g.Name).ToArray(),
+            Keywords = [],
+            Popularity = show.Popularity,
+            VoteAverage = show.Vote_Average
         };
         showTitle.SetMediaData(new TvShowData(show.Number_Of_Seasons, show.Number_Of_Episodes));
 
-        return showTitle;
+        return new TitleWithCredits(showTitle, []);
+    }
+
+    private static List<TitleCredit> BuildCredits(Guid titleId, TmdbCreditsResponse credits)
+    {
+        var result = new List<TitleCredit>();
+        var order = 0;
+
+        foreach (var crew in credits.Crew.Where(c => c.Job == "Director").Take(3))
+        {
+            result.Add(new TitleCredit
+            {
+                TitleId = titleId,
+                ExternalPersonId = $"tmdb-{crew.Id}",
+                Name = crew.Name,
+                Role = "director",
+                DisplayOrder = order++
+            });
+        }
+
+        foreach (var crew in credits.Crew.Where(c => c.Department == "Writing").Take(3))
+        {
+            result.Add(new TitleCredit
+            {
+                TitleId = titleId,
+                ExternalPersonId = $"tmdb-{crew.Id}",
+                Name = crew.Name,
+                Role = "writer",
+                DisplayOrder = order++
+            });
+        }
+
+        foreach (var cast in credits.Cast.OrderBy(c => c.Order).Take(10))
+        {
+            result.Add(new TitleCredit
+            {
+                TitleId = titleId,
+                ExternalPersonId = $"tmdb-{cast.Id}",
+                Name = cast.Name,
+                Role = "actor",
+                DisplayOrder = order++
+            });
+        }
+
+        return result;
     }
 
     internal static int? ParseYear(string? date) =>

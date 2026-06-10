@@ -15,7 +15,7 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider
         return games.Select(MapSearchResult).ToList();
     }
 
-    public async Task<Title?> GetDetailsAsync(string externalId, CancellationToken ct)
+    public async Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct)
     {
         var igdbId = int.Parse(externalId.Replace("igdb-", ""));
         var game = await client!.GetGameAsync(igdbId, ct);
@@ -27,6 +27,12 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider
             .FirstOrDefault(c => c.Publisher)?.Company.Name;
         var platforms = game.Platforms?.Select(p => p.Name).ToArray();
 
+        var genres = (game.Genres?.Select(g => g.Name) ?? [])
+            .Concat(game.Themes?.Select(t => t.Name) ?? [])
+            .Distinct()
+            .ToArray();
+        var keywords = game.Keywords?.Select(k => k.Name).ToArray() ?? [];
+
         var title = new Title
         {
             TitleId = Guid.NewGuid(),
@@ -35,10 +41,49 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider
             Name = game.Name,
             Year = EpochToYear(game.First_Release_Date),
             PosterPath = CoverUrl(game.Cover?.Image_Id),
-            Overview = game.Summary
+            Overview = game.Summary,
+            Genres = genres,
+            Keywords = keywords,
+            VoteAverage = game.Total_Rating is not null ? game.Total_Rating.Value / 10.0 : null
         };
         title.SetMediaData(new GameData(developer, publisher, platforms));
-        return title;
+
+        var credits = BuildCompanyCredits(title.TitleId, game.Involved_Companies);
+        return new TitleWithCredits(title, credits);
+    }
+
+    private static List<TitleCredit> BuildCompanyCredits(Guid titleId, List<IgdbInvolvedCompany>? companies)
+    {
+        if (companies is null or []) return [];
+
+        var result = new List<TitleCredit>();
+        var order = 0;
+
+        foreach (var company in companies.Where(c => c.Developer))
+        {
+            result.Add(new TitleCredit
+            {
+                TitleId = titleId,
+                ExternalPersonId = $"igdb-company-{company.Company.Name.ToLowerInvariant().Replace(' ', '-')}",
+                Name = company.Company.Name,
+                Role = "developer",
+                DisplayOrder = order++
+            });
+        }
+
+        foreach (var company in companies.Where(c => c.Publisher))
+        {
+            result.Add(new TitleCredit
+            {
+                TitleId = titleId,
+                ExternalPersonId = $"igdb-company-{company.Company.Name.ToLowerInvariant().Replace(' ', '-')}",
+                Name = company.Company.Name,
+                Role = "publisher",
+                DisplayOrder = order++
+            });
+        }
+
+        return result;
     }
 
     public static CatalogSearchResult MapSearchResult(IgdbGame game) => new(
