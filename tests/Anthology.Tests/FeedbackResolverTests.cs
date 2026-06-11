@@ -55,6 +55,13 @@ public sealed class FeedbackResolverTests
     }
 
     [Fact]
+    public void Empty_input_resolves_to_empty()
+    {
+        FeedbackResolver.Resolve(Array.Empty<(Guid, FeedbackSignal, DateTimeOffset)>())
+            .Should().BeEmpty();
+    }
+
+    [Fact]
     public void Promoted_set_contains_only_more_like_this()
     {
         var rows = new[]
