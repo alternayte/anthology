@@ -62,6 +62,7 @@ public static class CatalogModule
         services.AddScoped<SearchLocal.Handler>();
         services.AddScoped<AddTitle.Handler>();
         services.AddScoped<GetTitle.Handler>();
+        services.AddScoped<FindSimilarTitles>();
         services.AddScoped<GetSimilar.Handler>();
         services.AddScoped<GetCreatorTitles.Handler>();
         services.AddScoped<CatalogSeeder>();

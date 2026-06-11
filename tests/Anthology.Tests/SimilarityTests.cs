@@ -53,7 +53,7 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
         db.Titles.AddRange(source, similar, unrelated);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new GetSimilar.Handler(db);
+        var handler = new GetSimilar.Handler(db, new FindSimilarTitles(db));
         var results = await handler.Handle(source.TitleId, TestContext.Current.CancellationToken);
 
         results.Should().Contain(r => r.TitleId == similar.TitleId);
@@ -117,7 +117,7 @@ public sealed class SimilarityTests(WebAppFixture fixture) : IClassFixture<WebAp
         db.Titles.AddRange(sourceFilm, otherFilm, book);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new GetSimilar.Handler(db);
+        var handler = new GetSimilar.Handler(db, new FindSimilarTitles(db));
         var results = await handler.Handle(sourceFilm.TitleId, TestContext.Current.CancellationToken);
 
         results.Should().Contain(r => r.TitleId == otherFilm.TitleId);
