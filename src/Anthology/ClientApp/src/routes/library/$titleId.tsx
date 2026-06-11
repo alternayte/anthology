@@ -2,6 +2,7 @@ import { createFileRoute, Navigate, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../lib/auth'
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import {
   getTitleOptions,
   getLibraryOptions,
@@ -15,6 +16,7 @@ import {
 } from '../../generated/@tanstack/react-query.gen'
 import { Poster } from '../../components/poster'
 import { StarRating } from '../../components/star-rating'
+import { BackdropHero } from '../../components/backdrop-hero'
 import { cn, getErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -40,8 +42,6 @@ function ItemDetailPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
 
-  if (!user) return <Navigate to="/login" />
-
   const invalidate = () => {
     qc.invalidateQueries({ predicate: (q) => (q.queryKey[0] as Record<string, unknown>)?._id === 'getLibrary' })
     qc.invalidateQueries({ predicate: (q) => (q.queryKey[0] as Record<string, unknown>)?._id === 'getTitle' })
@@ -51,18 +51,22 @@ function ItemDetailPage() {
 
   const { data: title, isLoading } = useQuery({
     ...getTitleOptions({ path: { titleId } }),
+    enabled: !!user,
   })
 
   const { data: libraryData } = useQuery({
     ...getLibraryOptions({ query: { size: 100 } }),
+    enabled: !!user,
   })
 
   const { data: similarTitles } = useQuery({
     ...getSimilarOptions({ path: { titleId } }),
+    enabled: !!user,
   })
 
   const { data: creatorTitles } = useQuery({
     ...getCreatorTitlesOptions({ path: { titleId } }),
+    enabled: !!user,
   })
 
   const libraryItem = libraryData?.items?.find((i) => i.titleId === titleId)
@@ -133,11 +137,13 @@ function ItemDetailPage() {
     }
   }
 
+  if (!user) return <Navigate to="/login" />
+
   if (isLoading) return <DetailSkeleton />
 
   if (!title) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
+      <div className="mx-auto max-w-4xl px-4 py-20 flex flex-col items-center justify-center">
         <p className="text-text-secondary">Title not found</p>
         <Link to="/library" className="text-teal text-[0.8125rem] mt-2 hover:text-teal-glow transition-colors">
           Back to library
@@ -148,25 +154,31 @@ function ItemDetailPage() {
 
   const isTvShow = title.mediaType === 'tv_show'
 
-  const actionLabels = {
-    film: { want: 'Want to watch', progress: 'Watching', finish: 'Finished', abandon: 'Abandon' },
-    tv_show: { want: 'Want to watch', progress: 'Watching', finish: 'Finished', abandon: 'Abandon' },
-    book: { want: 'Want to read', progress: 'Reading', finish: 'Finished', abandon: 'Abandon' },
-    game: { want: 'Want to play', progress: 'Playing', finish: 'Finished', abandon: 'Abandon' },
-    music: { want: 'Want to listen', progress: 'Listening', finish: 'Finished', abandon: 'Abandon' },
-  }[title.mediaType ?? 'film'] ?? { want: 'Want', progress: 'In progress', finish: 'Finished', abandon: 'Abandon' }
+  const actionLabels: { want: string; progress: string; finish: string; abandon: string } =
+    ({
+      film: { want: 'Want to watch', progress: 'Watching', finish: 'Finished', abandon: 'Abandon' },
+      tv_show: { want: 'Want to watch', progress: 'Watching', finish: 'Finished', abandon: 'Abandon' },
+      book: { want: 'Want to read', progress: 'Reading', finish: 'Finished', abandon: 'Abandon' },
+      game: { want: 'Want to play', progress: 'Playing', finish: 'Finished', abandon: 'Abandon' },
+      music: { want: 'Want to listen', progress: 'Listening', finish: 'Finished', abandon: 'Abandon' },
+    } as Record<string, { want: string; progress: string; finish: string; abandon: string }>)[title.mediaType ?? 'film']
+    ?? { want: 'Want', progress: 'In progress', finish: 'Finished', abandon: 'Abandon' }
 
-  const accentClass = {
-    film: 'text-film-amber',
-    tv_show: 'text-teal',
-    book: 'text-book-sage',
-    game: 'text-game-electric',
-    music: 'text-music-violet',
-  }[title.mediaType ?? 'film'] ?? 'text-teal'
+  const accentClass: string =
+    ({
+      film: 'text-film-amber',
+      tv_show: 'text-teal',
+      book: 'text-book-sage',
+      game: 'text-game-electric',
+      music: 'text-music-violet',
+    } as Record<string, string>)[title.mediaType ?? 'film']
+    ?? 'text-teal'
 
-  const posterAspect = {
-    film: '2/3', tv_show: '2/3', book: '3/4', game: '2/3', music: '1/1',
-  }[title.mediaType ?? 'film'] ?? '2/3'
+  const posterAspect: '2/3' | '3/4' | '1/1' =
+    ({
+      film: '2/3', tv_show: '2/3', book: '3/4', game: '2/3', music: '1/1',
+    } as Record<string, '2/3' | '3/4' | '1/1'>)[title.mediaType ?? 'film']
+    ?? '2/3'
 
   const tvData = isTvShow ? (title as Record<string, unknown>) : null
   const seasons = (tvData?.seasons as Array<{
@@ -183,134 +195,132 @@ function ItemDetailPage() {
   }>) ?? []
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Back link */}
-      <Link
-        to="/library"
-        className="inline-flex items-center gap-1.5 text-[0.8125rem] text-text-muted hover:text-text-secondary transition-colors mb-6"
-      >
-        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
-          <path d="M10 12L6 8l4-4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Library
-      </Link>
+    <div className="relative">
+      <BackdropHero backdropPath={title.backdropPath} posterPath={title.posterPath} />
 
-      {/* Hero section */}
-      <div className="flex gap-6 mb-8">
-        {/* Poster */}
-        <div className="w-48 shrink-0">
-          <Poster
-            path={title.posterPath}
-            alt={title.name ?? ''}
-            size="xl"
-            aspect={posterAspect as '2/3' | '3/4' | '1/1'}
-            className="shadow-[var(--shadow-hover-lift)]"
-          />
-        </div>
+      <div className="relative mx-auto max-w-4xl px-4 pb-6">
+        <Link
+          to="/library"
+          className="inline-flex items-center gap-1.5 pt-6 text-[0.8125rem] text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M10 12L6 8l4-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Library
+        </Link>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0 pt-2">
-          <h1 className="text-[1.75rem] font-bold tracking-tight text-text-primary leading-tight">
-            {title.name}
-          </h1>
-          <div className="flex items-center gap-3 mt-2">
-            {title.year && (
-              <span className="text-[0.875rem] text-text-secondary">{String(title.year)}</span>
-            )}
-            <span className="text-[0.75rem] text-text-muted capitalize">
-              {title.mediaType?.replace(/_/g, ' ')}
-            </span>
-            {isTvShow && tvData?.showData && (
-              <span className="text-[0.75rem] text-text-muted">
-                {String((tvData.showData as Record<string, unknown>).numberOfSeasons)} seasons
-              </span>
-            )}
+        <div className="flex gap-6 mt-24 mb-8">
+          <div className="w-48 shrink-0">
+            <Poster
+              path={title.posterPath}
+              alt={title.name ?? ''}
+              size="xl"
+              aspect={posterAspect}
+              viewTransitionName={`poster-${titleId}`}
+              className="shadow-[var(--shadow-overlay)]"
+            />
           </div>
 
-          {/* Rating — only shown when in_progress, finished, or abandoned */}
-          {currentStatus && currentStatus !== 'want_to_consume' && (
-            <div className="mt-4">
-              <StarRating
-                value={libraryItem?.rating != null ? Number(libraryItem.rating) : null}
-                onChange={handleRate}
-                size="lg"
-                accentClass={accentClass}
-              />
-              {libraryItem?.rating != null && (
-                <span className="ml-2 text-[0.8125rem] text-text-secondary tabular-nums">
-                  {Number(libraryItem.rating) / 2}/5
+          <motion.div
+            className="flex-1 min-w-0 self-end pb-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <h1 className="text-[2rem] font-bold tracking-tight text-text-primary leading-tight">
+              {title.name}
+            </h1>
+            <div className="flex items-center gap-3 mt-2">
+              {title.year && (
+                <span className="text-[0.875rem] text-text-secondary">{String(title.year)}</span>
+              )}
+              <span className="text-[0.75rem] text-text-muted capitalize">
+                {title.mediaType?.replace(/_/g, ' ')}
+              </span>
+              {isTvShow && !!tvData?.showData && (
+                <span className="text-[0.75rem] text-text-muted">
+                  {String((tvData!.showData as Record<string, unknown>).numberOfSeasons)} seasons
                 </span>
               )}
             </div>
-          )}
 
-          {/* Status actions */}
-          <div className="flex items-center gap-2 mt-5">
-            <StatusButton
-              label={actionLabels.want}
-              active={currentStatus === 'want_to_consume'}
-              onClick={handleWant}
-              loading={want.isPending}
-            />
-            <StatusButton
-              label={actionLabels.progress}
-              active={currentStatus === 'in_progress'}
-              onClick={handleStart}
-              loading={want.isPending || start.isPending}
-            />
-            <StatusButton
-              label={actionLabels.finish}
-              active={currentStatus === 'finished'}
-              onClick={handleFinish}
-              loading={want.isPending || finish.isPending}
-            />
-            <StatusButton
-              label={actionLabels.abandon}
-              active={currentStatus === 'abandoned'}
-              onClick={handleAbandon}
-              loading={want.isPending || abandon.isPending}
-              variant="ghost"
-            />
-          </div>
+            {currentStatus && currentStatus !== 'want_to_consume' && (
+              <div className="mt-4">
+                <StarRating
+                  value={libraryItem?.rating != null ? Number(libraryItem.rating) : null}
+                  onChange={handleRate}
+                  size="lg"
+                  accentClass={accentClass}
+                />
+                {libraryItem?.rating != null && (
+                  <span className="ml-2 text-[0.8125rem] text-text-secondary tabular-nums">
+                    {Number(libraryItem.rating) / 2}/5
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* Current status indicator */}
-          {currentStatus && (
-            <p className="text-[0.75rem] text-text-muted mt-3">
-              Status: <span className="text-text-secondary">{getStatusLabel(currentStatus, title.mediaType)}</span>
-              {libraryItem?.partsCompleted != null && libraryItem?.partsTotal != null && (
-                <span className="ml-2 tabular-nums">
-                  ({String(libraryItem.partsCompleted)}/{String(libraryItem.partsTotal)} episodes)
-                </span>
-              )}
-            </p>
-          )}
+            <div className="flex items-center gap-2 mt-5">
+              <StatusButton
+                label={actionLabels.want}
+                active={currentStatus === 'want_to_consume'}
+                onClick={handleWant}
+                loading={want.isPending}
+              />
+              <StatusButton
+                label={actionLabels.progress}
+                active={currentStatus === 'in_progress'}
+                onClick={handleStart}
+                loading={want.isPending || start.isPending}
+              />
+              <StatusButton
+                label={actionLabels.finish}
+                active={currentStatus === 'finished'}
+                onClick={handleFinish}
+                loading={want.isPending || finish.isPending}
+              />
+              <StatusButton
+                label={actionLabels.abandon}
+                active={currentStatus === 'abandoned'}
+                onClick={handleAbandon}
+                loading={want.isPending || abandon.isPending}
+                variant="ghost"
+              />
+            </div>
 
-          {/* Overview */}
-          {title.overview && (
-            <p className="text-[0.875rem] text-text-secondary leading-relaxed mt-5 max-w-prose">
-              {title.overview}
-            </p>
-          )}
+            {currentStatus && (
+              <p className="text-[0.75rem] text-text-muted mt-3">
+                Status: <span className="text-text-secondary">{getStatusLabel(currentStatus, title.mediaType)}</span>
+                {libraryItem?.partsCompleted != null && libraryItem?.partsTotal != null && (
+                  <span className="ml-2 tabular-nums">
+                    ({String(libraryItem.partsCompleted)}/{String(libraryItem.partsTotal)} episodes)
+                  </span>
+                )}
+              </p>
+            )}
+          </motion.div>
         </div>
+
+        {title.overview && (
+          <p className="text-[0.875rem] text-text-secondary leading-relaxed mb-8 max-w-prose">
+            {title.overview}
+          </p>
+        )}
+
+        {isTvShow && seasons.length > 0 && (
+          <div className="mt-2">
+            <h2 className="text-[1.125rem] font-semibold text-text-primary mb-4">Seasons</h2>
+            <div className="flex flex-col gap-2">
+              {seasons.map((season) => (
+                <SeasonAccordion key={season.titleId} season={season} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <TitleRow titles={similarTitles ?? []} label="Similar" />
+        <CreatorRow titles={creatorTitles ?? []} />
       </div>
-
-      {/* TV Show Seasons */}
-      {isTvShow && seasons.length > 0 && (
-        <div className="mt-2">
-          <h2 className="text-[1.125rem] font-semibold text-text-primary mb-4">Seasons</h2>
-          <div className="flex flex-col gap-2">
-            {seasons.map((season) => (
-              <SeasonAccordion key={season.titleId} season={season} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Similar Titles */}
-      <TitleRow titles={similarTitles ?? []} label="Similar" />
-
-      {/* More from the Creators */}
-      <CreatorRow titles={creatorTitles ?? []} />
     </div>
   )
 }
@@ -333,14 +343,17 @@ function StatusButton({
       onClick={onClick}
       disabled={loading}
       className={cn(
-        'rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-all duration-150',
-        active && variant !== 'ghost' && 'bg-teal text-void',
+        'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-all duration-150 active:scale-[0.97]',
+        active && variant !== 'ghost' && 'bg-teal text-void shadow-[var(--shadow-glow)]',
         active && variant === 'ghost' && 'bg-danger/15 text-danger',
         !active && variant !== 'ghost' && 'bg-smoke text-text-secondary hover:bg-slate hover:text-text-primary',
         !active && variant === 'ghost' && 'text-text-muted hover:text-text-secondary hover:bg-smoke',
-        loading && 'opacity-50 pointer-events-none',
+        loading && 'opacity-60 pointer-events-none',
       )}
     >
+      {loading && (
+        <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" />
+      )}
       {label}
     </button>
   )
@@ -392,28 +405,38 @@ function SeasonAccordion({
         </svg>
       </button>
 
-      {open && (
-        <div className="border-t border-border">
-          {season.episodes.map((ep) => (
-            <div
-              key={ep.titleId}
-              className="flex items-center gap-3 px-4 py-2.5 hover:bg-smoke/20 transition-colors"
-            >
-              <span className="text-[0.75rem] text-text-muted tabular-nums w-6 shrink-0">
-                {String(ep.episodeNumber)}
-              </span>
-              <span className="text-[0.8125rem] text-text-secondary flex-1 truncate">
-                {ep.name}
-              </span>
-              {ep.airDate && (
-                <span className="text-[0.6875rem] text-text-muted shrink-0">
-                  {ep.airDate}
-                </span>
-              )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-border">
+              {season.episodes.map((ep) => (
+                <div
+                  key={ep.titleId}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-smoke/20 transition-colors"
+                >
+                  <span className="text-[0.75rem] text-text-muted tabular-nums w-6 shrink-0">
+                    {String(ep.episodeNumber)}
+                  </span>
+                  <span className="text-[0.8125rem] text-text-secondary flex-1 truncate">
+                    {ep.name}
+                  </span>
+                  {ep.airDate && (
+                    <span className="text-[0.6875rem] text-text-muted shrink-0">
+                      {ep.airDate}
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -423,7 +446,7 @@ function TitleRow({ titles, label }: { titles: Array<{ titleId?: string; name?: 
   return (
     <div className="mt-8">
       <h2 className="text-[0.9375rem] font-semibold text-text-primary mb-4">{label}</h2>
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin fade-edges-x">
         {titles.map((t) => (
           <Link key={t.titleId} to="/library/$titleId" params={{ titleId: t.titleId! }} className="shrink-0 w-[120px] group">
             <Poster path={t.posterPath} alt={t.name ?? ''} size="sm" aspect="2/3" />
@@ -441,7 +464,7 @@ function CreatorRow({ titles }: { titles: Array<{ titleId?: string; name?: strin
   return (
     <div className="mt-8">
       <h2 className="text-[0.9375rem] font-semibold text-text-primary mb-4">More from the Creators</h2>
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin fade-edges-x">
         {titles.map((t) => (
           <Link key={t.titleId} to="/library/$titleId" params={{ titleId: t.titleId! }} className="shrink-0 w-[120px] group">
             <Poster path={t.posterPath} alt={t.name ?? ''} size="sm" aspect="2/3" />
@@ -461,24 +484,26 @@ function CreatorRow({ titles }: { titles: Array<{ titleId?: string; name?: strin
 
 function DetailSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="h-4 w-16 rounded bg-abyss animate-skeleton mb-6" />
-      <div className="flex gap-6">
-        <div className="w-48 shrink-0 rounded-md bg-abyss animate-skeleton" style={{ aspectRatio: '2/3' }} />
-        <div className="flex-1 pt-2 space-y-4">
-          <div className="h-7 w-64 rounded bg-abyss animate-skeleton" />
-          <div className="h-4 w-32 rounded bg-abyss animate-skeleton" />
-          <div className="h-5 w-28 rounded bg-abyss animate-skeleton" />
-          <div className="flex gap-2">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-8 w-24 rounded-md bg-abyss animate-skeleton" />
-            ))}
+    <div className="relative">
+      <div className="absolute inset-x-0 top-0 h-[420px] bg-abyss animate-skeleton" />
+      <div className="relative mx-auto max-w-4xl px-4">
+        <div className="h-4 w-16 rounded bg-smoke/40 animate-skeleton mt-6" />
+        <div className="flex gap-6 mt-24">
+          <div className="w-48 shrink-0 rounded-md bg-smoke/40 animate-skeleton" style={{ aspectRatio: '2/3' }} />
+          <div className="flex-1 self-end pb-1 space-y-4">
+            <div className="h-8 w-64 rounded bg-smoke/40 animate-skeleton" />
+            <div className="h-4 w-32 rounded bg-smoke/40 animate-skeleton" />
+            <div className="flex gap-2">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="h-8 w-24 rounded-md bg-smoke/40 animate-skeleton" />
+              ))}
+            </div>
           </div>
-          <div className="space-y-2 pt-2">
-            <div className="h-4 w-full rounded bg-abyss animate-skeleton" />
-            <div className="h-4 w-3/4 rounded bg-abyss animate-skeleton" />
-            <div className="h-4 w-1/2 rounded bg-abyss animate-skeleton" />
-          </div>
+        </div>
+        <div className="space-y-2 mt-8">
+          <div className="h-4 w-full rounded bg-abyss animate-skeleton" />
+          <div className="h-4 w-3/4 rounded bg-abyss animate-skeleton" />
+          <div className="h-4 w-1/2 rounded bg-abyss animate-skeleton" />
         </div>
       </div>
     </div>
