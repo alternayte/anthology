@@ -148,6 +148,54 @@ public sealed class RecommendationsIntegrationTests(WebAppFixture fixture)
     }
 
     [Fact]
+    public async Task MoreLikeThis_promotes_an_unrated_title_to_a_seed_row()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: two rated seeds with mutually-distant one-hot embeddings (cosine distance = 1.0).
+        var ratedA = await SeedTitleAsync("Rated A", 10, Embedding((0, 1f)));
+        var ratedB = await SeedTitleAsync("Rated B", 10, Embedding((1, 1f)));
+        await RateAsync(client, ratedA, 9);
+        await RateAsync(client, ratedB, 9);
+
+        // Third seed: "promoted" title — the user never rates it; it becomes a seed only via MoreLikeThis.
+        var promoted = await SeedTitleAsync("Promoted Unrated", 10, Embedding((2, 1f)));
+
+        // Neighbour of the promoted title: very close (same primary dimension + tiny offset so the
+        // embedding is non-identical) so it wins the nearest-neighbour search for the promoted seed.
+        var promotedNeighbour = await SeedTitleAsync("Promoted Neighbour", 5, Embedding((2, 1f), (103, 0.02f)));
+
+        // Submit MoreLikeThis feedback for the unrated promoted title — this is the signal under test.
+        (await client.PostAsJsonAsync("/api/recommendations/feedback",
+            new { titleId = promoted, signal = "more_like_this" }, ct))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Act.
+        var rows = await GetForYouAsync(client);
+
+        // Assert: 3 seeds (2 rated + 1 promoted) → personalised feed, no cold-start row.
+        rows.Should().NotContain(r => r.SeedName == "Popular right now",
+            "3 seeds (2 rated + 1 promoted) should trigger the personalized feed, not cold-start");
+
+        // A row seeded by the promoted (unrated) title must exist.
+        rows.Should().Contain(r => r.SeedTitleId == promoted,
+            "MoreLikeThis feedback should promote an unrated title to a seed row");
+
+        // That row's items must include the promoted title's nearest neighbour.
+        var promotedRow = rows.First(r => r.SeedTitleId == promoted);
+        promotedRow.Items.Should().Contain(i => i.TitleId == promotedNeighbour,
+            "the promoted seed's row should contain its nearest catalogue neighbour");
+
+        // The promoted title itself must NOT appear in any row's items — FindSimilarTitles excludes the
+        // source seed from its own results, and the promoted title is not in the library so it is also
+        // not in seenIds, but it is always excluded as the seed itself.
+        var allItemIds = rows.SelectMany(r => r.Items).Select(i => i.TitleId).ToHashSet();
+        allItemIds.Should().NotContain(promoted,
+            "the promoted seed title must never appear as a recommendation item in its own row");
+    }
+
+    [Fact]
     public async Task Hidden_feedback_excludes_a_title_and_restore_brings_it_back()
     {
         var client = await CreateAuthenticatedClientAsync();

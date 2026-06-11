@@ -92,6 +92,10 @@ public static class GetForYou
                 }
             }
 
+            // All titles that became seeds (rated ∪ promoted, before diversity filtering).
+            // Used to prevent any seed title from appearing as a recommended item in another seed's row.
+            var seedIds = seeds.Keys.ToHashSet();
+
             // 4. Cold start: not enough personalized signal → a single "Popular right now" row.
             if (seeds.Count < MinSeedsForPersonalized)
                 return await ColdStart(seenIds, excludedByFeedback, ct);
@@ -144,6 +148,7 @@ public static class GetForYou
 
                 var excludeIds = seenIds
                     .Concat(excludedByFeedback)
+                    .Concat(seedIds)
                     .Concat(placed)
                     .Distinct()
                     .ToArray();
