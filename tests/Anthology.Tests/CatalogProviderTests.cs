@@ -251,6 +251,37 @@ public class CatalogProviderTests
         IgdbProvider.BackdropUrl(game).Should().BeNull();
     }
 
+    [Fact]
+    public void IgdbProvider_BuildCompanyCredits_deduplicates_repeated_company_roles()
+    {
+        var titleId = Guid.NewGuid();
+        List<IgdbInvolvedCompany> companies =
+        [
+            new() { Developer = true, Company = new IgdbCompany { Name = "Japan Studio" } },
+            new() { Publisher = true, Company = new IgdbCompany { Name = "Sony Computer Entertainment" } },
+            new() { Publisher = true, Company = new IgdbCompany { Name = "Sony Computer Entertainment" } },
+        ];
+
+        var credits = IgdbProvider.BuildCompanyCredits(titleId, companies);
+
+        credits.Should().HaveCount(2);
+        credits.Select(c => (c.ExternalPersonId, c.Role)).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void TmdbProvider_BuildCredits_deduplicates_person_with_multiple_writing_jobs()
+    {
+        var titleId = Guid.NewGuid();
+        var credits = TmdbProvider.BuildCredits(titleId, new TmdbCreditsResponse(
+            [],
+            [
+                new TmdbCrewMember(7, "Jane Doe", "Screenplay", "Writing"),
+                new TmdbCrewMember(7, "Jane Doe", "Story", "Writing"),
+            ]));
+
+        credits.Should().ContainSingle(c => c.Role == "writer");
+    }
+
     private sealed class StubTmdbApi : ITmdbApi
     {
         public TmdbMovieDetail MovieDetail { get; init; } = default!;

@@ -100,7 +100,7 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
         return new TitleWithCredits(title, credits);
     }
 
-    private static List<TitleCredit> BuildCompanyCredits(Guid titleId, List<IgdbInvolvedCompany>? companies)
+    internal static List<TitleCredit> BuildCompanyCredits(Guid titleId, List<IgdbInvolvedCompany>? companies)
     {
         if (companies is null or []) return [];
 
@@ -131,7 +131,8 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
             });
         }
 
-        return result;
+        // IGDB lists the same company on multiple involved_company rows; key is (TitleId, ExternalPersonId, Role)
+        return result.DistinctBy(c => (c.ExternalPersonId, c.Role)).ToList();
     }
 
     public static CatalogSearchResult MapSearchResult(IgdbGame game) => new(

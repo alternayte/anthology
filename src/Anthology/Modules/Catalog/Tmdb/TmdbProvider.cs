@@ -200,7 +200,7 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
         return new TitleWithCredits(showTitle, []);
     }
 
-    private static List<TitleCredit> BuildCredits(Guid titleId, TmdbCreditsResponse credits)
+    internal static List<TitleCredit> BuildCredits(Guid titleId, TmdbCreditsResponse credits)
     {
         var result = new List<TitleCredit>();
         var order = 0;
@@ -241,7 +241,8 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             });
         }
 
-        return result;
+        // TMDB repeats a person per job (e.g. Screenplay + Story); key is (TitleId, ExternalPersonId, Role)
+        return result.DistinctBy(c => (c.ExternalPersonId, c.Role)).ToList();
     }
 
     internal static int? ParseYear(string? date) =>
