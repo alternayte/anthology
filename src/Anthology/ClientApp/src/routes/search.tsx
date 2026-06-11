@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, useNavigate } from '@tanstack/react-router'
+import type { SearchSchemaInput } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useState, useMemo } from 'react'
@@ -11,7 +12,7 @@ import { toast } from 'sonner'
 type SearchParams = { term: string; media: string }
 
 export const Route = createFileRoute('/search')({
-  validateSearch: (search: Record<string, unknown>): SearchParams => ({
+  validateSearch: (search: Record<string, unknown> & SearchSchemaInput): SearchParams => ({
     term: typeof search.term === 'string' ? search.term : '',
     media: typeof search.media === 'string' ? search.media : '',
   }),
