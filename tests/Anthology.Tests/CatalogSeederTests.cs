@@ -74,7 +74,7 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
         var skipped = new FakeSeedableCatalogProvider("filter-skipped", MediaType.Book, 2, "igdb");
 
         var handler = new AddTitle.Handler(db, [wanted, skipped], null!);
-        var seeder = new CatalogSeeder([wanted, skipped], handler, NullLogger<CatalogSeeder>.Instance);
+        var seeder = new CatalogSeeder([wanted, skipped], handler, db, NullLogger<CatalogSeeder>.Instance);
 
         await seeder.SeedAsync(
             new SeedCommandOptions(Count: 10, Providers: ["tmdb"]),
@@ -91,13 +91,28 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
         skippedCount.Should().Be(0);
     }
 
-    private SeederScope CreateSeeder(string prefix, MediaType mediaType, int discoverCount)
+    [Fact]
+    public async Task SeedAsync_continues_when_a_title_fails_to_add()
+    {
+        using var s = CreateSeeder("resilience-test", MediaType.Film, discoverCount: 3, failOnIndex: 1);
+
+        await s.Seeder.SeedAsync(new SeedCommandOptions(Count: 10), TestContext.Current.CancellationToken);
+
+        var seeded = await s.Db.Titles.AsNoTracking()
+            .Where(t => t.ExternalId.StartsWith("resilience-test-"))
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        seeded.Should().HaveCount(2);
+        seeded.Should().NotContain(t => t.ExternalId == "resilience-test-1");
+    }
+
+    private SeederScope CreateSeeder(string prefix, MediaType mediaType, int discoverCount, int? failOnIndex = null)
     {
         var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-        var provider = new FakeSeedableCatalogProvider(prefix, mediaType, discoverCount);
+        var provider = new FakeSeedableCatalogProvider(prefix, mediaType, discoverCount, failOnIndex: failOnIndex);
         var handler = new AddTitle.Handler(db, [provider], null!);
-        var seeder = new CatalogSeeder([provider], handler, NullLogger<CatalogSeeder>.Instance);
+        var seeder = new CatalogSeeder([provider], handler, db, NullLogger<CatalogSeeder>.Instance);
         return new SeederScope(seeder, db, provider, scope);
     }
 
@@ -116,7 +131,7 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
     }
 
     private sealed class FakeSeedableCatalogProvider(
-        string prefix, MediaType mediaType, int discoverCount, string? providerName = null)
+        string prefix, MediaType mediaType, int discoverCount, string? providerName = null, int? failOnIndex = null)
         : ICatalogProvider, ISeedableProvider
     {
         public string ProviderName => providerName ?? prefix;
@@ -128,6 +143,9 @@ public sealed class CatalogSeederTests(WebAppFixture fixture) : IClassFixture<We
 
         public Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct)
         {
+            if (failOnIndex is not null && externalId == $"{prefix}-{failOnIndex}")
+                throw new InvalidOperationException($"Simulated provider failure for {externalId}");
+
             var title = new Title
             {
                 TitleId = Guid.NewGuid(),

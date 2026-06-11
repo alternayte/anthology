@@ -1,3 +1,4 @@
+using Anthology.Kernel;
 using Microsoft.Extensions.Logging;
 
 namespace Anthology.Modules.Catalog;
@@ -5,6 +6,7 @@ namespace Anthology.Modules.Catalog;
 public sealed class CatalogSeeder(
     IEnumerable<ISeedableProvider> providers,
     AddTitle.Handler addTitle,
+    CatalogDbContext db,
     ILogger<CatalogSeeder> logger)
 {
     public async Task SeedAsync(SeedCommandOptions options, CancellationToken ct)
@@ -39,7 +41,23 @@ public sealed class CatalogSeeder(
                 if (options.MediaTypes is not null && !options.MediaTypes.Contains(result.MediaType))
                     continue;
 
-                var addResult = await addTitle.Handle(new AddTitle.Command(result.ExternalId), ct);
+                Result<AddTitle.TitleDto> addResult;
+                try
+                {
+                    addResult = await addTitle.Handle(new AddTitle.Command(result.ExternalId), ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // a failed Handle can leave entities tracked; clear so they don't ride along with the next save
+                    db.ChangeTracker.Clear();
+                    logger.LogWarning(ex, "[{Provider}] Failed {ExternalId}, skipping",
+                        provider.ProviderName, result.ExternalId);
+                    continue;
+                }
 
                 if (addResult.IsError)
                 {
