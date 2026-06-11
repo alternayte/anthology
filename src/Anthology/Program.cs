@@ -125,6 +125,7 @@ app.MapIdentityEndpoints();
 app.MapCatalogEndpoints();
 app.MapTrackingEndpoints();
 app.MapProfileEndpoints();
+app.MapRecommendationsEndpoints();
 app.MapAdminEndpoints();
 
 // SPA fallback
