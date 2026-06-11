@@ -3,6 +3,7 @@ import type { SearchSchemaInput } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useState, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { searchCatalogOptions, searchLocalOptions, addTitleMutation } from '../generated/@tanstack/react-query.gen'
 import type { CatalogSearchResult, LocalSearchResult } from '../generated/types.gen'
 import { Poster } from '../components/poster'
@@ -59,6 +60,7 @@ function SearchPage() {
   const { term: searchTerm, media: mediaFilter } = Route.useSearch()
   const [inputValue, setInputValue] = useState(searchTerm)
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [pendingTitleId, setPendingTitleId] = useState<string | null>(null)
 
   const { data: providerResults, isLoading: isLoadingProvider } = useQuery({
     ...searchCatalogOptions({
@@ -124,11 +126,20 @@ function SearchPage() {
     addMutation.mutate(
       { body: { externalId } },
       {
-        onSettled: () => setPendingId(null),
         onSuccess: (data) => {
-          if (data?.titleId) navigate({ to: '/library/$titleId', params: { titleId: data.titleId } })
+          if (data?.titleId) {
+            // the card must carry the destination's view-transition-name BEFORE the
+            // navigation snapshot is taken, so flush the rename synchronously
+            flushSync(() => setPendingTitleId(data.titleId!))
+            navigate({ to: '/library/$titleId', params: { titleId: data.titleId } })
+          } else {
+            setPendingId(null)
+          }
         },
-        onError: (error) => { toast.error(getErrorMessage(error)) },
+        onError: (error) => {
+          setPendingId(null)
+          toast.error(getErrorMessage(error))
+        },
       },
     )
   }
@@ -219,6 +230,7 @@ function SearchPage() {
                         result={r}
                         isLocal={r.isLocal}
                         pending={pendingId === r.id}
+                        transitionTitleId={pendingId === r.id ? pendingTitleId : undefined}
                         onAdd={handleAdd}
                         onNavigate={(titleId) => navigate({ to: '/library/$titleId', params: { titleId } })}
                         index={i}
@@ -237,6 +249,7 @@ function SearchPage() {
                 result={r}
                 isLocal={r.isLocal}
                 pending={pendingId === r.id}
+                transitionTitleId={pendingId === r.id ? pendingTitleId : undefined}
                 onAdd={handleAdd}
                 onNavigate={(titleId) => navigate({ to: '/library/$titleId', params: { titleId } })}
                 index={i}
@@ -253,6 +266,7 @@ function SearchResultCard({
   result: r,
   isLocal,
   pending,
+  transitionTitleId,
   onAdd,
   onNavigate,
   index,
@@ -260,11 +274,13 @@ function SearchResultCard({
   result: { id: string; titleId?: string; externalId?: string; name: string; year: number | null; posterUrl: string | null; overview: string | null; mediaType: string; isLocal: boolean }
   isLocal: boolean
   pending: boolean
+  transitionTitleId?: string | null
   onAdd: (id: string, externalId: string) => void
   onNavigate: (titleId: string) => void
   index: number
 }) {
   const aspect = posterAspect[r.mediaType ?? 'film'] ?? '2/3'
+  const morphId = r.titleId ?? transitionTitleId
 
   const handleClick = () => {
     if (pending) return
@@ -288,7 +304,13 @@ function SearchResultCard({
       )}
     >
       <div className="w-12 shrink-0">
-        <Poster path={r.posterUrl} alt={r.name ?? ''} size="sm" aspect={aspect} />
+        <Poster
+          path={r.posterUrl}
+          alt={r.name ?? ''}
+          size="sm"
+          aspect={aspect}
+          viewTransitionName={morphId ? `poster-${morphId}` : undefined}
+        />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">

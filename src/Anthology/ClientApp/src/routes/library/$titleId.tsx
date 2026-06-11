@@ -318,8 +318,12 @@ function ItemDetailPage() {
           </div>
         )}
 
-        <TitleRow titles={similarTitles ?? []} label="Similar" />
-        <CreatorRow titles={creatorTitles ?? []} />
+        {/* view-transition-names must be unique per page: hero owns the current title, Similar wins ties over Creators */}
+        <TitleRow titles={similarTitles ?? []} label="Similar" skipTransitionIds={new Set([titleId])} />
+        <CreatorRow
+          titles={creatorTitles ?? []}
+          skipTransitionIds={new Set([titleId, ...(similarTitles ?? []).map((t) => t.titleId)])}
+        />
       </div>
     </div>
   )
@@ -441,7 +445,7 @@ function SeasonAccordion({
   )
 }
 
-function TitleRow({ titles, label }: { titles: Array<{ titleId?: string; name?: string; year?: null | number | string; posterPath?: null | string }>; label: string }) {
+function TitleRow({ titles, label, skipTransitionIds }: { titles: Array<{ titleId?: string; name?: string; year?: null | number | string; posterPath?: null | string }>; label: string; skipTransitionIds?: Set<string | undefined> }) {
   if (!titles?.length) return null
   return (
     <div className="mt-8">
@@ -449,7 +453,13 @@ function TitleRow({ titles, label }: { titles: Array<{ titleId?: string; name?: 
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin fade-edges-x">
         {titles.map((t) => (
           <Link key={t.titleId} to="/library/$titleId" params={{ titleId: t.titleId! }} className="shrink-0 w-[120px] group">
-            <Poster path={t.posterPath} alt={t.name ?? ''} size="sm" aspect="2/3" />
+            <Poster
+              path={t.posterPath}
+              alt={t.name ?? ''}
+              size="sm"
+              aspect="2/3"
+              viewTransitionName={skipTransitionIds?.has(t.titleId) ? undefined : `poster-${t.titleId}`}
+            />
             <p className="text-[0.75rem] font-medium text-text-secondary group-hover:text-teal-glow transition-colors mt-1.5 line-clamp-2">{t.name}</p>
             {t.year && <p className="text-[0.6875rem] text-text-muted">{String(typeof t.year === 'string' ? t.year : t.year)}</p>}
           </Link>
@@ -459,7 +469,7 @@ function TitleRow({ titles, label }: { titles: Array<{ titleId?: string; name?: 
   )
 }
 
-function CreatorRow({ titles }: { titles: Array<{ titleId?: string; name?: string; year?: null | number | string; posterPath?: null | string; sharedPerson?: string; sharedRole?: string }> }) {
+function CreatorRow({ titles, skipTransitionIds }: { titles: Array<{ titleId?: string; name?: string; year?: null | number | string; posterPath?: null | string; sharedPerson?: string; sharedRole?: string }>; skipTransitionIds?: Set<string | undefined> }) {
   if (!titles?.length) return null
   return (
     <div className="mt-8">
@@ -467,7 +477,13 @@ function CreatorRow({ titles }: { titles: Array<{ titleId?: string; name?: strin
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin fade-edges-x">
         {titles.map((t) => (
           <Link key={t.titleId} to="/library/$titleId" params={{ titleId: t.titleId! }} className="shrink-0 w-[120px] group">
-            <Poster path={t.posterPath} alt={t.name ?? ''} size="sm" aspect="2/3" />
+            <Poster
+              path={t.posterPath}
+              alt={t.name ?? ''}
+              size="sm"
+              aspect="2/3"
+              viewTransitionName={skipTransitionIds?.has(t.titleId) ? undefined : `poster-${t.titleId}`}
+            />
             <p className="text-[0.75rem] font-medium text-text-secondary group-hover:text-teal-glow transition-colors mt-1.5 line-clamp-2">{t.name}</p>
             {t.year && <p className="text-[0.6875rem] text-text-muted">{String(typeof t.year === 'string' ? t.year : t.year)}</p>}
             {t.sharedPerson && (
