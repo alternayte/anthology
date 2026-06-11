@@ -26,10 +26,11 @@ public sealed record TmdbCreditsResponse(List<TmdbCastMember> Cast, List<TmdbCre
 public sealed record TmdbMovieDetail(
     int Id, string Title, string? Overview, string? Release_Date, string? Poster_Path,
     double Popularity, double Vote_Average,
-    List<TmdbGenre> Genres, TmdbKeywordsResponse Keywords, TmdbCreditsResponse Credits);
+    List<TmdbGenre> Genres, TmdbKeywordsResponse Keywords, TmdbCreditsResponse Credits,
+    string? Backdrop_Path = null);
 
 public sealed record TmdbTvShowDetail(
     int Id, string Name, string? Overview, string? First_Air_Date, string? Poster_Path,
     int Number_Of_Seasons, int Number_Of_Episodes,
     double Popularity, double Vote_Average,
-    List<TmdbGenre> Genres);
+    List<TmdbGenre> Genres, string? Backdrop_Path = null);

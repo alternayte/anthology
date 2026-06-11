@@ -14,6 +14,7 @@ public sealed class Title
     public string Name { get; set; } = default!;
     public int? Year { get; set; }
     public string? PosterPath { get; set; }
+    public string? BackdropPath { get; set; }
     public string? Overview { get; set; }
     public Guid? ParentTitleId { get; set; }
     public string? MediaData { get; set; }

@@ -178,6 +178,45 @@ public class CatalogProviderTests
         results.Should().Contain(r => r.ExternalId == "tmdb-1");
     }
 
+    [Fact]
+    public async Task TmdbProvider_GetDetailsAsync_maps_backdrop_path()
+    {
+        var api = new StubTmdbApi
+        {
+            MovieDetail = new TmdbMovieDetail(
+                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
+                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
+                "/backdrop.jpg")
+        };
+
+        var provider = new TmdbProvider(api);
+        var result = await provider.GetDetailsAsync("tmdb-550", CancellationToken.None);
+
+        result!.Title.BackdropPath.Should().Be("https://image.tmdb.org/t/p/w1280/backdrop.jpg");
+        result.Title.PosterPath.Should().Be("https://image.tmdb.org/t/p/w342/poster.jpg");
+    }
+
+    private sealed class StubTmdbApi : ITmdbApi
+    {
+        public TmdbMovieDetail MovieDetail { get; init; } = default!;
+
+        public Task<TmdbMovieDetail> GetMovieDetailAsync(int id, CancellationToken ct = default) =>
+            Task.FromResult(MovieDetail);
+
+        public Task<TmdbPagedResult<TmdbMovie>> SearchMoviesAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbMovie> GetMovieAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> SearchTvAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbTvShow> GetTvShowAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbSeason> GetSeasonAsync(int id, int seasonNumber, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> GetTrendingMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> GetPopularTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTopRatedTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTrendingTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+    }
+
     private sealed class FakeCatalogProvider(MediaType type, string prefix, IReadOnlyList<CatalogSearchResult> results) : ICatalogProvider
     {
         public IReadOnlySet<MediaType> SupportedTypes { get; } = new HashSet<MediaType> { type }.AsReadOnly();

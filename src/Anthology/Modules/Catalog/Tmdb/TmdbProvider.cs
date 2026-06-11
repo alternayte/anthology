@@ -163,6 +163,7 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             Name = movie.Title,
             Year = ParseYear(movie.Release_Date),
             PosterPath = PosterUrl(movie.Poster_Path),
+            BackdropPath = BackdropUrl(movie.Backdrop_Path),
             Overview = movie.Overview,
             Genres = movie.Genres.Select(g => g.Name).ToArray(),
             Keywords = movie.Keywords.Keywords.Select(k => k.Name).ToArray(),
@@ -187,6 +188,7 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             Name = show.Name,
             Year = ParseYear(show.First_Air_Date),
             PosterPath = PosterUrl(show.Poster_Path),
+            BackdropPath = BackdropUrl(show.Backdrop_Path),
             Overview = show.Overview,
             Genres = show.Genres.Select(g => g.Name).ToArray(),
             Keywords = [],
@@ -247,4 +249,7 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
 
     internal static string? PosterUrl(string? posterPath) =>
         posterPath is not null ? $"https://image.tmdb.org/t/p/w342{posterPath}" : null;
+
+    internal static string? BackdropUrl(string? backdropPath) =>
+        backdropPath is not null ? $"https://image.tmdb.org/t/p/w1280{backdropPath}" : null;
 }
