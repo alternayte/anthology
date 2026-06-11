@@ -12,6 +12,7 @@ public static class RecommendationsModule
 
         services.AddScoped<SubmitFeedback.Handler>();
         services.AddScoped<GetHiddenTitles.Handler>();
+        services.AddScoped<GetForYou.Handler>();
 
         return services;
     }
