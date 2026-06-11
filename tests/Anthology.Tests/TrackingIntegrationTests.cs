@@ -34,22 +34,8 @@ public sealed class TrackingIntegrationTests(WebAppFixture fixture)
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync()
-    {
-        var client = fixture.Factory.CreateClient();
-        var email = $"test-{Guid.NewGuid():N}@example.com";
-        var password = "TestPassword123";
-
-        await client.PostAsJsonAsync("/api/identity/register",
-            new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
-
-        await client.PostAsJsonAsync("/api/identity/login",
-            new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
-
-        return client;
-    }
+    private Task<HttpClient> CreateAuthenticatedClientAsync() =>
+        AuthHelper.CreateAuthenticatedClientAsync(fixture.Factory, TestContext.Current.CancellationToken);
 
     private async Task<Guid> SeedTitleAsync()
     {

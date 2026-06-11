@@ -23,22 +23,8 @@ public sealed class RecommendationsIntegrationTests(WebAppFixture fixture)
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) }
     };
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync()
-    {
-        var client = fixture.Factory.CreateClient();
-        var email = $"test-{Guid.NewGuid():N}@example.com";
-        var password = "TestPassword123";
-
-        await client.PostAsJsonAsync("/api/identity/register",
-            new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
-
-        await client.PostAsJsonAsync("/api/identity/login",
-            new { Email = email, Password = password },
-            TestContext.Current.CancellationToken);
-
-        return client;
-    }
+    private Task<HttpClient> CreateAuthenticatedClientAsync() =>
+        AuthHelper.CreateAuthenticatedClientAsync(fixture.Factory, TestContext.Current.CancellationToken);
 
     private static Vector Embedding(params (int index, float value)[] entries)
     {
@@ -169,10 +155,9 @@ public sealed class RecommendationsIntegrationTests(WebAppFixture fixture)
         var ct = TestContext.Current.CancellationToken;
 
         var rowsBefore = await GetForYouAsync(client);
-        var visibleNeighbour = rowsBefore
-            .SelectMany(r => r.Items)
-            .Select(i => i.TitleId)
-            .First(id => neighbourIds.Contains(id));
+        var feedItemIds = rowsBefore.SelectMany(r => r.Items).Select(i => i.TitleId).ToList();
+        var visibleNeighbour = feedItemIds.FirstOrDefault(id => neighbourIds.Contains(id));
+        visibleNeighbour.Should().NotBe(Guid.Empty, "a seeded neighbour should appear in the personalized feed before hiding");
 
         // Hide it.
         (await client.PostAsJsonAsync("/api/recommendations/feedback",
