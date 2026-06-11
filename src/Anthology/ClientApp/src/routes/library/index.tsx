@@ -73,8 +73,6 @@ function LibraryPage() {
   const [mediaFilter, setMediaFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
-  if (!user) return <Navigate to="/login" />
-
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     ...getLibraryInfiniteOptions({
       query: {
@@ -85,6 +83,7 @@ function LibraryPage() {
         ...(mediaFilter && { media: mediaFilter }),
       },
     }),
+    enabled: !!user,
     initialPageParam: undefined as unknown as string,
     getNextPageParam: (lastPage) =>
       lastPage.nextCursor ? { query: { cursor: lastPage.nextCursor } } : undefined,
@@ -110,6 +109,8 @@ function LibraryPage() {
     obs.observe(el)
     return () => obs.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  if (!user) return <Navigate to="/login" />
 
   const resetFilters = () => {
     setStatusFilter('')
