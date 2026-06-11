@@ -2,6 +2,7 @@ using System.Text.Json;
 using Anthology.Modules.Catalog;
 using Anthology.Modules.Tracking;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
 
 namespace Anthology.Modules.Recommendations;
 
@@ -21,7 +22,10 @@ public static class GetForYou
 
     private sealed record Seed(Guid TitleId, string Name, DateTimeOffset Recency);
 
-    // FIX B: snake_case media string ("tv_show") → MediaType enum. Enum.Parse throws on multi-word values,
+    private sealed record SeedSource(
+        Guid TitleId, MediaType MediaType, Vector? Embedding, string[]? Genres, string[]? Keywords);
+
+    // snake_case media string ("tv_show") → MediaType enum. Enum.Parse throws on multi-word values,
     // so look up via a map keyed exactly as the persisted snake_case string, with Film as the fallback.
     private static readonly Dictionary<string, MediaType> MediaTypeMap =
         Enum.GetValues<MediaType>().ToDictionary(
@@ -39,7 +43,7 @@ public static class GetForYou
         public async Task<IReadOnlyList<FeedRowDto>> Handle(Guid userId, CancellationToken ct)
         {
             // 1. Resolve feedback state for this user.
-            // FIX A: materialize to an anonymous type first, then project to tuples in memory —
+            // Materialize to an anonymous type first, then project to tuples in memory —
             // EF can't reliably translate a ValueTuple constructor inside .Select(...).
             var feedbackRaw = await recs.Feedback.AsNoTracking()
                 .Where(f => f.UserId == userId)
@@ -54,7 +58,7 @@ public static class GetForYou
             // 2. seenIds = every title in the user's library, regardless of status.
             var libraryItems = await tracking.LibraryItems.AsNoTracking()
                 .Where(li => li.UserId == userId)
-                .Select(li => new { li.TitleId, li.Rating, li.AddedAt, li.FinishedAt })
+                .Select(li => new { li.TitleId, li.Title, li.Rating, li.AddedAt, li.FinishedAt })
                 .ToListAsync(ct);
 
             var seenIds = libraryItems.Select(li => li.TitleId).ToHashSet();
@@ -63,12 +67,10 @@ public static class GetForYou
             var seeds = new Dictionary<Guid, Seed>();
 
             foreach (var li in libraryItems.Where(li => li.Rating >= MinRatingForSeed))
-                seeds[li.TitleId] = new Seed(li.TitleId, string.Empty, li.FinishedAt ?? li.AddedAt);
+                seeds[li.TitleId] = new Seed(li.TitleId, li.Title, li.FinishedAt ?? li.AddedAt);
 
             if (promoted.Count > 0)
             {
-                var promotedIds = promoted.ToArray();
-
                 // Recency for a promoted seed = the most recent of its MoreLikeThis feedback rows.
                 var promotedRecency = feedbackRaw
                     .Where(r => r.Signal == FeedbackSignal.MoreLikeThis && promoted.Contains(r.TitleId))
@@ -76,7 +78,7 @@ public static class GetForYou
                     .ToDictionary(g => g.Key, g => g.Max(r => r.CreatedAt));
 
                 var promotedNames = await catalog.Titles.AsNoTracking()
-                    .Where(t => promotedIds.Contains(t.TitleId))
+                    .Where(t => promoted.Contains(t.TitleId))
                     .Select(t => new { t.TitleId, t.Name })
                     .ToListAsync(ct);
 
@@ -88,21 +90,6 @@ public static class GetForYou
                         recency = existing.Recency > recency ? existing.Recency : recency;
                     seeds[p.TitleId] = new Seed(p.TitleId, p.Name, recency);
                 }
-            }
-
-            // Resolve names for rated-library seeds that aren't promoted (they were added with empty names).
-            var seedsMissingName = seeds.Values
-                .Where(s => string.IsNullOrEmpty(s.Name))
-                .Select(s => s.TitleId)
-                .ToArray();
-            if (seedsMissingName.Length > 0)
-            {
-                var names = await catalog.Titles.AsNoTracking()
-                    .Where(t => seedsMissingName.Contains(t.TitleId))
-                    .Select(t => new { t.TitleId, t.Name })
-                    .ToListAsync(ct);
-                foreach (var n in names)
-                    seeds[n.TitleId] = seeds[n.TitleId] with { Name = n.Name };
             }
 
             // 4. Cold start: not enough personalized signal → a single "Popular right now" row.
@@ -140,14 +127,20 @@ public static class GetForYou
             }
 
             // 6. Per-seed rows. Each title lands in at most one row (cross-row dedup via `placed`).
+            // Fetch the source data for all kept seeds in one query, projecting only the columns the loop uses.
+            var keptSeedIds = keptSeeds.Select(s => s.TitleId).ToArray();
+            var sourceById = (await catalog.Titles.AsNoTracking()
+                    .Where(t => keptSeedIds.Contains(t.TitleId))
+                    .Select(t => new SeedSource(t.TitleId, t.MediaType, t.Embedding, t.Genres, t.Keywords))
+                    .ToListAsync(ct))
+                .ToDictionary(s => s.TitleId);
+
             var placed = new HashSet<Guid>();
             var rows = new List<FeedRowDto>();
 
             foreach (var seed in keptSeeds)
             {
-                var source = await catalog.Titles.AsNoTracking()
-                    .FirstOrDefaultAsync(t => t.TitleId == seed.TitleId, ct);
-                if (source is null) continue;
+                if (!sourceById.TryGetValue(seed.TitleId, out var source)) continue;
 
                 var excludeIds = seenIds
                     .Concat(excludedByFeedback)
