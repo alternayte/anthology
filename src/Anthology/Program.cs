@@ -7,6 +7,7 @@ using Anthology.Modules.Catalog;
 using Anthology.Modules.Identity;
 using Anthology.Modules.Profile;
 using Anthology.Modules.Admin;
+using Anthology.Modules.Recommendations;
 using Anthology.Modules.Tracking;
 using Anthology.Workers;
 using FluentValidation;
@@ -70,6 +71,7 @@ builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddCatalogModule(builder.Configuration);
 builder.Services.AddTrackingModule(builder.Configuration);
 builder.Services.AddProfileModule(builder.Configuration);
+builder.Services.AddRecommendationsModule(builder.Configuration);
 builder.Services.AddScoped<InlineProjector>();
 
 builder.Services.AddHostedService<RebuildJobHost>();
@@ -139,6 +141,7 @@ if (app.Environment.IsDevelopment())
     await services.GetRequiredService<CatalogDbContext>().Database.MigrateAsync();
     await services.GetRequiredService<TrackingDbContext>().Database.MigrateAsync();
     await services.GetRequiredService<ProfileDbContext>().Database.MigrateAsync();
+    await services.GetRequiredService<RecommendationsDbContext>().Database.MigrateAsync();
 }
 
 app.Run();

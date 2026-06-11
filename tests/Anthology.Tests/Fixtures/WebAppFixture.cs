@@ -7,6 +7,7 @@ using Anthology.Kernel.EventStore;
 using Anthology.Modules.Catalog;
 using Anthology.Modules.Identity;
 using Anthology.Modules.Profile;
+using Anthology.Modules.Recommendations;
 using Anthology.Modules.Tracking;
 using Xunit;
 
@@ -43,6 +44,7 @@ public sealed class WebAppFixture : IAsyncLifetime
         await sp.GetRequiredService<CatalogDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<TrackingDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<ProfileDbContext>().Database.MigrateAsync();
+        await sp.GetRequiredService<RecommendationsDbContext>().Database.MigrateAsync();
     }
 
     public async ValueTask DisposeAsync()
