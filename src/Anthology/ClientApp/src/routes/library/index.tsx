@@ -1,8 +1,9 @@
 import { createFileRoute, Link, Navigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { motion } from 'motion/react'
 import { useAuth } from '../../lib/auth'
-import { useState } from 'react'
-import { getLibraryOptions } from '../../generated/@tanstack/react-query.gen'
+import { useEffect, useRef, useState } from 'react'
+import { getLibraryInfiniteOptions } from '../../generated/@tanstack/react-query.gen'
 import { Poster } from '../../components/poster'
 import { StarRating } from '../../components/star-rating'
 import { cn } from '@/lib/utils'
@@ -58,6 +59,12 @@ const statusStyles: Record<string, string> = {
   abandoned: 'bg-ash/20 text-text-muted',
 }
 
+const entrance = (i: number) => ({
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const, delay: Math.min((i % 40) * 0.02, 0.4) },
+})
+
 function LibraryPage() {
   const { user } = useAuth()
   const [view, setView] = useState<'grid' | 'list'>('grid')
@@ -65,50 +72,64 @@ function LibraryPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [mediaFilter, setMediaFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [cursor, setCursor] = useState<string | undefined>()
 
   if (!user) return <Navigate to="/login" />
 
-  const { data, isLoading } = useQuery({
-    ...getLibraryOptions({
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    ...getLibraryInfiniteOptions({
       query: {
         sort,
         dir: 'desc',
         size: 40,
         ...(statusFilter && { status: statusFilter }),
         ...(mediaFilter && { media: mediaFilter }),
-        ...(cursor && { cursor }),
       },
     }),
+    initialPageParam: undefined as unknown as string,
+    getNextPageParam: (lastPage) =>
+      lastPage.nextCursor ? { query: { cursor: lastPage.nextCursor } } : undefined,
   })
 
-  const items = data?.items ?? []
+  const items = data?.pages.flatMap((p) => p.items ?? []) ?? []
   const filtered = searchTerm
     ? items.filter((item) =>
         item.title?.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     : items
 
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage()
+      },
+      { rootMargin: '400px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
   const resetFilters = () => {
     setStatusFilter('')
     setMediaFilter('')
     setSearchTerm('')
-    setCursor(undefined)
   }
 
   const hasActiveFilters = statusFilter || mediaFilter || searchTerm
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl px-4 py-6">
       {/* Header */}
       <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="text-[1.5rem] font-semibold tracking-tight text-text-primary">
             Library
           </h1>
-          {data?.items && (
+          {items.length > 0 && (
             <p className="text-[0.8125rem] text-text-muted mt-0.5">
-              {data.items.length} titles
+              {items.length} titles
             </p>
           )}
         </div>
@@ -163,7 +184,7 @@ function LibraryPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search your library..."
-            className="w-full rounded-md bg-smoke border border-transparent pl-9 pr-3 py-2 text-[0.8125rem] text-text-primary placeholder:text-text-muted focus:border-teal focus:outline-none transition-colors"
+            className="w-full rounded-md bg-smoke border border-transparent pl-9 pr-3 py-2 text-[0.8125rem] text-text-primary placeholder:text-text-muted focus:border-teal focus:shadow-[var(--shadow-glow)] focus:outline-none transition-[border-color,box-shadow] duration-150"
           />
         </div>
 
@@ -171,9 +192,9 @@ function LibraryPage() {
           {mediaTypes.map((mt) => (
             <button
               key={mt.value}
-              onClick={() => { setMediaFilter(mt.value); setCursor(undefined) }}
+              onClick={() => setMediaFilter(mt.value)}
               className={cn(
-                'rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition-colors',
+                'rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition-all duration-150 active:scale-[0.97]',
                 mediaFilter === mt.value
                   ? mt.color
                   : 'text-text-muted hover:text-text-secondary hover:bg-smoke',
@@ -186,7 +207,7 @@ function LibraryPage() {
 
         <select
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setCursor(undefined) }}
+          onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-md bg-smoke border-none px-3 py-2 text-[0.8125rem] text-text-secondary focus:outline-none focus:ring-1 focus:ring-teal cursor-pointer"
         >
           {statuses.map((s) => (
@@ -196,7 +217,7 @@ function LibraryPage() {
 
         <select
           value={sort}
-          onChange={(e) => { setSort(e.target.value); setCursor(undefined) }}
+          onChange={(e) => setSort(e.target.value)}
           className="rounded-md bg-smoke border-none px-3 py-2 text-[0.8125rem] text-text-secondary focus:outline-none focus:ring-1 focus:ring-teal cursor-pointer"
         >
           {sortOptions.map((s) => (
@@ -212,18 +233,24 @@ function LibraryPage() {
 
       {/* Empty state */}
       {!isLoading && items.length === 0 && !hasActiveFilters && (
-        <div className="flex flex-col items-center justify-center py-20">
+        <motion.div
+          className="flex flex-col items-center justify-center py-20"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        >
           <svg viewBox="0 0 24 24" className="w-12 h-12 text-ash mb-4" fill="none" stroke="currentColor" strokeWidth={1}>
             <path d="M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M8 7h8M8 11h6" strokeLinecap="round" />
           </svg>
-          <p className="text-text-secondary text-[0.9375rem] font-medium mb-1">Your collection starts here</p>
-          <p className="text-text-muted text-[0.8125rem]">
-            <Link to="/search" className="text-teal hover:text-teal-glow transition-colors">
-              Search for something to add
-            </Link>
-          </p>
-        </div>
+          <p className="text-text-secondary text-[0.9375rem] font-medium mb-3">Your collection starts here</p>
+          <Link
+            to="/search"
+            className="rounded-md bg-teal px-4 py-2 text-[0.8125rem] font-medium text-void hover:bg-teal-glow transition-all duration-150 active:scale-[0.97]"
+          >
+            Search for something to add
+          </Link>
+        </motion.div>
       )}
 
       {/* No results for filters */}
@@ -242,40 +269,41 @@ function LibraryPage() {
       {/* Grid view */}
       {!isLoading && filtered.length > 0 && view === 'grid' && (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
-          {filtered.map((item) => (
-            <Link
-              key={item.titleId}
-              to="/library/$titleId"
-              params={{ titleId: item.titleId! }}
-              className="group relative"
-            >
-              <Poster
-                path={item.posterPath}
-                alt={item.title ?? ''}
-                size="lg"
-                aspect={posterAspect[item.mediaType ?? 'film'] ?? '2/3'}
-                className="transition-all duration-200 ease-out group-hover:shadow-[var(--shadow-hover-lift)] group-hover:scale-[1.02]"
-              />
-              {/* Hover overlay */}
-              <div className="absolute inset-0 rounded-md bg-void/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-2.5">
-                <p className="text-[0.75rem] font-medium text-text-primary leading-tight line-clamp-2">
-                  {item.title}
-                </p>
-                {item.rating != null && (
-                  <div className="mt-1">
-                    <StarRating value={Number(item.rating)} readonly size="sm" accentClass="text-film-amber" />
-                  </div>
-                )}
-                {item.status && (
-                  <span className={cn(
-                    'mt-1.5 inline-block self-start rounded px-1.5 py-0.5 text-[0.625rem] font-medium',
-                    statusStyles[item.status] ?? 'bg-ash/20 text-text-muted',
-                  )}>
-                    {getStatusLabel(item.status, item.mediaType)}
-                  </span>
-                )}
-              </div>
-            </Link>
+          {filtered.map((item, i) => (
+            <motion.div key={item.titleId} {...entrance(i)}>
+              <Link
+                to="/library/$titleId"
+                params={{ titleId: item.titleId! }}
+                className="group relative block transition-transform duration-150 active:scale-[0.97]"
+              >
+                <Poster
+                  path={item.posterPath}
+                  alt={item.title ?? ''}
+                  size="lg"
+                  aspect={posterAspect[item.mediaType ?? 'film'] ?? '2/3'}
+                  viewTransitionName={`poster-${item.titleId}`}
+                  className="transition-all duration-200 ease-out group-hover:shadow-[var(--shadow-hover-lift)] group-hover:scale-[1.02]"
+                />
+                <div className="absolute inset-0 rounded-md bg-void/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-2.5">
+                  <p className="text-[0.75rem] font-medium text-text-primary leading-tight line-clamp-2">
+                    {item.title}
+                  </p>
+                  {item.rating != null && (
+                    <div className="mt-1">
+                      <StarRating value={Number(item.rating)} readonly size="sm" accentClass="text-film-amber" />
+                    </div>
+                  )}
+                  {item.status && (
+                    <span className={cn(
+                      'mt-1.5 inline-block self-start rounded px-1.5 py-0.5 text-[0.625rem] font-medium',
+                      statusStyles[item.status] ?? 'bg-ash/20 text-text-muted',
+                    )}>
+                      {getStatusLabel(item.status, item.mediaType)}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            </motion.div>
           ))}
         </div>
       )}
@@ -283,61 +311,66 @@ function LibraryPage() {
       {/* List view */}
       {!isLoading && filtered.length > 0 && view === 'list' && (
         <div className="flex flex-col">
-          {filtered.map((item) => (
-            <Link
-              key={item.titleId}
-              to="/library/$titleId"
-              params={{ titleId: item.titleId! }}
-              className="flex items-center gap-4 py-3 px-2 -mx-2 rounded-md hover:bg-smoke/50 transition-colors group"
-            >
-              <div className="w-10 shrink-0">
-                <Poster
-                  path={item.posterPath}
-                  alt={item.title ?? ''}
-                  size="sm"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[0.875rem] font-medium text-text-primary truncate group-hover:text-teal-glow transition-colors">
-                  {item.title}
-                </p>
-                <p className="text-[0.75rem] text-text-muted capitalize">
-                  {item.mediaType?.replace(/_/g, ' ')}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                {item.partsCompleted != null && item.partsTotal != null && (
-                  <span className="text-[0.75rem] text-text-muted tabular-nums">
-                    {String(item.partsCompleted)}/{String(item.partsTotal)}
-                  </span>
-                )}
-                {item.rating != null && (
-                  <StarRating value={Number(item.rating)} readonly size="sm" accentClass="text-film-amber" />
-                )}
-                {item.status && (
-                  <span className={cn(
-                    'rounded px-2 py-0.5 text-[0.6875rem] font-medium',
-                    statusStyles[item.status] ?? 'bg-ash/20 text-text-muted',
-                  )}>
-                    {getStatusLabel(item.status, item.mediaType)}
-                  </span>
-                )}
-              </div>
-            </Link>
+          {filtered.map((item, i) => (
+            <motion.div key={item.titleId} {...entrance(i)}>
+              <Link
+                to="/library/$titleId"
+                params={{ titleId: item.titleId! }}
+                className="flex items-center gap-4 py-3 px-2 -mx-2 rounded-md hover:bg-smoke/50 transition-colors group"
+              >
+                <div className="w-10 shrink-0">
+                  <Poster
+                    path={item.posterPath}
+                    alt={item.title ?? ''}
+                    size="sm"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[0.875rem] font-medium text-text-primary truncate group-hover:text-teal-glow transition-colors">
+                    {item.title}
+                  </p>
+                  <p className="text-[0.75rem] text-text-muted capitalize">
+                    {item.mediaType?.replace(/_/g, ' ')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {item.partsCompleted != null && item.partsTotal != null && (
+                    <span className="text-[0.75rem] text-text-muted tabular-nums">
+                      {String(item.partsCompleted)}/{String(item.partsTotal)}
+                    </span>
+                  )}
+                  {item.rating != null && (
+                    <StarRating value={Number(item.rating)} readonly size="sm" accentClass="text-film-amber" />
+                  )}
+                  {item.status && (
+                    <span className={cn(
+                      'rounded px-2 py-0.5 text-[0.6875rem] font-medium',
+                      statusStyles[item.status] ?? 'bg-ash/20 text-text-muted',
+                    )}>
+                      {getStatusLabel(item.status, item.mediaType)}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            </motion.div>
           ))}
         </div>
       )}
 
-      {/* Load more */}
-      {data?.nextCursor && (
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={() => setCursor(data.nextCursor!)}
-            className="rounded-md bg-smoke px-5 py-2.5 text-[0.8125rem] font-medium text-text-secondary hover:bg-slate hover:text-text-primary transition-colors"
-          >
-            Load more
-          </button>
-        </div>
+      {/* Infinite scroll sentinel + fetching indicator */}
+      <div ref={sentinelRef} className="h-px" />
+      {isFetchingNextPage && (
+        view === 'grid' ? (
+          <div className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="rounded-md bg-abyss animate-skeleton" style={{ aspectRatio: '2/3' }} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 flex justify-center py-4">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-ash border-t-teal" />
+          </div>
+        )
       )}
     </div>
   )
