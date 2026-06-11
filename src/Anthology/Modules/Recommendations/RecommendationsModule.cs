@@ -10,6 +10,8 @@ public static class RecommendationsModule
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
                 .UseSnakeCaseNamingConvention());
 
+        services.AddScoped<SubmitFeedback.Handler>();
+
         return services;
     }
 }
