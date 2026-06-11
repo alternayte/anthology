@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import {
@@ -18,6 +19,7 @@ export const Route = createFileRoute('/for-you')({
 function ForYouPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
 
   const onError = (error: unknown) => toast.error(getErrorMessage(error))
 
@@ -31,9 +33,13 @@ function ForYouPage() {
     onError,
   })
 
+  const markPending = (id: string, on: boolean) =>
+    setPendingIds(prev => { const next = new Set(prev); on ? next.add(id) : next.delete(id); return next })
+
   const invalidate = () => qc.invalidateQueries({ queryKey: getForYouQueryKey() })
 
   const handleHide = (titleId: string) => {
+    markPending(titleId, true)
     feedback.mutate(
       { body: { titleId, signal: 'hidden' } },
       {
@@ -42,19 +48,23 @@ function ForYouPage() {
           toast.success('Hidden', {
             action: {
               label: 'Undo',
-              onClick: () =>
+              onClick: () => {
+                markPending(titleId, true)
                 feedback.mutate(
                   { body: { titleId, signal: 'restored' } },
-                  { onSuccess: invalidate },
-                ),
+                  { onSuccess: invalidate, onSettled: () => markPending(titleId, false) },
+                )
+              },
             },
           })
         },
+        onSettled: () => markPending(titleId, false),
       },
     )
   }
 
   const handleSeen = (titleId: string) => {
+    markPending(titleId, true)
     feedback.mutate(
       { body: { titleId, signal: 'seen' } },
       {
@@ -62,11 +72,13 @@ function ForYouPage() {
           invalidate()
           toast.success('Marked as seen')
         },
+        onSettled: () => markPending(titleId, false),
       },
     )
   }
 
   const handleMore = (titleId: string) => {
+    markPending(titleId, true)
     feedback.mutate(
       { body: { titleId, signal: 'more_like_this' } },
       {
@@ -74,6 +86,7 @@ function ForYouPage() {
           invalidate()
           toast.success('More like this')
         },
+        onSettled: () => markPending(titleId, false),
       },
     )
   }
@@ -126,7 +139,7 @@ function ForYouPage() {
               onHide={handleHide}
               onSeen={handleSeen}
               onMore={handleMore}
-              pending={feedback.isPending}
+              pendingIds={pendingIds}
             />
           ))}
         </div>
@@ -140,13 +153,13 @@ function FeedRow({
   onHide,
   onSeen,
   onMore,
-  pending,
+  pendingIds,
 }: {
   row: FeedRowDto
   onHide: (titleId: string) => void
   onSeen: (titleId: string) => void
   onMore: (titleId: string) => void
-  pending: boolean
+  pendingIds: Set<string>
 }) {
   if (!row.items?.length) return null
 
@@ -179,9 +192,9 @@ function FeedRow({
               {t.year && <p className="text-[0.6875rem] text-text-muted">{String(t.year)}</p>}
             </Link>
             <div className="flex items-center gap-1 mt-1.5">
-              <FeedbackButton label="Hide" onClick={() => onHide(t.titleId)} disabled={pending} />
-              <FeedbackButton label="Seen" onClick={() => onSeen(t.titleId)} disabled={pending} />
-              <FeedbackButton label="More" onClick={() => onMore(t.titleId)} disabled={pending} />
+              <FeedbackButton label="Hide" onClick={() => onHide(t.titleId)} disabled={pendingIds.has(t.titleId)} />
+              <FeedbackButton label="Seen" onClick={() => onSeen(t.titleId)} disabled={pendingIds.has(t.titleId)} />
+              <FeedbackButton label="More like this" onClick={() => onMore(t.titleId)} disabled={pendingIds.has(t.titleId)} />
             </div>
           </div>
         ))}

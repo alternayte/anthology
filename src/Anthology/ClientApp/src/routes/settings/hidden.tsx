@@ -1,4 +1,5 @@
-import { createFileRoute, Navigate } from '@tanstack/react-router'
+import { createFileRoute, Navigate, Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../lib/auth'
 import {
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/settings/hidden')({
 function HiddenTitlesPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
 
   const { data: hidden, isLoading } = useQuery({
     ...getHiddenTitlesOptions(),
@@ -25,14 +27,27 @@ function HiddenTitlesPage() {
 
   const onError = (error: unknown) => toast.error(getErrorMessage(error))
 
+  const markPending = (id: string, on: boolean) =>
+    setPendingIds(prev => { const next = new Set(prev); on ? next.add(id) : next.delete(id); return next })
+
   const restore = useMutation({
     ...submitFeedbackMutation(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: getHiddenTitlesQueryKey() })
-      toast.success('Restored')
-    },
     onError,
   })
+
+  const handleRestore = (titleId: string) => {
+    markPending(titleId, true)
+    restore.mutate(
+      { body: { titleId, signal: 'restored' } },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getHiddenTitlesQueryKey() })
+          toast.success('Restored')
+        },
+        onSettled: () => markPending(titleId, false),
+      },
+    )
+  }
 
   if (!user) return <Navigate to="/login" />
 
@@ -62,17 +77,19 @@ function HiddenTitlesPage() {
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6">
           {hidden.map((t) => (
             <div key={t.titleId} className="w-full">
-              <Poster path={t.posterPath} alt={t.name} size="sm" aspect="2/3" />
-              <p className="text-[0.75rem] font-medium text-text-secondary mt-1.5 line-clamp-2">
-                {t.name}
-              </p>
-              {t.year && <p className="text-[0.6875rem] text-text-muted">{String(t.year)}</p>}
+              <Link to="/library/$titleId" params={{ titleId: t.titleId }} className="group block">
+                <Poster path={t.posterPath} alt={t.name} size="sm" aspect="2/3" />
+                <p className="text-[0.75rem] font-medium text-text-secondary group-hover:text-teal-glow transition-colors mt-1.5 line-clamp-2">
+                  {t.name}
+                </p>
+                {t.year && <p className="text-[0.6875rem] text-text-muted">{String(t.year)}</p>}
+              </Link>
               <button
-                onClick={() => restore.mutate({ body: { titleId: t.titleId, signal: 'restored' } })}
-                disabled={restore.isPending}
+                onClick={() => handleRestore(t.titleId)}
+                disabled={pendingIds.has(t.titleId)}
                 className={cn(
                   'mt-1.5 rounded px-2 py-1 text-[0.6875rem] font-medium bg-smoke text-text-secondary hover:bg-slate hover:text-text-primary transition-colors active:scale-[0.97]',
-                  restore.isPending && 'opacity-60 pointer-events-none',
+                  pendingIds.has(t.titleId) && 'opacity-60 pointer-events-none',
                 )}
               >
                 Restore
