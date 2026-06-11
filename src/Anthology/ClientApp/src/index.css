@@ -125,6 +125,7 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: clip;
   }
   html {
     @apply font-sans antialiased;
@@ -137,11 +138,45 @@
   100% { transform: scale(1); }
 }
 
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.15; }
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
 }
 
 .animate-skeleton {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background-image: linear-gradient(
+    105deg,
+    oklch(0.12 0.015 220) 40%,
+    oklch(0.16 0.018 220) 50%,
+    oklch(0.12 0.015 220) 60%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s linear infinite;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fade-edges-x {
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.32 0.015 220 / 0.5) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .animate-skeleton {
+    animation: none;
+    background-image: none;
+    background-color: oklch(0.12 0.015 220);
+  }
 }
