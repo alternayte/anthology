@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 const TMDB_BASE = 'https://image.tmdb.org/t/p'
@@ -18,6 +19,7 @@ interface PosterProps {
   size?: PosterSize
   className?: string
   aspect?: '2/3' | '1/1' | '3/4'
+  viewTransitionName?: string
 }
 
 const mediaIcons: Record<string, string> = {
@@ -33,23 +35,29 @@ function resolveImageSrc(path: string, size: PosterSize): string {
   return `${TMDB_BASE}/${posterSizes[size]}${path}`
 }
 
-export function Poster({ path, alt, size = 'lg', className, aspect = '2/3' }: PosterProps) {
+export function Poster({ path, alt, size = 'lg', className, aspect = '2/3', viewTransitionName }: PosterProps) {
   const src = path ? resolveImageSrc(path, size) : null
+  const [loaded, setLoaded] = useState(false)
 
   return (
     <div
       className={cn(
         'relative overflow-hidden rounded-md bg-abyss',
+        src && !loaded && 'animate-skeleton',
         className,
       )}
-      style={{ aspectRatio: aspect }}
+      style={{ aspectRatio: aspect, viewTransitionName }}
     >
       {src ? (
         <img
           src={src}
           alt={alt}
           loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
+          onLoad={() => setLoaded(true)}
+          className={cn(
+            'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
+            loaded ? 'opacity-100' : 'opacity-0',
+          )}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
