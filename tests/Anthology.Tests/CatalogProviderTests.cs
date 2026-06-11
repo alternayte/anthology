@@ -196,18 +196,41 @@ public class CatalogProviderTests
         result.Title.PosterPath.Should().Be("https://image.tmdb.org/t/p/w342/poster.jpg");
     }
 
+    [Fact]
+    public async Task TmdbProvider_GetDetailsAsync_maps_tv_backdrop_path()
+    {
+        var api = new StubTmdbApi
+        {
+            TvShowDetail = new TmdbTvShowDetail(
+                1396, "Breaking Bad", "A chemistry teacher...", "2008-01-20", "/poster.jpg",
+                5, 62, 10.0, 8.4, [], "/backdrop.jpg")
+        };
+
+        var provider = new TmdbProvider(api);
+        var result = await provider.GetDetailsAsync("tmdb-tv-1396", CancellationToken.None);
+
+        result!.Title.BackdropPath.Should().Be("https://image.tmdb.org/t/p/w1280/backdrop.jpg");
+    }
+
+    [Fact]
+    public void TmdbProvider_BackdropUrl_returns_null_for_null_path() =>
+        TmdbProvider.BackdropUrl(null).Should().BeNull();
+
     private sealed class StubTmdbApi : ITmdbApi
     {
         public TmdbMovieDetail MovieDetail { get; init; } = default!;
+        public TmdbTvShowDetail TvShowDetail { get; init; } = default!;
 
         public Task<TmdbMovieDetail> GetMovieDetailAsync(int id, CancellationToken ct = default) =>
             Task.FromResult(MovieDetail);
+
+        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(int id, CancellationToken ct = default) =>
+            Task.FromResult(TvShowDetail);
 
         public Task<TmdbPagedResult<TmdbMovie>> SearchMoviesAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<TmdbMovie> GetMovieAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<TmdbPagedResult<TmdbTvShow>> SearchTvAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<TmdbTvShow> GetTvShowAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<TmdbSeason> GetSeasonAsync(int id, int seasonNumber, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
