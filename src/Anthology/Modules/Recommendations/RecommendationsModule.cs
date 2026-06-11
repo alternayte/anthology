@@ -11,6 +11,7 @@ public static class RecommendationsModule
                 .UseSnakeCaseNamingConvention());
 
         services.AddScoped<SubmitFeedback.Handler>();
+        services.AddScoped<GetHiddenTitles.Handler>();
 
         return services;
     }
