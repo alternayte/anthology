@@ -6,12 +6,13 @@ namespace Anthology.Modules.Catalog;
 public static class GetTitle
 {
     public record TitleDetailDto(
-        Guid TitleId, string Name, int? Year, string? PosterPath, string? Overview, MediaType MediaType);
+        Guid TitleId, string Name, int? Year, string? PosterPath, string? BackdropPath,
+        string? Overview, MediaType MediaType);
 
     public sealed record TvShowDetailDto(
-        Guid TitleId, string Name, int? Year, string? PosterPath, string? Overview,
-        TvShowData ShowData, List<SeasonDto> Seasons)
-        : TitleDetailDto(TitleId, Name, Year, PosterPath, Overview, MediaType.TvShow);
+        Guid TitleId, string Name, int? Year, string? PosterPath, string? BackdropPath,
+        string? Overview, TvShowData ShowData, List<SeasonDto> Seasons)
+        : TitleDetailDto(TitleId, Name, Year, PosterPath, BackdropPath, Overview, MediaType.TvShow);
 
     public sealed record SeasonDto(Guid TitleId, string Name, int SeasonNumber, List<EpisodeDto> Episodes);
 
@@ -31,7 +32,8 @@ public static class GetTitle
                 return await BuildTvShowDto(title, ct);
 
             return new TitleDetailDto(
-                title.TitleId, title.Name, title.Year, title.PosterPath, title.Overview, title.MediaType);
+                title.TitleId, title.Name, title.Year, title.PosterPath, title.BackdropPath,
+                title.Overview, title.MediaType);
         }
 
         private async Task<TvShowDetailDto> BuildTvShowDto(Title show, CancellationToken ct)
@@ -84,8 +86,8 @@ public static class GetTitle
             var showData = show.GetMediaData<TvShowData>() ?? new TvShowData(0, 0);
 
             return new TvShowDetailDto(
-                show.TitleId, show.Name, show.Year, show.PosterPath, show.Overview,
-                showData, seasons);
+                show.TitleId, show.Name, show.Year, show.PosterPath, show.BackdropPath,
+                show.Overview, showData, seasons);
         }
     }
 }
