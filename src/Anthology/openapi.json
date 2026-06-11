@@ -923,6 +923,82 @@
         }
       }
     },
+    "/api/recommendations/for-you": {
+      "get": {
+        "tags": [
+          "Recommendations"
+        ],
+        "operationId": "getForYou",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedRowDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/hidden": {
+      "get": {
+        "tags": [
+          "Recommendations"
+        ],
+        "operationId": "getHiddenTitles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HiddenTitleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/feedback": {
+      "post": {
+        "tags": [
+          "Recommendations"
+        ],
+        "operationId": "submitFeedback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackAck"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/streams/types": {
       "get": {
         "tags": [
@@ -1278,6 +1354,149 @@
           "occurredAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "FeedbackAck": {
+        "required": [
+          "titleId",
+          "signal"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "signal": {
+            "$ref": "#/components/schemas/FeedbackSignal"
+          }
+        }
+      },
+      "FeedbackRequest": {
+        "required": [
+          "titleId",
+          "signal"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "signal": {
+            "$ref": "#/components/schemas/FeedbackSignal"
+          }
+        }
+      },
+      "FeedbackSignal": {
+        "enum": [
+          "hidden",
+          "seen",
+          "more_like_this",
+          "restored"
+        ]
+      },
+      "FeedItemDto": {
+        "required": [
+          "titleId",
+          "name",
+          "year",
+          "posterPath",
+          "mediaType",
+          "genres"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "genres": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FeedRowDto": {
+        "required": [
+          "seedTitleId",
+          "seedName",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "seedTitleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seedName": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedItemDto"
+            }
+          }
+        }
+      },
+      "HiddenTitleDto": {
+        "required": [
+          "titleId",
+          "name",
+          "year",
+          "posterPath"
+        ],
+        "type": "object",
+        "properties": {
+          "titleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -1937,6 +2156,9 @@
     },
     {
       "name": "Profile"
+    },
+    {
+      "name": "Recommendations"
     },
     {
       "name": "Admin"
