@@ -3,6 +3,12 @@ using Pgvector;
 
 namespace Anthology.Modules.Catalog;
 
+/// <summary>
+/// Finds titles similar to a given source title.
+/// <c>sourceId</c> is always excluded from results regardless of <c>excludeIds</c>.
+/// <c>excludeIds</c> is an additional set of IDs to suppress (e.g. already-rendered rows).
+/// Seasons and episodes are never returned.
+/// </summary>
 public sealed class FindSimilarTitles(CatalogDbContext db)
 {
     public sealed record Row(
