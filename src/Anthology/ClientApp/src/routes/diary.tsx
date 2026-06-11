@@ -65,10 +65,12 @@ function DiaryPage() {
       {isLoading && (
         <div className="flex flex-col gap-2">
           {Array.from({ length: 8 }, (_, i) => (
-            <div key={i} className="flex items-center gap-4 py-3 px-3 rounded-md bg-abyss animate-skeleton">
-              <div className="h-4 w-24 rounded bg-smoke" />
+            <div key={i} className="flex items-center gap-4 py-2.5 px-3">
+              <div className="h-4 w-24 rounded bg-abyss animate-skeleton" />
+              <div className="h-10 w-7 rounded bg-abyss animate-skeleton" />
+              <div className="h-4 w-48 rounded bg-abyss animate-skeleton" />
               <div className="flex-1" />
-              <div className="h-4 w-16 rounded bg-smoke" />
+              <div className="h-4 w-16 rounded bg-abyss animate-skeleton" />
             </div>
           ))}
         </div>
