@@ -8,6 +8,7 @@ import type { CatalogSearchResult, LocalSearchResult } from '../generated/types.
 import { Poster } from '../components/poster'
 import { cn, getErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
+import { motion } from 'motion/react'
 
 type SearchParams = { term: string; media: string }
 
@@ -57,31 +58,23 @@ function SearchPage() {
   const navigate = useNavigate({ from: '/search' })
   const { term: searchTerm, media: mediaFilter } = Route.useSearch()
   const [inputValue, setInputValue] = useState(searchTerm)
-
-  if (!user) return <Navigate to="/login" />
-
-  const submitSearch = (newTerm: string, newMedia?: string) => {
-    navigate({
-      search: {
-        term: newTerm || undefined,
-        media: (newMedia !== undefined ? newMedia : mediaFilter) || undefined,
-      } as SearchParams,
-    })
-  }
+  const [pendingId, setPendingId] = useState<string | null>(null)
 
   const { data: providerResults, isLoading: isLoadingProvider } = useQuery({
     ...searchCatalogOptions({
       query: { term: searchTerm, ...(mediaFilter && { mediaType: mediaFilter }) },
     }),
-    enabled: searchTerm.length > 0,
+    enabled: searchTerm.length > 0 && !!user,
   })
 
   const { data: localResults, isLoading: isLoadingLocal } = useQuery({
     ...searchLocalOptions({
       query: { term: searchTerm, ...(mediaFilter && { mediaType: mediaFilter }) },
     }),
-    enabled: searchTerm.length > 0,
+    enabled: searchTerm.length > 0 && !!user,
   })
+
+  const addMutation = useMutation(addTitleMutation())
 
   const isLoading = isLoadingProvider || isLoadingLocal
 
@@ -115,19 +108,36 @@ function SearchPage() {
     return [...local, ...provider]
   }, [localResults, providerResults])
 
-  const addMutation = useMutation({
-    ...addTitleMutation(),
-    onSuccess: (data) => {
-      if (data?.titleId) navigate({ to: '/library/$titleId', params: { titleId: data.titleId } })
-    },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
-  })
+  if (!user) return <Navigate to="/login" />
+
+  const submitSearch = (newTerm: string, newMedia?: string) => {
+    navigate({
+      search: {
+        term: newTerm || undefined,
+        media: (newMedia !== undefined ? newMedia : mediaFilter) || undefined,
+      } as SearchParams,
+    })
+  }
+
+  const handleAdd = (id: string, externalId: string) => {
+    setPendingId(id)
+    addMutation.mutate(
+      { body: { externalId } },
+      {
+        onSettled: () => setPendingId(null),
+        onSuccess: (data) => {
+          if (data?.titleId) navigate({ to: '/library/$titleId', params: { titleId: data.titleId } })
+        },
+        onError: (error) => { toast.error(getErrorMessage(error)) },
+      },
+    )
+  }
 
   const grouped = groupByMediaType(mergedResults)
   const showGroups = !mediaFilter
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl px-4 py-6">
       <h1 className="text-[1.5rem] font-semibold tracking-tight text-text-primary mb-6">Search</h1>
 
       <form onSubmit={e => { e.preventDefault(); submitSearch(inputValue) }} className="flex gap-2 mb-4">
@@ -146,12 +156,12 @@ function SearchPage() {
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             placeholder="Search films, books, games, music..."
-            className="w-full rounded-md bg-smoke border border-transparent pl-9 pr-3 py-2.5 text-[0.875rem] text-text-primary placeholder:text-text-muted focus:border-teal focus:outline-none transition-colors"
+            className="w-full rounded-md bg-smoke border border-transparent pl-9 pr-3 py-2.5 text-[0.875rem] text-text-primary placeholder:text-text-muted focus:border-teal focus:shadow-[var(--shadow-glow)] focus:outline-none transition-[border-color,box-shadow] duration-150"
           />
         </div>
         <button
           type="submit"
-          className="rounded-md bg-teal px-4 py-2.5 text-[0.8125rem] font-medium text-void hover:bg-teal-glow transition-colors"
+          className="rounded-md bg-teal px-4 py-2.5 text-[0.8125rem] font-medium text-void hover:bg-teal-glow transition-all duration-150 active:scale-[0.97]"
         >
           Search
         </button>
@@ -203,13 +213,15 @@ function SearchPage() {
                     {mediaTypeLabels[type] ?? type}
                   </h2>
                   <div className="flex flex-col gap-2">
-                    {items.map((r) => (
+                    {items.map((r, i) => (
                       <SearchResultCard
                         key={r.id}
                         result={r}
                         isLocal={r.isLocal}
-                        onAdd={addMutation.mutate}
+                        pending={pendingId === r.id}
+                        onAdd={handleAdd}
                         onNavigate={(titleId) => navigate({ to: '/library/$titleId', params: { titleId } })}
+                        index={i}
                       />
                     ))}
                   </div>
@@ -219,13 +231,15 @@ function SearchPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {mergedResults.map((r) => (
+            {mergedResults.map((r, i) => (
               <SearchResultCard
                 key={r.id}
                 result={r}
                 isLocal={r.isLocal}
-                onAdd={addMutation.mutate}
+                pending={pendingId === r.id}
+                onAdd={handleAdd}
                 onNavigate={(titleId) => navigate({ to: '/library/$titleId', params: { titleId } })}
+                index={i}
               />
             ))}
           </div>
@@ -238,28 +252,40 @@ function SearchPage() {
 function SearchResultCard({
   result: r,
   isLocal,
+  pending,
   onAdd,
   onNavigate,
+  index,
 }: {
   result: { id: string; titleId?: string; externalId?: string; name: string; year: number | null; posterUrl: string | null; overview: string | null; mediaType: string; isLocal: boolean }
   isLocal: boolean
-  onAdd: (opts: { body: { externalId: string } }) => void
+  pending: boolean
+  onAdd: (id: string, externalId: string) => void
   onNavigate: (titleId: string) => void
+  index: number
 }) {
   const aspect = posterAspect[r.mediaType ?? 'film'] ?? '2/3'
 
   const handleClick = () => {
+    if (pending) return
     if (isLocal && r.titleId) {
       onNavigate(r.titleId)
     } else if (r.externalId) {
-      onAdd({ body: { externalId: r.externalId } })
+      onAdd(r.id, r.externalId)
     }
   }
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] as const, delay: Math.min(index * 0.025, 0.3) }}
       onClick={handleClick}
-      className="cursor-pointer rounded-md bg-abyss p-4 hover:bg-slate transition-colors flex items-center gap-4 group"
+      className={cn(
+        'cursor-pointer rounded-md bg-abyss p-4 transition-all duration-200 ease-out flex items-center gap-4 group',
+        'hover:bg-slate hover:-translate-y-0.5 hover:shadow-[var(--shadow-hover-lift)] active:scale-[0.99]',
+        pending && 'opacity-70 pointer-events-none',
+      )}
     >
       <div className="w-12 shrink-0">
         <Poster path={r.posterUrl} alt={r.name ?? ''} size="sm" aspect={aspect} />
@@ -280,13 +306,19 @@ function SearchResultCard({
           {isLocal && (
             <span className="rounded px-1.5 py-0.5 text-[0.625rem] font-medium bg-teal/10 text-teal shrink-0">In library</span>
           )}
+          {pending && (
+            <span className="ml-auto flex items-center gap-1.5 text-[0.6875rem] text-teal shrink-0">
+              <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" />
+              Adding
+            </span>
+          )}
         </div>
         <p className="text-[0.75rem] text-text-muted">{r.year ? String(r.year) : ''}</p>
         {r.overview && (
           <p className="text-[0.75rem] text-text-muted mt-1 line-clamp-2">{r.overview}</p>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
