@@ -88,6 +88,7 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
             Name = game.Name,
             Year = EpochToYear(game.First_Release_Date),
             PosterPath = CoverUrl(game.Cover?.Image_Id),
+            BackdropPath = BackdropUrl(game),
             Overview = game.Summary,
             Genres = genres,
             Keywords = keywords,
@@ -146,4 +147,13 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
 
     private static string? CoverUrl(string? imageId) =>
         imageId is not null ? $"https://images.igdb.com/igdb/image/upload/t_cover_big/{imageId}.jpg" : null;
+
+    internal static string? BackdropUrl(IgdbGame game)
+    {
+        var imageId = game.Artworks?.FirstOrDefault()?.Image_Id
+            ?? game.Screenshots?.FirstOrDefault()?.Image_Id;
+        return imageId is not null
+            ? $"https://images.igdb.com/igdb/image/upload/t_1080p/{imageId}.jpg"
+            : null;
+    }
 }

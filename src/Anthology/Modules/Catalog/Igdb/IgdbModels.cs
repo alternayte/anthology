@@ -19,6 +19,12 @@ public sealed class IgdbGame
     [JsonPropertyName("cover")]
     public IgdbCover? Cover { get; set; }
 
+    [JsonPropertyName("artworks")]
+    public List<IgdbImage>? Artworks { get; set; }
+
+    [JsonPropertyName("screenshots")]
+    public List<IgdbImage>? Screenshots { get; set; }
+
     [JsonPropertyName("involved_companies")]
     public List<IgdbInvolvedCompany>? Involved_Companies { get; set; }
 
@@ -87,4 +93,10 @@ public sealed class IgdbKeyword
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = default!;
+}
+
+public sealed class IgdbImage
+{
+    [JsonPropertyName("image_id")]
+    public string? Image_Id { get; set; }
 }

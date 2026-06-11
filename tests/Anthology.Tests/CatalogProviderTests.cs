@@ -216,6 +216,41 @@ public class CatalogProviderTests
     public void TmdbProvider_BackdropUrl_returns_null_for_null_path() =>
         TmdbProvider.BackdropUrl(null).Should().BeNull();
 
+    [Fact]
+    public void IgdbProvider_BackdropUrl_prefers_artwork_over_screenshot()
+    {
+        var game = new IgdbGame
+        {
+            Id = 1942,
+            Name = "The Witcher 3",
+            Artworks = [new IgdbImage { Image_Id = "ar1234" }],
+            Screenshots = [new IgdbImage { Image_Id = "sc5678" }]
+        };
+
+        IgdbProvider.BackdropUrl(game).Should().Be("https://images.igdb.com/igdb/image/upload/t_1080p/ar1234.jpg");
+    }
+
+    [Fact]
+    public void IgdbProvider_BackdropUrl_falls_back_to_screenshot()
+    {
+        var game = new IgdbGame
+        {
+            Id = 1942,
+            Name = "The Witcher 3",
+            Screenshots = [new IgdbImage { Image_Id = "sc5678" }]
+        };
+
+        IgdbProvider.BackdropUrl(game).Should().Be("https://images.igdb.com/igdb/image/upload/t_1080p/sc5678.jpg");
+    }
+
+    [Fact]
+    public void IgdbProvider_BackdropUrl_returns_null_without_images()
+    {
+        var game = new IgdbGame { Id = 1942, Name = "The Witcher 3" };
+
+        IgdbProvider.BackdropUrl(game).Should().BeNull();
+    }
+
     private sealed class StubTmdbApi : ITmdbApi
     {
         public TmdbMovieDetail MovieDetail { get; init; } = default!;
