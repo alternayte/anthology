@@ -24,4 +24,16 @@ public sealed class VectorMathTests
     {
         VectorMath.CosineDistance([1f, 0f], [-1f, 0f]).Should().BeApproximately(2f, 1e-5f);
     }
+
+    [Fact]
+    public void Mismatched_length_returns_neutral_distance()
+    {
+        VectorMath.CosineDistance([1f, 2f], [1f]).Should().BeApproximately(1f, 1e-5f);
+    }
+
+    [Fact]
+    public void Zero_vector_returns_neutral_distance()
+    {
+        VectorMath.CosineDistance([0f, 0f], [1f, 2f]).Should().BeApproximately(1f, 1e-5f);
+    }
 }

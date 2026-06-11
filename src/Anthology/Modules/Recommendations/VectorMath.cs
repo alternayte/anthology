@@ -4,6 +4,8 @@ public static class VectorMath
 {
     public static float CosineDistance(float[] a, float[] b)
     {
+        // Degenerate inputs (length mismatch, empty, or zero-magnitude) return 1f — "unrelated/neutral distance".
+        // Guarded rather than thrown so the diversity guard never crashes on bad data.
         if (a.Length != b.Length || a.Length == 0)
             return 1f;
 
@@ -18,7 +20,7 @@ public static class VectorMath
         if (normA == 0 || normB == 0)
             return 1f;
 
-        var similarity = dot / (Math.Sqrt(normA) * Math.Sqrt(normB));
-        return (float)(1 - similarity);
+        var similarity = dot / Math.Sqrt(normA * normB);
+        return (float)Math.Clamp(1.0 - similarity, 0.0, 2.0);
     }
 }
