@@ -14,7 +14,7 @@ client.setConfig({
   fetch: (request) => fetch(new Request(request, { credentials: 'include' })),
 })
 
-const router = createRouter({ routeTree, defaultViewTransition: true })
+const router = createRouter({ routeTree, defaultViewTransition: true, defaultPreload: 'intent' })
 
 declare module '@tanstack/react-router' {
   interface Register {

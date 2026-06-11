@@ -17,10 +17,18 @@ import {
 import { Poster } from '../../components/poster'
 import { StarRating } from '../../components/star-rating'
 import { BackdropHero } from '../../components/backdrop-hero'
+import { queryClient } from '../../lib/query-client'
 import { cn, getErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/library/$titleId')({
+  // the shared-element morph needs the hero poster rendered at navigation commit,
+  // so the title query must be resolved before the route renders (errors fall
+  // through to the component's not-found handling)
+  loader: ({ params }) =>
+    queryClient
+      .ensureQueryData(getTitleOptions({ path: { titleId: params.titleId } }))
+      .catch(() => null),
   component: ItemDetailPage,
 })
 
@@ -139,7 +147,7 @@ function ItemDetailPage() {
 
   if (!user) return <Navigate to="/login" />
 
-  if (isLoading) return <DetailSkeleton />
+  if (isLoading) return <DetailSkeleton titleId={titleId} />
 
   if (!title) {
     return (
@@ -498,14 +506,17 @@ function CreatorRow({ titles, skipTransitionIds }: { titles: Array<{ titleId?: s
   )
 }
 
-function DetailSkeleton() {
+function DetailSkeleton({ titleId }: { titleId: string }) {
   return (
     <div className="relative">
       <div className="absolute inset-x-0 top-0 h-[420px] bg-abyss animate-skeleton" />
       <div className="relative mx-auto max-w-4xl px-4">
         <div className="h-4 w-16 rounded bg-smoke/40 animate-skeleton mt-6" />
         <div className="flex gap-6 mt-24">
-          <div className="w-48 shrink-0 rounded-md bg-smoke/40 animate-skeleton" style={{ aspectRatio: '2/3' }} />
+          <div
+            className="w-48 shrink-0 rounded-md bg-smoke/40 animate-skeleton"
+            style={{ aspectRatio: '2/3', viewTransitionName: `poster-${titleId}` }}
+          />
           <div className="flex-1 self-end pb-1 space-y-4">
             <div className="h-8 w-64 rounded bg-smoke/40 animate-skeleton" />
             <div className="h-4 w-32 rounded bg-smoke/40 animate-skeleton" />
