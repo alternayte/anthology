@@ -10,6 +10,8 @@ import {
 import type { FeedRowDto } from '../generated/types.gen'
 import { Poster } from '../components/poster'
 import { cn, getErrorMessage } from '@/lib/utils'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Ban, Check, Sparkles, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/for-you')({
@@ -95,7 +97,15 @@ function ForYouPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <h1 className="text-[1.5rem] font-semibold tracking-tight text-text-primary mb-6">For You</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-[1.5rem] font-semibold tracking-tight text-text-primary">For You</h1>
+        <Link
+          to="/settings/hidden"
+          className="text-[0.8125rem] font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          Hidden titles
+        </Link>
+      </div>
 
       {isLoading && (
         <div className="flex flex-col gap-10">
@@ -191,10 +201,28 @@ function FeedRow({
               </p>
               {t.year && <p className="text-[0.6875rem] text-text-muted">{String(t.year)}</p>}
             </Link>
-            <div className="flex items-center gap-1 mt-1.5">
-              <FeedbackButton label="Hide" onClick={() => onHide(t.titleId)} disabled={pendingIds.has(t.titleId)} />
-              <FeedbackButton label="Seen" onClick={() => onSeen(t.titleId)} disabled={pendingIds.has(t.titleId)} />
-              <FeedbackButton label="More like this" onClick={() => onMore(t.titleId)} disabled={pendingIds.has(t.titleId)} />
+            <div className="flex items-center gap-0.5 mt-1.5">
+              <FeedbackButton
+                icon={Ban}
+                label="Not interested"
+                description="Hide this and stop recommending it."
+                onClick={() => onHide(t.titleId)}
+                disabled={pendingIds.has(t.titleId)}
+              />
+              <FeedbackButton
+                icon={Check}
+                label="Seen it"
+                description="You've already watched this — remove it from your feed."
+                onClick={() => onSeen(t.titleId)}
+                disabled={pendingIds.has(t.titleId)}
+              />
+              <FeedbackButton
+                icon={Sparkles}
+                label="More like this"
+                description="Recommend more titles based on this one."
+                onClick={() => onMore(t.titleId)}
+                disabled={pendingIds.has(t.titleId)}
+              />
             </div>
           </div>
         ))}
@@ -204,24 +232,35 @@ function FeedRow({
 }
 
 function FeedbackButton({
+  icon: Icon,
   label,
+  description,
   onClick,
   disabled,
 }: {
+  icon: LucideIcon
   label: string
+  description: string
   onClick: () => void
   disabled: boolean
 }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'rounded px-1.5 py-0.5 text-[0.625rem] font-medium text-text-muted hover:text-text-primary hover:bg-smoke transition-colors active:scale-[0.97]',
-        disabled && 'opacity-60 pointer-events-none',
-      )}
-    >
-      {label}
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={cn(
+          'rounded p-1 text-text-muted hover:text-text-primary hover:bg-smoke transition-colors active:scale-[0.97]',
+          disabled && 'opacity-60 pointer-events-none',
+        )}
+      >
+        <Icon className="size-3.5" strokeWidth={2} />
+      </TooltipTrigger>
+      <TooltipContent className="flex-col items-start gap-0.5 max-w-[180px]">
+        <span className="font-semibold">{label}</span>
+        <span className="text-background/70 leading-snug">{description}</span>
+      </TooltipContent>
+    </Tooltip>
   )
 }

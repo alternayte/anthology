@@ -2,13 +2,14 @@ import { createRootRoute, Outlet, Link, useRouterState } from '@tanstack/react-r
 import { motion } from 'motion/react'
 import { useAuth } from '../lib/auth'
 import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 export const Route = createRootRoute({
   component: RootLayout,
 })
 
-function NavLink({ to, label, active }: { to: '/library' | '/diary' | '/search'; label: string; active: boolean }) {
+function NavLink({ to, label, active }: { to: '/for-you' | '/library' | '/diary' | '/search'; label: string; active: boolean }) {
   return (
     <Link
       to={to}
@@ -42,6 +43,7 @@ function RootLayout() {
   }
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-void text-text-primary">
       <nav className="sticky top-0 z-40 border-b border-border bg-void/75 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -49,6 +51,7 @@ function RootLayout() {
             <Link to="/" className="text-lg font-semibold tracking-tight text-text-primary">Anthology</Link>
             {user && (
               <>
+                <NavLink to="/for-you" label="For You" active={pathname.startsWith('/for-you')} />
                 <NavLink to="/library" label="Library" active={pathname.startsWith('/library')} />
                 <NavLink to="/diary" label="Diary" active={pathname.startsWith('/diary')} />
                 <NavLink to="/search" label="Search" active={pathname.startsWith('/search')} />
@@ -69,5 +72,6 @@ function RootLayout() {
       </main>
       <Toaster theme="dark" position="bottom-right" richColors />
     </div>
+    </TooltipProvider>
   )
 }
