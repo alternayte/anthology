@@ -15,8 +15,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Deedbox.EntityFrameworkCore" Version="0.1.0-alpha.anthology.2" />
-        <PackageReference Include="Deedbox.Postgres" Version="0.1.0-alpha.anthology.2" />
+        <PackageReference Include="Deedbox.EntityFrameworkCore" Version="0.1.0" />
+        <PackageReference Include="Deedbox.Postgres" Version="0.1.0" />
         <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
         <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />
