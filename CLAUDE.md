@@ -18,7 +18,7 @@ Anthology.slnx                    # solution file (repo root)
 src/
   Anthology/                      # the single runnable project
     Program.cs                    # composition root
-    Kernel/                       # shared building blocks (event store, messaging, Result, ValidationFilter)
+    Kernel/                       # shared building blocks (Result, Error, command interfaces, ValidationDecorator)
     Modules/
       Tracking/                   # core domain (event-sourced) — TrackedItem aggregate, diary/library projections
       Catalog/                    # supporting — TMDB integration + local Title reference data
@@ -36,7 +36,7 @@ docker-compose.yml                # Postgres only
 
 - **Vertical slices in a modular monolith.** A slice is ONE file containing the command/query, validator, handler, and endpoint mapping as nested types in a static class.
 - **Modules are flat until they hurt.** No sub-folders until ~10-12 files makes the folder hard to scan. No speculative nesting.
-- **No mediator.** Plain handler classes implementing `ICommandHandler<TCommand, TResult>`. Cross-cutting is ONE Scrutor-decorated transaction decorator — not a pipeline.
+- **No mediator.** Plain handler classes implementing `ICommandHandler<TCommand, TResult>`. Cross-cutting is ONE Scrutor-decorated validation decorator — not a pipeline. Event-sourced handlers call Deedbox's `IEventStore.Execute`, which owns the transaction.
 - **No over-abstraction.** No generic `IRepository<T>` over EF, no four-project Clean Architecture split, no AutoMapper, no interface-per-class "for swappability", no port/adapter wrapper around Postgres.
 - **Event-source only what is event-shaped.** Tracking and Social are event-sourced. Catalog is relational reference data. Identity is relational, not event-sourced.
 - **Typed throughout.** Events are records implementing `IDomainEvent`. No `object`/`dynamic` in domain or handler code. The only untyped hop is the `(event_type text, payload jsonb)` row boundary in the serializer.
@@ -44,7 +44,7 @@ docker-compose.yml                # Postgres only
 - **Deterministic stream IDs.** UUIDv5 from `userId + titleId` — no lookup table.
 - **Validation:** aggregate invariants in `Decide` (state-dependent). Input validation at the API edge via FluentValidation through a reusable `ValidationFilter<T>` endpoint filter. Value objects carry rules the type system can enforce.
 - **Error handling:** `Result<T>` with typed `ErrorKind` for expected outcomes, exceptions for bugs/infra. ProblemDetails everywhere via `ToHttpResult()` + global `IExceptionHandler`.
-- **Integration events ≠ domain events.** The outbox holds integration events (public, versioned, CloudEvents-shaped, on a separate version clock). Internal domain events never leak.
+- **Integration events ≠ domain events.** Internal domain events never leak. When a consumer exists, publish integration events through Deedbox.QueueBox.
 - **DbContext-per-module** with separate Postgres schemas and per-context migrations.
 - **Minimal APIs only.** No controllers. `MapGroup` per context. `TypedResults` + `Results<...>` union returns for accurate OpenAPI.
 - **Auth: cookie-based, same-origin (BFF).** The SPA never handles tokens. ASP.NET Core Identity in its own module. No PII in events.

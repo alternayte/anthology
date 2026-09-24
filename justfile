@@ -25,23 +25,25 @@ db-down:
 migrate:
     #!/usr/bin/env bash
     cd src/Anthology
-    dotnet ef database update --context EventStoreDbContext
     dotnet ef database update --context Anthology.Modules.Identity.IdentityDbContext
     dotnet ef database update --context CatalogDbContext
     dotnet ef database update --context TrackingDbContext
     dotnet ef database update --context ProfileDbContext
-    echo "All migrations applied."
+    echo "All migrations applied. Deedbox applies its own schema when the app starts in Development."
+
+# One-time move of events from the old es schema into Deedbox. Start the app once first, so the deedbox schema exists.
+migrate-es:
+    docker compose exec -T postgres psql -U anthology -d anthology -v ON_ERROR_STOP=1 < scripts/migrate-es-to-deedbox.sql
 
 add-migration module name:
     #!/usr/bin/env bash
     cd src/Anthology
     case "{{module}}" in
-      eventstore|es)   dotnet ef migrations add {{name}} --context EventStoreDbContext --output-dir Kernel/EventStore/Migrations ;;
       identity)        dotnet ef migrations add {{name}} --context Anthology.Modules.Identity.IdentityDbContext --output-dir Modules/Identity/Migrations ;;
       catalog)         dotnet ef migrations add {{name}} --context CatalogDbContext --output-dir Modules/Catalog/Migrations ;;
       tracking)        dotnet ef migrations add {{name}} --context TrackingDbContext --output-dir Modules/Tracking/Migrations ;;
       profile)         dotnet ef migrations add {{name}} --context ProfileDbContext --output-dir Modules/Profile/Migrations ;;
-      *) echo "Unknown module '{{module}}'. Use: eventstore|es, identity, catalog, tracking, profile"; exit 1 ;;
+      *) echo "Unknown module '{{module}}'. Use: identity, catalog, tracking, profile"; exit 1 ;;
     esac
 
 # Frontend

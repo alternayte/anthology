@@ -1,8 +1,7 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
-using Anthology.Kernel.Messaging;
 using Anthology.Modules.Catalog;
 using Anthology.Modules.Identity;
 using Anthology.Modules.Profile;
@@ -10,8 +9,10 @@ using Anthology.Modules.Admin;
 using Anthology.Modules.Recommendations;
 using Anthology.Modules.Tracking;
 using Anthology.Workers;
+using Deedbox;
 using FluentValidation;
 using Npgsql;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 
@@ -34,33 +35,18 @@ builder.Services.AddOpenApi();
 // FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// Shared connection for write-path DbContexts (event store + module projections)
+// Shared connection for module DbContexts
 builder.Services.AddScoped(_ =>
     new NpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddDbContext<EventStoreDbContext>((sp, options) =>
-    options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>())
-        .UseSnakeCaseNamingConvention());
-
-var registry = new EventRegistry();
-TrackingModule.RegisterEvents(registry);
-builder.Services.AddSingleton(registry);
-
-var serializer = new EventSerializer(registry);
-builder.Services.AddSingleton(serializer);
-
-var evolverRegistry = new StreamEvolverRegistry();
-TrackingModule.RegisterEvolvers(evolverRegistry, serializer);
-builder.Services.AddSingleton(evolverRegistry);
-
-builder.Services.AddScoped<StreamRebuilder>();
-builder.Services.AddScoped<EventStore>();
-builder.Services.AddScoped<OutboxWriter>();
-builder.Services.AddSingleton<IntegrationEventTranslator>(sp =>
+// Event store: Deedbox owns its schema, streams, projections and background runner
+builder.Services.AddDeedbox(deedbox =>
 {
-    var translator = new IntegrationEventTranslator();
-    TrackingContracts.RegisterTranslators(translator);
-    return translator;
+    deedbox.UsePostgres(sp => sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!)
+        .ConfigureJson(o => o.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower)))
+        .AddTracking();
+    if (builder.Environment.IsDevelopment())
+        deedbox.ApplySchemaOnStartup();
 });
 
 // Auth
@@ -72,13 +58,6 @@ builder.Services.AddCatalogModule(builder.Configuration);
 builder.Services.AddTrackingModule(builder.Configuration);
 builder.Services.AddProfileModule(builder.Configuration);
 builder.Services.AddRecommendationsModule(builder.Configuration);
-builder.Services.AddScoped<InlineProjector>();
-
-builder.Services.AddHostedService<RebuildJobHost>();
-
-builder.Services.AddSingleton<NpgsqlDataSource>(sp =>
-    NpgsqlDataSource.Create(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!));
-builder.Services.AddHostedService<AsyncProjectionHost>();
 builder.Services.AddHostedService(sp =>
     new EmbeddingWorker(
         sp.GetRequiredService<IServiceScopeFactory>(),
@@ -92,7 +71,10 @@ builder.Services.Scan(s => s.FromAssemblyOf<Program>()
     .AsImplementedInterfaces()
     .WithScopedLifetime());
 builder.Services.Decorate(typeof(ICommandHandler<,>), typeof(ValidationDecorator<,>));
-builder.Services.Decorate(typeof(ICommandHandler<,>), typeof(TransactionDecorator<,>));
+
+// Build-time OpenAPI generation runs this entry point; background services and Deedbox's startup check need a database.
+if (Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider")
+    builder.Services.RemoveAll<IHostedService>();
 
 var app = builder.Build();
 
@@ -137,7 +119,6 @@ if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
-    await services.GetRequiredService<EventStoreDbContext>().Database.MigrateAsync();
     await services.GetRequiredService<IdentityDbContext>().Database.MigrateAsync();
     await services.GetRequiredService<CatalogDbContext>().Database.MigrateAsync();
     await services.GetRequiredService<TrackingDbContext>().Database.MigrateAsync();

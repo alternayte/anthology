@@ -1,4 +1,5 @@
 using Anthology.Kernel;
+using Deedbox;
 
 namespace Anthology.Modules.Tracking;
 
@@ -28,16 +29,40 @@ public sealed record ItemAbandoned(DateTimeOffset At) : IDomainEvent;
 public sealed record ItemRated(Rating Rating, DateTimeOffset At) : IDomainEvent;
 
 public sealed record TrackedItemState(TrackedStatus Status, Rating? Rating, Guid TitleId, int Version)
-    : IAggregateState<TrackedItemState>
+    : IState<TrackedItemState>
 {
     public static TrackedItemState Initial => new(TrackedStatus.None, null, Guid.Empty, 0);
     public static string StreamType => "tracked_item";
+
+    public static TrackedItemState Evolve(TrackedItemState state, object @event) =>
+        @event is IDomainEvent e ? TrackedItem.Evolve(state, e) : state;
 }
 
-public interface ITrackingCommand : IEventSourcedCommand;
+public interface ITrackingCommand
+{
+    Guid UserId { get; }
+    Guid TitleId { get; }
+}
 
 public static class TrackedItem
 {
+    private static readonly Guid StreamNamespace = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+
+    public static string StreamIdFor(Guid userId, Guid titleId) =>
+        StreamId.Deterministic(StreamNamespace, userId.ToString(), titleId.ToString());
+
+    public static async Task<Result<TrackedItemDto>> Execute(IEventStore store, ITrackingCommand command, CancellationToken ct)
+    {
+        var streamId = StreamIdFor(command.UserId, command.TitleId);
+        var result = await store
+            .WithMetadata(m => TrackingMetadata.For(m, command.UserId, command.TitleId))
+            .Execute<TrackedItemState>(streamId, state => Decide(state, command), ct);
+
+        return result.Match<Result<TrackedItemDto>>(
+            r => new TrackedItemDto(Guid.Parse(streamId), command.TitleId, r.State.Status, r.State.Rating),
+            error => error);
+    }
+
     public static Result<IReadOnlyList<IDomainEvent>> Decide(TrackedItemState state, ITrackingCommand command) =>
         command switch
         {

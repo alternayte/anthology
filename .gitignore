@@ -104,3 +104,6 @@ src/Anthology/ClientApp/src/generated/
 *.scc
 *.swp
 *~
+
+# Deedbox pre-release packages, until Deedbox is on nuget.org
+!packages/*.nupkg

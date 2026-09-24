@@ -119,13 +119,17 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        body.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
-
-        var names = Enumerable.Range(0, body.GetArrayLength())
-            .Select(i => body[i].GetProperty("projection").GetString())
+        var projections = Enumerable.Range(0, body.GetArrayLength())
+            .Select(i => (Name: body[i].GetProperty("projection").GetString(), Mode: body[i].GetProperty("mode").GetString()))
             .ToList();
-        names.Should().Contain("DiaryProjection");
-        names.Should().Contain("LibraryProjection");
+
+        projections.Should().BeEquivalentTo([("diary", "inline"), ("library", "inline"), ("lists", "inline")],
+            "each projection is registered once, with one run mode");
+
+        var projectionTypes = typeof(Program).Assembly.GetTypes()
+            .Count(t => !t.IsAbstract && t.BaseType is { IsGenericType: true } b
+                && b.GetGenericTypeDefinition() == typeof(Deedbox.Projection<>));
+        projections.Should().HaveCount(projectionTypes, "every projection class is registered");
     }
 
     [Fact]
@@ -134,11 +138,11 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var client = await CreateAuthenticatedClientAsync();
 
-        var response = await client.GetAsync("/admin/projections/DiaryProjection/status", ct);
+        var response = await client.GetAsync("/admin/projections/diary/status", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        body.GetProperty("projection").GetString().Should().Be("DiaryProjection");
+        body.GetProperty("projection").GetString().Should().Be("diary");
         body.GetProperty("position").GetInt64().Should().BeGreaterThanOrEqualTo(0);
     }
 
@@ -162,9 +166,10 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
 
         await client.PostAsJsonAsync($"/api/tracking/items/{titleId}/want", new { }, ct);
 
-        var response = await client.PostAsync("/admin/projections/DiaryProjection/rebuild", null, ct);
+        var response = await client.PostAsync("/admin/projections/diary/rebuild", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        (await WaitForRebuildAsync(client, response)).Should().BeTrue("the rebuild must finish before the next test reads the diary");
     }
 
     [Fact]
@@ -183,7 +188,7 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
     {
         var client = fixture.Factory.CreateClient();
 
-        var response = await client.PostAsync("/admin/projections/DiaryProjection/rebuild", null,
+        var response = await client.PostAsync("/admin/projections/diary/rebuild", null,
             TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -207,22 +212,9 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
         }
 
         var rebuildResponse = await client.PostAsync(
-            "/admin/projections/DiaryProjection/rebuild", null, ct);
+            "/admin/projections/diary/rebuild", null, ct);
         rebuildResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
-
-        var caughtUp = false;
-        for (var i = 0; i < 50; i++)
-        {
-            await Task.Delay(200, ct);
-            var statusResponse = await client.GetAsync(
-                "/admin/projections/DiaryProjection/status", ct);
-            var status = await statusResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
-            if (status.GetProperty("isCaughtUp").GetBoolean())
-            {
-                caughtUp = true;
-                break;
-            }
-        }
+        var caughtUp = await WaitForRebuildAsync(client, rebuildResponse);
 
         caughtUp.Should().BeTrue("projection should catch up within 10 seconds");
 
@@ -234,5 +226,21 @@ public sealed class ProjectionRebuildTests(WebAppFixture fixture)
             entry.Should().NotBeNull("diary entry should be rebuilt from events");
             entry!.Status.Should().Be(TrackedStatus.WantToConsume);
         }
+    }
+
+    private static async Task<bool> WaitForRebuildAsync(HttpClient client, HttpResponseMessage rebuildResponse)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobUrl = rebuildResponse.Headers.Location!.ToString();
+        for (var i = 0; i < 50; i++)
+        {
+            await Task.Delay(200, ct);
+            var job = await client.GetFromJsonAsync<JsonElement>(jobUrl, ct);
+            var status = await client.GetFromJsonAsync<JsonElement>("/admin/projections/diary/status", ct);
+            if (job.GetProperty("status").GetString() == "done" && status.GetProperty("isCaughtUp").GetBoolean())
+                return true;
+        }
+
+        return false;
     }
 }

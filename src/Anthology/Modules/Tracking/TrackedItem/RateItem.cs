@@ -1,6 +1,5 @@
 using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
-using Anthology.Kernel.Messaging;
+using Deedbox;
 using FluentValidation;
 
 namespace Anthology.Modules.Tracking;
@@ -8,11 +7,7 @@ namespace Anthology.Modules.Tracking;
 public static class RateItem
 {
     public sealed record Command(int Rating, DateTimeOffset At, Guid UserId = default, Guid TitleId = default)
-        : ICommand<Result<TrackedItemDto>>, ITrackingCommand
-    {
-        public Guid StreamId => Kernel.StreamId.For(UserId, TitleId);
-        public (Guid? UserId, Guid? ContextId) GetCorrelationHints() => (UserId, TitleId);
-    }
+        : ICommand<Result<TrackedItemDto>>, ITrackingCommand;
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -22,9 +17,9 @@ public static class RateItem
         }
     }
 
-    public sealed class Handler(EventStore store, InlineProjector projector, OutboxWriter outboxWriter)
-        : EventSourcedHandler<Command, TrackedItemState, TrackedItemDto>(
-            store, projector, outboxWriter,
-            TrackedItem.Decide, TrackedItem.Evolve,
-            (streamId, cmd, state) => new TrackedItemDto(streamId, cmd.TitleId, state.Status, state.Rating));
+    public sealed class Handler(IEventStore store) : ICommandHandler<Command, Result<TrackedItemDto>>
+    {
+        public Task<Result<TrackedItemDto>> Handle(Command command, CancellationToken ct) =>
+            TrackedItem.Execute(store, command, ct);
+    }
 }

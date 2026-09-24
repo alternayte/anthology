@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Anthology.Kernel;
-using Anthology.Kernel.Messaging;
 using Anthology.Modules.Catalog;
 using Microsoft.EntityFrameworkCore;
 

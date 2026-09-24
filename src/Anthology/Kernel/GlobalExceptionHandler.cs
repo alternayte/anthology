@@ -1,4 +1,4 @@
-using Anthology.Kernel.EventStore;
+using Deedbox;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace Anthology.Kernel;
@@ -9,7 +9,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     {
         var (status, title) = exception switch
         {
-            ConcurrencyConflict => (409, "Concurrency conflict"),
+            ConcurrencyException => (409, "Concurrency conflict"),
             _ => (500, "An unexpected error occurred")
         };
 

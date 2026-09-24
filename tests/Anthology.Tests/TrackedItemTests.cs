@@ -1,5 +1,4 @@
 using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
 using Anthology.Modules.Tracking;
 using FluentAssertions;
 using Xunit;
@@ -179,17 +178,11 @@ public class TrackedItemTests
     }
 
     [Fact]
-    public void Tracking_commands_provide_stream_id_and_correlation_hints()
+    public void Stream_ids_match_the_ids_of_streams_written_before_Deedbox()
     {
-        var userId = Guid.NewGuid();
-        var titleId = Guid.NewGuid();
-        var command = new WantItem.Command(titleId, "Test", "film", userId, DateTimeOffset.UtcNow);
+        var userId = Guid.Parse("01a0d269-9da4-7fed-89aa-75d3b33686bc");
+        var titleId = Guid.Parse("11111111-0000-0000-0000-000000000001");
 
-        var esCommand = (IEventSourcedCommand)command;
-        esCommand.StreamId.Should().Be(StreamId.For(userId, titleId));
-
-        var (hintUserId, hintContextId) = esCommand.GetCorrelationHints();
-        hintUserId.Should().Be(userId);
-        hintContextId.Should().Be(titleId);
+        TrackedItem.StreamIdFor(userId, titleId).Should().Be("62a62d4a-abc9-579b-aa8e-71d45e88c0c8");
     }
 }
