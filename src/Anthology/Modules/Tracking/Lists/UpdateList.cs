@@ -1,6 +1,5 @@
 using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
-using Anthology.Kernel.Messaging;
+using Deedbox;
 using FluentValidation;
 
 namespace Anthology.Modules.Tracking;
@@ -8,11 +7,8 @@ namespace Anthology.Modules.Tracking;
 public static class UpdateList
 {
     public sealed record Command(string? Name, string? Description, bool DescriptionProvided, ListVisibility? Visibility,
-        Guid UserId, Guid ListId, DateTimeOffset At) : ICommand<Result<CuratedListDto>>, ICuratedListCommand
-    {
-        public Guid StreamId => ListId;
-        public (Guid? UserId, Guid? ContextId) GetCorrelationHints() => (UserId, null);
-    }
+        Guid UserId, Guid ListId, DateTimeOffset At)
+        : ICommand<Result<CuratedListDto>>, ICuratedListCommand;
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -23,9 +19,9 @@ public static class UpdateList
         }
     }
 
-    public sealed class Handler(EventStore store, InlineProjector projector, OutboxWriter outboxWriter)
-        : EventSourcedHandler<Command, CuratedListState, CuratedListDto>(
-            store, projector, outboxWriter,
-            CuratedList.Decide, CuratedList.Evolve,
-            (streamId, cmd, state) => new CuratedListDto(streamId, state.Name, state.Description, state.Visibility, state.Items.Count));
+    public sealed class Handler(IEventStore store) : ICommandHandler<Command, Result<CuratedListDto>>
+    {
+        public Task<Result<CuratedListDto>> Handle(Command command, CancellationToken ct) =>
+            CuratedList.Execute(store, command, ct);
+    }
 }

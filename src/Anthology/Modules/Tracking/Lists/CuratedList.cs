@@ -1,4 +1,5 @@
 using Anthology.Kernel;
+using Deedbox;
 
 namespace Anthology.Modules.Tracking;
 
@@ -15,18 +16,36 @@ public sealed record ListItemReordered(Guid TitleId, double NewPosition) : IDoma
 
 public sealed record CuratedListState(
     Guid UserId, string Name, string? Description, ListVisibility Visibility,
-    bool IsDeleted, Dictionary<Guid, double> Items, int Version) : IAggregateState<CuratedListState>
+    bool IsDeleted, Dictionary<Guid, double> Items, int Version) : IState<CuratedListState>
 {
     public static CuratedListState Initial => new(Guid.Empty, "", null, ListVisibility.Private, false, new(), 0);
     public static string StreamType => "curated_list";
+
+    public static CuratedListState Evolve(CuratedListState state, object @event) =>
+        @event is IDomainEvent e ? CuratedList.Evolve(state, e) : state;
 }
 
-public interface ICuratedListCommand : IEventSourcedCommand;
+public interface ICuratedListCommand
+{
+    Guid UserId { get; }
+    Guid ListId { get; }
+}
 
 public sealed record CuratedListDto(Guid ListId, string Name, string? Description, ListVisibility Visibility, int ItemCount);
 
 public static class CuratedList
 {
+    public static async Task<Result<CuratedListDto>> Execute(IEventStore store, ICuratedListCommand command, CancellationToken ct)
+    {
+        var result = await store
+            .WithMetadata(m => TrackingMetadata.For(m, command.UserId))
+            .Execute<CuratedListState>(StreamId.From(command.ListId), state => Decide(state, command), ct);
+
+        return result.Match<Result<CuratedListDto>>(
+            r => new CuratedListDto(command.ListId, r.State.Name, r.State.Description, r.State.Visibility, r.State.Items.Count),
+            error => error);
+    }
+
     public static Result<IReadOnlyList<IDomainEvent>> Decide(CuratedListState state, ICuratedListCommand command) =>
         command switch
         {

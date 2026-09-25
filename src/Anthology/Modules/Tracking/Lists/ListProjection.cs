@@ -1,7 +1,6 @@
 using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
-using Anthology.Kernel.Messaging;
 using Anthology.Modules.Catalog;
+using Deedbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -52,110 +51,105 @@ internal sealed class ListItemRowConfiguration : IEntityTypeConfiguration<ListIt
     }
 }
 
-public sealed class ListProjection(TrackingDbContext db, CatalogDbContext catalogDb)
-    : IProjection, IDbContextProjection, IRebuildableProjection
+public sealed class ListProjection : Projection<TrackingDbContext>
 {
-    public static string SchemaQualifiedTableName => "tracking.lists";
-    public DbContext DbContext => db;
-
-    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
+    public ListProjection()
     {
-        foreach (var envelope in events)
+        On<ListCreated>((c, ctx) =>
         {
-            if (envelope.UserId is null) continue;
+            var listId = Guid.Parse(ctx.StreamId);
+            var visibilityStr = c.Visibility.ToSnakeCase();
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO tracking.lists (list_id, user_id, name, description, visibility, item_count, created_at, is_deleted)
+                VALUES ({listId}, {c.UserId}, {c.Name}, {c.Description}, {visibilityStr}, {0}, {c.CreatedAt}, {false})
+                ON CONFLICT (list_id) DO NOTHING
+                """, ctx.CancellationToken);
+        });
 
-            switch (envelope.Event)
-            {
-                case ListCreated c:
-                {
-                    var visibilityStr = c.Visibility.ToSnakeCase();
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        INSERT INTO tracking.lists (list_id, user_id, name, description, visibility, item_count, created_at, is_deleted)
-                        VALUES ({envelope.StreamId}, {c.UserId}, {c.Name}, {c.Description}, {visibilityStr}, {0}, {c.CreatedAt}, {false})
-                        ON CONFLICT (list_id) DO NOTHING
-                        """, ct);
-                    break;
-                }
+        On<ListRenamed>((r, ctx) =>
+        {
+            var listId = Guid.Parse(ctx.StreamId);
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.lists SET name = {r.Name} WHERE list_id = {listId}
+                """, ctx.CancellationToken);
+        });
 
-                case ListRenamed r:
-                {
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        UPDATE tracking.lists SET name = {r.Name} WHERE list_id = {envelope.StreamId}
-                        """, ct);
-                    break;
-                }
+        On<ListDescriptionChanged>((d, ctx) =>
+        {
+            var listId = Guid.Parse(ctx.StreamId);
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.lists SET description = {d.Description} WHERE list_id = {listId}
+                """, ctx.CancellationToken);
+        });
 
-                case ListDescriptionChanged d:
-                {
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        UPDATE tracking.lists SET description = {d.Description} WHERE list_id = {envelope.StreamId}
-                        """, ct);
-                    break;
-                }
+        On<ListVisibilityChanged>((v, ctx) =>
+        {
+            var listId = Guid.Parse(ctx.StreamId);
+            var visibilityStr = v.Visibility.ToSnakeCase();
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.lists SET visibility = {visibilityStr} WHERE list_id = {listId}
+                """, ctx.CancellationToken);
+        });
 
-                case ListVisibilityChanged v:
-                {
-                    var visibilityStr = v.Visibility.ToSnakeCase();
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        UPDATE tracking.lists SET visibility = {visibilityStr} WHERE list_id = {envelope.StreamId}
-                        """, ct);
-                    break;
-                }
+        On<ListDeleted>((_, ctx) =>
+        {
+            var listId = Guid.Parse(ctx.StreamId);
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.lists SET is_deleted = true WHERE list_id = {listId}
+                """, ctx.CancellationToken);
+        });
 
-                case ListDeleted:
-                {
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        UPDATE tracking.lists SET is_deleted = true WHERE list_id = {envelope.StreamId}
-                        """, ct);
-                    break;
-                }
+        On<ItemAddedToList>(async (a, ctx) =>
+        {
+            var (db, ct) = (ctx.Db, ctx.CancellationToken);
+            var listId = Guid.Parse(ctx.StreamId);
+            var title = await ctx.Services.GetRequiredService<CatalogDbContext>().Titles.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.TitleId == a.TitleId, ct);
 
-                case ItemAddedToList a:
-                {
-                    var title = await catalogDb.Titles.AsNoTracking()
-                        .FirstOrDefaultAsync(t => t.TitleId == a.TitleId, ct);
+            var titleName = title?.Name ?? "Unknown";
+            var mediaType = title?.MediaType.ToSnakeCase() ?? "film";
+            var posterPath = title?.PosterPath;
 
-                    var titleName = title?.Name ?? "Unknown";
-                    var mediaType = title?.MediaType.ToSnakeCase() ?? "film";
-                    var posterPath = title?.PosterPath;
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO tracking.list_items (list_id, title_id, position, title, media_type, poster_path, added_at)
+                VALUES ({listId}, {a.TitleId}, {a.Position}, {titleName}, {mediaType}, {posterPath}, {a.AddedAt})
+                ON CONFLICT (list_id, title_id) DO NOTHING
+                """, ct);
 
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        INSERT INTO tracking.list_items (list_id, title_id, position, title, media_type, poster_path, added_at)
-                        VALUES ({envelope.StreamId}, {a.TitleId}, {a.Position}, {titleName}, {mediaType}, {posterPath}, {a.AddedAt})
-                        ON CONFLICT (list_id, title_id) DO NOTHING
-                        """, ct);
+            await CountItemsAsync(db, listId, ct);
+        });
 
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        UPDATE tracking.lists SET item_count = (
-                            SELECT COUNT(*) FROM tracking.list_items WHERE list_id = {envelope.StreamId}
-                        ) WHERE list_id = {envelope.StreamId}
-                        """, ct);
-                    break;
-                }
+        On<ItemRemovedFromList>(async (r, ctx) =>
+        {
+            var (db, ct) = (ctx.Db, ctx.CancellationToken);
+            var listId = Guid.Parse(ctx.StreamId);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                DELETE FROM tracking.list_items WHERE list_id = {listId} AND title_id = {r.TitleId}
+                """, ct);
 
-                case ItemRemovedFromList r:
-                {
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        DELETE FROM tracking.list_items WHERE list_id = {envelope.StreamId} AND title_id = {r.TitleId}
-                        """, ct);
+            await CountItemsAsync(db, listId, ct);
+        });
 
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        UPDATE tracking.lists SET item_count = (
-                            SELECT COUNT(*) FROM tracking.list_items WHERE list_id = {envelope.StreamId}
-                        ) WHERE list_id = {envelope.StreamId}
-                        """, ct);
-                    break;
-                }
-
-                case ListItemReordered o:
-                {
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        UPDATE tracking.list_items SET position = {o.NewPosition}
-                        WHERE list_id = {envelope.StreamId} AND title_id = {o.TitleId}
-                        """, ct);
-                    break;
-                }
-            }
-        }
+        On<ListItemReordered>((o, ctx) =>
+        {
+            var listId = Guid.Parse(ctx.StreamId);
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.list_items SET position = {o.NewPosition}
+                WHERE list_id = {listId} AND title_id = {o.TitleId}
+                """, ctx.CancellationToken);
+        });
     }
+
+    protected override async Task ResetAsync(WriteContext<TrackingDbContext> context)
+    {
+        await context.Db.Database.ExecuteSqlRawAsync("DELETE FROM tracking.list_items", context.CancellationToken);
+        await context.Db.Database.ExecuteSqlRawAsync("DELETE FROM tracking.lists", context.CancellationToken);
+    }
+
+    private static Task CountItemsAsync(TrackingDbContext db, Guid listId, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE tracking.lists SET item_count = (
+                SELECT COUNT(*) FROM tracking.list_items WHERE list_id = {listId}
+            ) WHERE list_id = {listId}
+            """, ct);
 }

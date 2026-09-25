@@ -21,4 +21,9 @@
         <ProjectReference Include="../../src/Anthology/Anthology.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="Fixtures/legacy-es.sql" CopyToOutputDirectory="PreserveNewest" />
+        <None Include="../../scripts/migrate-es-to-deedbox.sql" Link="Fixtures/migrate-es-to-deedbox.sql" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>

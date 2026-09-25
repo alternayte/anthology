@@ -1,7 +1,6 @@
 using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
-using Anthology.Kernel.Messaging;
 using Anthology.Modules.Catalog;
+using Deedbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -38,78 +37,92 @@ internal sealed class LibraryItemConfiguration : IEntityTypeConfiguration<Librar
     }
 }
 
-public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext catalogDb)
-    : IProjection, IDbContextProjection, IRebuildableProjection
+public sealed class LibraryProjection : Projection<TrackingDbContext>
 {
-    public DbContext DbContext => db;
-    public static string SchemaQualifiedTableName => "tracking.library_items";
-
-    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
+    public LibraryProjection()
     {
-        foreach (var envelope in events)
+        On<ItemWanted>(async (w, ctx) =>
         {
-            if (envelope.UserId is null || envelope.ContextId is null) continue;
+            var (db, catalogDb, ct) = (ctx.Db, Catalog(ctx), ctx.CancellationToken);
+            var userId = TrackingMetadata.UserId(ctx.Metadata);
+            var mediaType = Enum.Parse<MediaType>(w.MediaType, true);
+            var mediaStr = mediaType.ToSnakeCase();
+            var statusStr = TrackedStatus.WantToConsume.ToSnakeCase();
+            var visibilityStr = Visibility.Private.ToSnakeCase();
+            var posterPath = await catalogDb.Titles.AsNoTracking()
+                .Where(t => t.TitleId == w.TitleId)
+                .Select(t => t.PosterPath)
+                .FirstOrDefaultAsync(ct);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility, poster_path)
+                VALUES ({userId}, {w.TitleId}, {mediaStr}, {w.TitleName}, {statusStr}, {w.At}, {visibilityStr}, {posterPath})
+                ON CONFLICT (user_id, title_id) DO NOTHING
+                """, ct);
 
-            switch (envelope.Event)
-            {
-                case ItemWanted w:
-                    var mediaType = Enum.Parse<MediaType>(w.MediaType, true);
-                    var mediaStr = mediaType.ToSnakeCase();
-                    var statusStr = TrackedStatus.WantToConsume.ToSnakeCase();
-                    var visibilityStr = Visibility.Private.ToSnakeCase();
-                    var posterPath = await catalogDb.Titles.AsNoTracking()
-                        .Where(t => t.TitleId == w.TitleId)
-                        .Select(t => t.PosterPath)
-                        .FirstOrDefaultAsync(ct);
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        INSERT INTO tracking.library_items (user_id, title_id, media_type, title, status, added_at, visibility, poster_path)
-                        VALUES ({envelope.UserId.Value}, {w.TitleId}, {mediaStr}, {w.TitleName}, {statusStr}, {w.At}, {visibilityStr}, {posterPath})
-                        ON CONFLICT (user_id, title_id) DO NOTHING
-                        """, ct);
+            if (mediaType == MediaType.Episode)
+                await UpsertShowSummaryAsync(db, catalogDb, userId, w.TitleId, TrackedStatus.WantToConsume, ct);
+        });
 
-                    if (mediaType == MediaType.Episode)
-                        await UpsertShowSummaryAsync(envelope.UserId.Value, w.TitleId, TrackedStatus.WantToConsume, ct);
-                    break;
+        On<ItemStarted>(async (_, ctx) =>
+        {
+            var (userId, titleId, ct) = Item(ctx);
+            var statusStr = TrackedStatus.InProgress.ToSnakeCase();
+            await ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.library_items SET status = {statusStr}
+                WHERE user_id = {userId} AND title_id = {titleId}
+                """, ct);
+            await SummariseShowAsync(ctx, TrackedStatus.InProgress);
+        });
 
-                case ItemStarted:
-                    await Upsert(envelope, item => item.Status = TrackedStatus.InProgress, ct);
+        On<ItemFinished>(async (f, ctx) =>
+        {
+            var (userId, titleId, ct) = Item(ctx);
+            var statusStr = TrackedStatus.Finished.ToSnakeCase();
+            await ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.library_items SET status = {statusStr}, rating = {f.Rating?.Value}, finished_at = {f.At}
+                WHERE user_id = {userId} AND title_id = {titleId}
+                """, ct);
+            await SummariseShowAsync(ctx, TrackedStatus.Finished);
+        });
 
-                    if (await IsEpisodeAsync(envelope.ContextId.Value, ct))
-                    {
-                        // Flush the episode status change before counting finished episodes
-                        await db.SaveChangesAsync(ct);
-                        await UpsertShowSummaryAsync(envelope.UserId.Value, envelope.ContextId.Value, TrackedStatus.InProgress, ct);
-                    }
-                    break;
+        On<ItemAbandoned>((_, ctx) =>
+        {
+            var (userId, titleId, ct) = Item(ctx);
+            var statusStr = TrackedStatus.Abandoned.ToSnakeCase();
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.library_items SET status = {statusStr}
+                WHERE user_id = {userId} AND title_id = {titleId}
+                """, ct);
+        });
 
-                case ItemFinished f:
-                    await Upsert(envelope, item =>
-                    {
-                        item.Status = TrackedStatus.Finished;
-                        item.Rating = f.Rating?.Value;
-                        item.FinishedAt = f.At;
-                    }, ct);
-
-                    if (await IsEpisodeAsync(envelope.ContextId.Value, ct))
-                    {
-                        // Flush the episode status change before counting finished episodes
-                        await db.SaveChangesAsync(ct);
-                        await UpsertShowSummaryAsync(envelope.UserId.Value, envelope.ContextId.Value, TrackedStatus.Finished, ct);
-                    }
-                    break;
-
-                case ItemAbandoned:
-                    await Upsert(envelope, item => item.Status = TrackedStatus.Abandoned, ct);
-                    break;
-
-                case ItemRated r:
-                    await Upsert(envelope, item => item.Rating = r.Rating.Value, ct);
-                    break;
-            }
-        }
+        On<ItemRated>((r, ctx) =>
+        {
+            var (userId, titleId, ct) = Item(ctx);
+            return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE tracking.library_items SET rating = {r.Rating.Value}
+                WHERE user_id = {userId} AND title_id = {titleId}
+                """, ct);
+        });
     }
 
-    private async Task<bool> IsEpisodeAsync(Guid titleId, CancellationToken ct)
+    protected override Task ResetAsync(WriteContext<TrackingDbContext> context) =>
+        context.Db.Database.ExecuteSqlRawAsync("DELETE FROM tracking.library_items", context.CancellationToken);
+
+    private static CatalogDbContext Catalog(ProjectionContext<TrackingDbContext> ctx) =>
+        ctx.Services.GetRequiredService<CatalogDbContext>();
+
+    private static (Guid UserId, Guid TitleId, CancellationToken Ct) Item(ProjectionContext<TrackingDbContext> ctx) =>
+        (TrackingMetadata.UserId(ctx.Metadata), TrackingMetadata.TitleId(ctx.Metadata), ctx.CancellationToken);
+
+    private static async Task SummariseShowAsync(ProjectionContext<TrackingDbContext> ctx, TrackedStatus episodeStatus)
+    {
+        var (userId, titleId, ct) = Item(ctx);
+        var catalogDb = Catalog(ctx);
+        if (await IsEpisodeAsync(catalogDb, titleId, ct))
+            await UpsertShowSummaryAsync(ctx.Db, catalogDb, userId, titleId, episodeStatus, ct);
+    }
+
+    private static async Task<bool> IsEpisodeAsync(CatalogDbContext catalogDb, Guid titleId, CancellationToken ct)
     {
         var title = await catalogDb.Titles.AsNoTracking()
             .Where(t => t.TitleId == titleId)
@@ -118,8 +131,8 @@ public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext cat
         return title?.MediaType == MediaType.Episode;
     }
 
-    private async Task UpsertShowSummaryAsync(
-        Guid userId, Guid episodeTitleId, TrackedStatus episodeEventStatus, CancellationToken ct)
+    private static async Task UpsertShowSummaryAsync(
+        TrackingDbContext db, CatalogDbContext catalogDb, Guid userId, Guid episodeTitleId, TrackedStatus episodeEventStatus, CancellationToken ct)
     {
         // Resolve show: episode → season → show
         var episode = await catalogDb.Titles.AsNoTracking()
@@ -191,12 +204,5 @@ public sealed class LibraryProjection(TrackingDbContext db, CatalogDbContext cat
                     parts_total = EXCLUDED.parts_total,
                     poster_path = EXCLUDED.poster_path
             """, ct);
-    }
-
-    private async Task Upsert(EventEnvelope envelope, Action<LibraryItem> update, CancellationToken ct)
-    {
-        var item = await db.LibraryItems.FindAsync([envelope.UserId!.Value, envelope.ContextId!.Value], ct);
-        if (item is not null)
-            update(item);
     }
 }

@@ -1,6 +1,5 @@
 using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
-using Anthology.Kernel.Messaging;
+using Deedbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,70 +27,30 @@ internal sealed class DiaryEntryConfiguration : IEntityTypeConfiguration<DiaryEn
     }
 }
 
-public sealed class DiaryProjection(TrackingDbContext db) : IProjection, IDbContextProjection, IRebuildableProjection
+public sealed class DiaryProjection : Projection<TrackingDbContext>
 {
-    public static string SchemaQualifiedTableName => "tracking.diary_entries";
-    public DbContext DbContext => db;
-
-    public async Task ApplyAsync(IReadOnlyList<EventEnvelope> events, CancellationToken ct)
+    public DiaryProjection()
     {
-        foreach (var envelope in events)
-        {
-            if (envelope.UserId is null || envelope.ContextId is null) continue;
+        On<ItemWanted>((e, ctx) => Insert(ctx, e.TitleId, TrackedStatus.WantToConsume, null, e.At));
+        On<ItemStarted>((e, ctx) => Insert(ctx, TrackingMetadata.TitleId(ctx.Metadata), TrackedStatus.InProgress, null, e.At));
+        On<ItemFinished>((e, ctx) => Insert(ctx, TrackingMetadata.TitleId(ctx.Metadata), TrackedStatus.Finished, e.Rating?.Value, e.At));
+        On<ItemAbandoned>((e, ctx) => Insert(ctx, TrackingMetadata.TitleId(ctx.Metadata), TrackedStatus.Abandoned, null, e.At));
+        On<ItemRated>((e, ctx) => Insert(ctx, TrackingMetadata.TitleId(ctx.Metadata), TrackedStatus.Rerated, e.Rating.Value, e.At));
+    }
 
-            var entry = envelope.Event switch
-            {
-                ItemWanted w => new DiaryEntry
-                {
-                    UserId = envelope.UserId.Value,
-                    TitleId = w.TitleId,
-                    Status = TrackedStatus.WantToConsume,
-                    OccurredAt = w.At,
-                },
-                ItemStarted s => new DiaryEntry
-                {
-                    UserId = envelope.UserId.Value,
-                    TitleId = envelope.ContextId.Value,
-                    Status = TrackedStatus.InProgress,
-                    OccurredAt = s.At,
-                },
-                ItemFinished f => new DiaryEntry
-                {
-                    UserId = envelope.UserId.Value,
-                    TitleId = envelope.ContextId.Value,
-                    Status = TrackedStatus.Finished,
-                    Rating = f.Rating?.Value,
-                    OccurredAt = f.At,
-                },
-                ItemAbandoned a => new DiaryEntry
-                {
-                    UserId = envelope.UserId.Value,
-                    TitleId = envelope.ContextId.Value,
-                    Status = TrackedStatus.Abandoned,
-                    OccurredAt = a.At,
-                },
-                ItemRated r => new DiaryEntry
-                {
-                    UserId = envelope.UserId.Value,
-                    TitleId = envelope.ContextId.Value,
-                    Status = TrackedStatus.Rerated,
-                    Rating = r.Rating.Value,
-                    OccurredAt = r.At,
-                },
-                _ => null
-            };
+    protected override Task ResetAsync(WriteContext<TrackingDbContext> context) =>
+        context.Db.Database.ExecuteSqlRawAsync("DELETE FROM tracking.diary_entries", context.CancellationToken);
 
-            if (entry is not null)
-            {
-                var statusStr = entry.Status.ToSnakeCase();
-                var visibilityStr = entry.Visibility.ToSnakeCase();
-                await db.Database.ExecuteSqlInterpolatedAsync($"""
-                    INSERT INTO tracking.diary_entries (user_id, title_id, status, rating, occurred_at, visibility)
-                    VALUES ({entry.UserId}, {entry.TitleId}, {statusStr}, {entry.Rating}, {entry.OccurredAt}, {visibilityStr})
-                    ON CONFLICT (user_id, title_id, occurred_at) DO NOTHING
-                    """, ct);
-            }
-        }
+    private static Task Insert(ProjectionContext<TrackingDbContext> ctx, Guid titleId, TrackedStatus status, int? rating, DateTimeOffset at)
+    {
+        var userId = TrackingMetadata.UserId(ctx.Metadata);
+        var statusStr = status.ToSnakeCase();
+        var visibilityStr = Visibility.Private.ToSnakeCase();
+        return ctx.Db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO tracking.diary_entries (user_id, title_id, status, rating, occurred_at, visibility)
+            VALUES ({userId}, {titleId}, {statusStr}, {rating}, {at}, {visibilityStr})
+            ON CONFLICT (user_id, title_id, occurred_at) DO NOTHING
+            """, ctx.CancellationToken);
     }
 }
 

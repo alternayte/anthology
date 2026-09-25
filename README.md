@@ -33,7 +33,7 @@ Tests use Testcontainers — Docker must be running. No manual database setup ne
 ```
 src/Anthology/
   Program.cs              # composition root
-  Kernel/                 # event store, messaging, Result, validation
+  Kernel/                 # Result, errors, command interfaces, validation
   Modules/
     Tracking/             # core domain (event-sourced) — track/rate items, diary, library
     Catalog/              # TMDB integration + local title data
@@ -46,113 +46,58 @@ tests/Anthology.Tests/    # aggregate, integration, convention, endpoint tests
 
 ## Architecture
 
-- **Event sourcing** for the tracking domain. Aggregates use decide/evolve with pure functions.
+- **Event sourcing** for the tracking domain, on [Deedbox](https://github.com/alternayte/deedbox). Aggregates use decide/evolve with pure functions.
 - **Vertical slices** — each feature is one file containing command/query, validator, handler, and endpoint.
-- **DbContext-per-module** with separate Postgres schemas (`es`, `tracking`, `catalog`, `identity`, `profile`).
-- **No mediator, no generic repository, no AutoMapper.** Scrutor decorates a single transaction decorator around command handlers.
+- **DbContext-per-module** with separate Postgres schemas (`tracking`, `catalog`, `identity`, `profile`, `recommendations`). Deedbox keeps the events in its own `deedbox` schema.
+- **No mediator, no generic repository, no AutoMapper.** Scrutor decorates command handlers with one validation decorator. Deedbox owns the write transaction.
 
 ## Event sourcing decisions
 
-### Streams: snapshot-based loading
+### Streams and state
 
-Every aggregate gets a row in `es.streams` that holds the current state as a JSONB snapshot alongside the version number. Loading an aggregate reads one row instead of replaying the full event history.
-
-```mermaid
-erDiagram
-    streams {
-        uuid stream_id PK
-        text stream_type
-        int version
-        jsonb state
-        timestamptz created_at
-        timestamptz updated_at
-    }
-    events {
-        uuid stream_id FK
-        int version PK
-        bigint global_position "IDENTITY"
-        text event_type
-        jsonb payload
-        jsonb metadata
-        timestamptz occurred_at
-        xid8 xid
-    }
-    streams ||--o{ events : "has"
-```
-
-On write, `Decide` validates the command against current state and returns events. `Evolve` folds them into new state. Both the events and the new snapshot are written atomically with an optimistic concurrency check on the version.
-
-```mermaid
-sequenceDiagram
-    participant H as Handler
-    participant S as EventStore
-    participant DB as PostgreSQL
-
-    H->>S: LoadAsync(streamId)
-    S->>DB: SELECT from es.streams
-    DB-->>S: state + version
-    S-->>H: (state, version)
-
-    H->>H: Decide(state, command) → events
-    H->>H: Evolve(state, events) → newState
-
-    H->>S: AppendAsync(streamId, version, events, newState)
-    S->>DB: UPDATE streams (WHERE version = expected)
-    S->>DB: INSERT events
-    S->>DB: COMMIT
-```
-
-Stream IDs are deterministic — UUIDv5 from `userId + titleId` — so no lookup table is needed.
-
-### Projections: inline and async
-
-Projections transform events into read-optimised tables. Two strategies, chosen per projection:
-
-```mermaid
-flowchart LR
-    subgraph Write["Write path (single transaction)"]
-        CMD[Command] --> ES[EventStore.Append]
-        ES --> IP[InlineProjector]
-        IP --> RM[(Read model tables)]
-    end
-
-    subgraph Async["Async path (background)"]
-        ES -.->|NOTIFY| APH[AsyncProjectionHost]
-        APH -->|poll + checkpoint| RM2[(Read model tables)]
-    end
-```
-
-**Inline projections** run in the same transaction as the event append. The `TransactionDecorator` commits events, projections, and outbox writes atomically. Diary and library projections are inline — the user sees updated data immediately after a command succeeds.
-
-**Async projections** run in a background service. Each projection tracks its position via a `checkpoints` row. The host uses `SELECT ... FOR UPDATE SKIP LOCKED` for leader election and a `xid` guard (`pg_snapshot_xmin`) to avoid reading uncommitted events. A `NOTIFY new_events` signal wakes the host after each commit.
-
-Both projection types implement the same `IProjection` interface — the difference is only in when and how they're invoked.
-
-### Upcasting: schema evolution without migration
-
-Events are immutable once stored. When the schema of an event type changes, an upcaster transforms the old JSON shape into the new one at read time.
-
-```mermaid
-flowchart LR
-    DB[(es.events)] -->|"tracking.item.wanted.v1"| R[EventRegistry.Resolve]
-    R -->|chain: v1→v2| U["Upcaster: add titleName, mediaType"]
-    U --> D[Deserialize to ItemWanted]
-```
-
-Registration is declarative:
+Deedbox stores the events of each stream in `deedbox.events` and the latest state in `deedbox.streams`. A handler calls `Execute`. It locks the stream, loads the state, runs `Decide`, appends the events and saves the new state, in one transaction:
 
 ```csharp
-registry.Map<ItemWanted>("tracking.item.wanted", currentVersion: 2, upcasters:
-[
-    Upcaster.From(1, json =>
+var result = await store
+    .WithMetadata(m => TrackingMetadata.For(m, command.UserId, command.TitleId))
+    .Execute<TrackedItemState>(streamId, state => Decide(state, command), ct);
+```
+
+`Decide` returns a `Result`. The kernel helper `Decisions.Execute` turns an error into "append nothing and return the error".
+
+Stream IDs are deterministic — UUIDv5 from `userId + titleId` with `StreamId.Deterministic` — so no lookup table is needed.
+
+### Projections
+
+The diary, library and lists read models are `Projection<TrackingDbContext>` classes, with one `On<TEvent>` handler per event type:
+
+```csharp
+On<ItemStarted>((e, ctx) => Insert(ctx, TrackingMetadata.TitleId(ctx.Metadata), TrackedStatus.InProgress, null, e.At));
+```
+
+All three run inline, in the transaction of the append, so the user sees the change when the command returns. Each projection has a stored name (`diary`, `library`, `lists`) and one run mode. The admin API rebuilds a projection: Deedbox calls its `ResetAsync`, then replays every event through it in the background.
+
+The events do not hold the user, and most tracked-item events do not hold the title. The handlers put both in metadata headers, and the projections read them with `TrackingMetadata`.
+
+### Upcasting and names
+
+The stored names predate Deedbox, so each stream and event name is explicit in `TrackingModule`. `ItemWanted` is at version 2. Deedbox upcasts version 1 events when it reads them:
+
+```csharp
+.Event<ItemWanted>(2, e => e
+    .Name("tracking.item.wanted")
+    .From(1, json =>
     {
         json["titleName"] ??= "Unknown";
         json["mediaType"] ??= "film";
-    })
-]);
+    }))
 ```
 
-The event type name is versioned (`tracking.item.wanted.v2`). When the serializer reads a v1 event, the registry returns a chain of upcasters to apply in order. The transform mutates the `JsonNode` in place, then the result is deserialized into the current CLR type. No data migration, no downtime, old events stay untouched.
+Earlier builds stored new ratings as `tracking.item.rerated`. The alias keeps those events readable, and new ratings are stored as `tracking.item.rated`.
+
+### Moving from the hand-written event store
+
+Anthology had its own event store in schema `es` before Deedbox. `scripts/migrate-es-to-deedbox.sql` moves that data into Deedbox once. The script header gives the order of steps. The tests run on a database that the script migrated from `tests/Anthology.Tests/Fixtures/legacy-es.sql`, which the old event store wrote.
 
 ### Putting it together: a filterable, sortable, paginated list
 
@@ -163,7 +108,7 @@ flowchart TD
     subgraph Write
         W[POST /items/:id/want] --> D[TrackedItem.Decide]
         D --> E[TrackedItem.Evolve]
-        E --> A[EventStore.Append]
+        E --> A[IEventStore.Execute]
         A --> LP[LibraryProjection]
         LP --> LI[(tracking.library_items)]
     end

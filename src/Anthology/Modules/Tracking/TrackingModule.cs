@@ -1,7 +1,4 @@
-using Anthology.Kernel;
-using Anthology.Kernel.EventStore;
-using Anthology.Kernel.Messaging;
-using Microsoft.EntityFrameworkCore;
+using Deedbox;
 using Npgsql;
 
 namespace Anthology.Modules.Tracking;
@@ -14,13 +11,6 @@ public static class TrackingModule
             options.UseNpgsql(sp.GetRequiredService<NpgsqlConnection>())
                 .UseSnakeCaseNamingConvention());
 
-        services.AddInlineProjection<DiaryProjection>();
-        services.AddInlineProjection<LibraryProjection>();
-        services.AddInlineProjection<ListProjection>();
-        services.AddAsyncProjection<DiaryProjection>();
-        services.AddAsyncProjection<LibraryProjection>();
-        services.AddAsyncProjection<ListProjection>();
-
         services.AddScoped<GetDiary.Handler>();
         services.AddScoped<GetLibrary.Handler>();
         services.AddScoped<GetList.Handler>();
@@ -29,35 +19,32 @@ public static class TrackingModule
         return services;
     }
 
-    public static void RegisterEvolvers(StreamEvolverRegistry registry, EventSerializer serializer)
-    {
-        registry.Register<TrackedItemState>(serializer, TrackedItem.Evolve);
-        registry.Register<CuratedListState>(serializer, CuratedList.Evolve);
-    }
+    public static IReadOnlyList<string> StreamTypes { get; } = [TrackedItemState.StreamType, CuratedListState.StreamType];
 
-    public static void RegisterEvents(EventRegistry registry)
-    {
-        registry.Map<ItemWanted>("tracking.item.wanted", currentVersion: 2, upcasters:
-        [
-            Upcaster.From(1, json =>
-            {
-                json["titleName"] ??= "Unknown";
-                json["mediaType"] ??= "film";
-            })
-        ]);
-        registry.Map<ItemStarted>("tracking.item.started");
-        registry.Map<ItemFinished>("tracking.item.finished");
-        registry.Map<ItemAbandoned>("tracking.item.abandoned");
-        registry.Map<ItemRated>("tracking.item.rated");
-        registry.Map<ItemRated>("tracking.item.rerated");
-
-        registry.Map<ListCreated>("tracking.list.created");
-        registry.Map<ListRenamed>("tracking.list.renamed");
-        registry.Map<ListDescriptionChanged>("tracking.list.description_changed");
-        registry.Map<ListVisibilityChanged>("tracking.list.visibility_changed");
-        registry.Map<ListDeleted>("tracking.list.deleted");
-        registry.Map<ItemAddedToList>("tracking.list.item_added");
-        registry.Map<ItemRemovedFromList>("tracking.list.item_removed");
-        registry.Map<ListItemReordered>("tracking.list.item_reordered");
-    }
+    /// <summary>The stored names predate Deedbox, so every stream and event name is explicit.</summary>
+    public static DeedboxBuilder AddTracking(this DeedboxBuilder deedbox) => deedbox
+        .Stream<TrackedItemState>(TrackedItemState.StreamType, s => s
+            .Event<ItemWanted>(2, e => e
+                .Name("tracking.item.wanted")
+                .From(1, json =>
+                {
+                    json["titleName"] ??= "Unknown";
+                    json["mediaType"] ??= "film";
+                }))
+            .Event<ItemStarted>("tracking.item.started")
+            .Event<ItemFinished>("tracking.item.finished")
+            .Event<ItemAbandoned>("tracking.item.abandoned")
+            .Event<ItemRated>(e => e.Name("tracking.item.rated").Alias("tracking.item.rerated")))
+        .Stream<CuratedListState>(CuratedListState.StreamType, s => s
+            .Event<ListCreated>("tracking.list.created")
+            .Event<ListRenamed>("tracking.list.renamed")
+            .Event<ListDescriptionChanged>("tracking.list.description_changed")
+            .Event<ListVisibilityChanged>("tracking.list.visibility_changed")
+            .Event<ListDeleted>("tracking.list.deleted")
+            .Event<ItemAddedToList>("tracking.list.item_added")
+            .Event<ItemRemovedFromList>("tracking.list.item_removed")
+            .Event<ListItemReordered>("tracking.list.item_reordered"))
+        .Projection<DiaryProjection>("diary", Run.Inline)
+        .Projection<LibraryProjection>("library", Run.Inline)
+        .Projection<ListProjection>("lists", Run.Inline);
 }

@@ -319,21 +319,4 @@ public class CuratedListTests
         state.Items.Should().BeEmpty();
         state.Version.Should().Be(3);
     }
-
-    // --- Command metadata ---
-
-    [Fact]
-    public void Commands_provide_StreamId_and_correlation_hints()
-    {
-        var userId = Guid.NewGuid();
-        var listId = Guid.NewGuid();
-        var command = new CreateList.Command("Test", null, ListVisibility.Private, userId, listId, DateTimeOffset.UtcNow);
-
-        var esCommand = (IEventSourcedCommand)command;
-        esCommand.StreamId.Should().Be(listId);
-
-        var (hintUserId, hintContextId) = esCommand.GetCorrelationHints();
-        hintUserId.Should().Be(userId);
-        hintContextId.Should().BeNull();
-    }
 }

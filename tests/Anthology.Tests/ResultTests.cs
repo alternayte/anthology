@@ -46,27 +46,4 @@ public class ResultTests
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Forbidden);
     }
-
-    [Fact]
-    public void StreamId_is_deterministic()
-    {
-        var userId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        var titleId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-
-        var id1 = StreamId.For(userId, titleId);
-        var id2 = StreamId.For(userId, titleId);
-
-        id1.Should().Be(id2);
-        id1.Should().NotBe(Guid.Empty);
-    }
-
-    [Fact]
-    public void StreamId_differs_for_different_inputs()
-    {
-        var user1 = Guid.NewGuid();
-        var user2 = Guid.NewGuid();
-        var title = Guid.NewGuid();
-
-        StreamId.For(user1, title).Should().NotBe(StreamId.For(user2, title));
-    }
 }
