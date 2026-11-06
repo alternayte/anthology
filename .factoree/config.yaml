@@ -31,6 +31,10 @@ verify:
   commands:
     - name: build
       run: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet build Anthology.slnx
+agents:
+  implementer: opencode
+  validator: opencode
+  reviewer: opencode
 services:
   compose: docker-compose.yml
   profiles: []
