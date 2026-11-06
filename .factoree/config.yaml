@@ -9,6 +9,7 @@ bootstrap:
     --ignore-scripts)
   keyFiles:
     - .factoree/mise.toml
+    - Anthology.slnx
     - src/Anthology/Anthology.csproj
     - tests/Anthology.Tests/Anthology.Tests.csproj
     - src/Anthology/ClientApp/package.json
