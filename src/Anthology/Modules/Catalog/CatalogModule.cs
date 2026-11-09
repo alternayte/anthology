@@ -48,7 +48,13 @@ public static class CatalogModule
         // IGDB
         services.Configure<IgdbOptions>(configuration.GetSection(IgdbOptions.Section));
         services.AddTransient<IgdbAuthHandler>();
-        services.AddHttpClient<IgdbClient>(c => c.BaseAddress = new Uri("https://api.igdb.com/v4/"))
+        services.AddHttpClient<IgdbClient>((sp, c) =>
+            {
+                var options = sp.GetRequiredService<IOptions<IgdbOptions>>().Value;
+                c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(options.BaseUrl)
+                    ? IgdbOptions.DefaultBaseUrl
+                    : options.BaseUrl);
+            })
             .AddHttpMessageHandler<IgdbAuthHandler>();
         services.AddScoped<IgdbProvider>();
         services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<IgdbProvider>());

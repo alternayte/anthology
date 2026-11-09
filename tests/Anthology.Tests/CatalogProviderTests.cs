@@ -1,5 +1,7 @@
 using Anthology.Modules.Catalog;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Anthology.Tests;
@@ -101,6 +103,47 @@ public class CatalogProviderTests
     {
         var provider = new IgdbProvider(null);
         provider.OwnsExternalId(externalId).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Igdb_HttpClient_uses_configured_base_url()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Igdb:BaseUrl"] = "https://igdb.fake.test/v4/"
+            })
+            .Build();
+
+        IgdbBaseAddress(configuration).Should().Be(new Uri("https://igdb.fake.test/v4/"));
+    }
+
+    [Fact]
+    public void Igdb_HttpClient_uses_environment_base_url()
+    {
+        const string variable = "Igdb__BaseUrl";
+        var previous = Environment.GetEnvironmentVariable(variable);
+        try
+        {
+            Environment.SetEnvironmentVariable(variable, "https://igdb.env.test/v4/");
+            var configuration = new ConfigurationBuilder()
+                .AddEnvironmentVariables()
+                .Build();
+
+            IgdbBaseAddress(configuration).Should().Be(new Uri("https://igdb.env.test/v4/"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, previous);
+        }
+    }
+
+    [Fact]
+    public void Igdb_HttpClient_defaults_base_url_when_not_configured()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+
+        IgdbBaseAddress(configuration).Should().Be(new Uri("https://api.igdb.com/v4/"));
     }
 
     [Fact]
@@ -280,6 +323,16 @@ public class CatalogProviderTests
             ]));
 
         credits.Should().ContainSingle(c => c.Role == "writer");
+    }
+
+    private static Uri IgdbBaseAddress(IConfiguration configuration)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddCatalogModule(configuration);
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IgdbClient));
+        return client.BaseAddress!;
     }
 
     private sealed class StubTmdbApi : ITmdbApi
