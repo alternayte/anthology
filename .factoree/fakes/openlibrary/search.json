@@ -1,0 +1,27 @@
+{
+  "name": "Open Library search",
+  "request": {
+    "method": "GET",
+    "urlPath": "/search.json"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "docs": [
+        {
+          "key": "/works/OL123W",
+          "title": "The Left Hand of Darkness",
+          "first_publish_year": 1969,
+          "author_name": ["Ursula K. Le Guin"],
+          "cover_i": 8739161,
+          "number_of_pages_median": 304,
+          "isbn": ["9780441478125"],
+          "subject": ["Science fiction", "Gender", "Anthropology", "Fiction"]
+        }
+      ]
+    }
+  }
+}

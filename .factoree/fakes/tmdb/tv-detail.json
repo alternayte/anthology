@@ -1,0 +1,29 @@
+{
+  "name": "TMDB tv detail",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/3/tv/[0-9]+"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": 1399,
+      "name": "Game of Thrones",
+      "overview": "Seven noble families fight for control of the mythical land of Westeros.",
+      "first_air_date": "2011-04-17",
+      "poster_path": "/game-of-thrones.jpg",
+      "backdrop_path": "/game-of-thrones-backdrop.jpg",
+      "number_of_seasons": 1,
+      "number_of_episodes": 2,
+      "popularity": 80.0,
+      "vote_average": 8.4,
+      "genres": [
+        { "id": 18, "name": "Drama" },
+        { "id": 10765, "name": "Sci-Fi & Fantasy" }
+      ]
+    }
+  }
+}

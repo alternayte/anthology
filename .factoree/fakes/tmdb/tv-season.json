@@ -1,0 +1,39 @@
+{
+  "name": "TMDB tv season",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/3/tv/[0-9]+/season/[0-9]+"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": 3624,
+      "season_number": 1,
+      "air_date": "2011-04-17",
+      "poster_path": "/game-of-thrones.jpg",
+      "episodes": [
+        {
+          "id": 63056,
+          "name": "Winter Is Coming",
+          "season_number": 1,
+          "episode_number": 1,
+          "air_date": "2011-04-17",
+          "still_path": null,
+          "overview": "Ned Stark is asked to serve as the Hand of the King."
+        },
+        {
+          "id": 63057,
+          "name": "The Kingsroad",
+          "season_number": 1,
+          "episode_number": 2,
+          "air_date": "2011-04-24",
+          "still_path": null,
+          "overview": "Bran's fate remains uncertain as the royal party travels south."
+        }
+      ]
+    }
+  }
+}

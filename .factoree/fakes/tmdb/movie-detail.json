@@ -1,0 +1,44 @@
+{
+  "name": "TMDB movie detail",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/3/movie/[0-9]+"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": 603,
+      "title": "The Matrix",
+      "overview": "A computer hacker learns from mysterious rebels about the true nature of his reality.",
+      "release_date": "1999-03-31",
+      "poster_path": "/matrix.jpg",
+      "backdrop_path": "/matrix-backdrop.jpg",
+      "popularity": 90.5,
+      "vote_average": 8.2,
+      "genres": [
+        { "id": 28, "name": "Action" },
+        { "id": 878, "name": "Science Fiction" }
+      ],
+      "keywords": {
+        "keywords": [
+          { "id": 1566, "name": "cyberpunk" },
+          { "id": 4565, "name": "dystopia" }
+        ]
+      },
+      "credits": {
+        "cast": [
+          { "id": 6384, "name": "Keanu Reeves", "known_for_department": "Acting", "order": 0 },
+          { "id": 2975, "name": "Laurence Fishburne", "known_for_department": "Acting", "order": 1 }
+        ],
+        "crew": [
+          { "id": 525, "name": "Lana Wachowski", "job": "Director", "department": "Directing" },
+          { "id": 526, "name": "Lilly Wachowski", "job": "Director", "department": "Directing" },
+          { "id": 527, "name": "Lana Wachowski", "job": "Screenplay", "department": "Writing" }
+        ]
+      }
+    }
+  }
+}

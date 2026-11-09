@@ -1,0 +1,19 @@
+{
+  "name": "Open Library work",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/works/[^/]+\\.json"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "key": "/works/OL123W",
+      "title": "The Left Hand of Darkness",
+      "description": "A lone human envoy travels to the frozen world of Gethen to bring it into an interstellar alliance.",
+      "covers": [8739161]
+    }
+  }
+}

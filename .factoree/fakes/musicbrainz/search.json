@@ -1,0 +1,28 @@
+{
+  "name": "MusicBrainz search release groups",
+  "request": {
+    "method": "GET",
+    "urlPath": "/ws/2/release-group"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "release-groups": [
+        {
+          "id": "67a63246-0de4-3c8b-9f44-7146b2890e94",
+          "title": "OK Computer",
+          "primary-type": "Album",
+          "first-release-date": "1997-05-21",
+          "artist-credit": [{ "name": "Radiohead" }],
+          "tags": [
+            { "name": "alternative rock", "count": 10 },
+            { "name": "art rock", "count": 8 }
+          ]
+        }
+      ]
+    }
+  }
+}

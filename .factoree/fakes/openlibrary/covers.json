@@ -1,0 +1,14 @@
+{
+  "name": "Open Library covers",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/covers/.*"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "image/png"
+    },
+    "base64Body": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+  }
+}

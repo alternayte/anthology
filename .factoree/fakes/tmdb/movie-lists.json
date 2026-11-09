@@ -1,0 +1,27 @@
+{
+  "name": "TMDB movie lists",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/3/(movie/(popular|top_rated)|trending/movie/week)"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "page": 1,
+      "results": [
+        {
+          "id": 603,
+          "title": "The Matrix",
+          "overview": "A computer hacker learns from mysterious rebels about the true nature of his reality.",
+          "release_date": "1999-03-31",
+          "poster_path": "/matrix.jpg"
+        }
+      ],
+      "total_pages": 1,
+      "total_results": 1
+    }
+  }
+}
