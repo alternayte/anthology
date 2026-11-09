@@ -2,6 +2,7 @@ using Anthology.Modules.Catalog;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Anthology.Tests;
@@ -258,6 +259,98 @@ public class CatalogProviderTests
     [Fact]
     public void TmdbProvider_BackdropUrl_returns_null_for_null_path() =>
         TmdbProvider.BackdropUrl(null).Should().BeNull();
+
+    [Fact]
+    public async Task TmdbProvider_GetDetailsAsync_uses_configured_image_base_url()
+    {
+        var api = new StubTmdbApi
+        {
+            MovieDetail = new TmdbMovieDetail(
+                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
+                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
+                "/backdrop.jpg")
+        };
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p"
+            })
+            .Build();
+        var options = Options.Create(config.GetSection(TmdbOptions.Section).Get<TmdbOptions>()!);
+        var provider = new TmdbProvider(api, options);
+
+        var result = await provider.GetDetailsAsync("tmdb-550", CancellationToken.None);
+
+        result!.Title.PosterPath.Should().Be("https://images.example.test/t/p/w342/poster.jpg");
+        result.Title.BackdropPath.Should().Be("https://images.example.test/t/p/w1280/backdrop.jpg");
+    }
+
+    [Fact]
+    public void TmdbProvider_maps_search_results_with_configured_image_base_url()
+    {
+        var movie = new TmdbMovie(550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg");
+        var show = new TmdbTvShow(1396, "Breaking Bad", "A chemistry teacher...", "2008-01-20", "/bb.jpg", 5, 62);
+
+        var movieResult = TmdbProvider.MapMovieResult(movie, "https://images.example.test/t/p");
+        var tvResult = TmdbProvider.MapTvResult(show, "https://images.example.test/t/p");
+
+        movieResult.PosterUrl.Should().Be("https://images.example.test/t/p/w342/poster.jpg");
+        tvResult.PosterUrl.Should().Be("https://images.example.test/t/p/w342/bb.jpg");
+    }
+
+    [Fact]
+    public async Task TmdbProvider_reads_image_base_url_from_configuration_through_di()
+    {
+        var api = new StubTmdbApi
+        {
+            MovieDetail = new TmdbMovieDetail(
+                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
+                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
+                "/backdrop.jpg")
+        };
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.Configure<TmdbOptions>(config.GetSection(TmdbOptions.Section));
+        services.AddSingleton<ITmdbApi>(api);
+        services.AddScoped<TmdbProvider>();
+
+        using var scope = services.BuildServiceProvider().CreateScope();
+        var provider = scope.ServiceProvider.GetRequiredService<TmdbProvider>();
+
+        var result = await provider.GetDetailsAsync("tmdb-550", CancellationToken.None);
+
+        result!.Title.PosterPath.Should().Be("https://images.example.test/t/p/w342/poster.jpg");
+        result.Title.BackdropPath.Should().Be("https://images.example.test/t/p/w1280/backdrop.jpg");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task TmdbProvider_falls_back_to_default_image_base_url(string? configured)
+    {
+        var api = new StubTmdbApi
+        {
+            MovieDetail = new TmdbMovieDetail(
+                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
+                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
+                "/backdrop.jpg")
+        };
+
+        var provider = new TmdbProvider(api, new TmdbOptions { ImageBaseUrl = configured! });
+        var result = await provider.GetDetailsAsync("tmdb-550", CancellationToken.None);
+
+        result!.Title.PosterPath.Should().Be("https://image.tmdb.org/t/p/w342/poster.jpg");
+        result.Title.BackdropPath.Should().Be("https://image.tmdb.org/t/p/w1280/backdrop.jpg");
+    }
 
     [Fact]
     public void IgdbProvider_BackdropUrl_prefers_artwork_over_screenshot()
