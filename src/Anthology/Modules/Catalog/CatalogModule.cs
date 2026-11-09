@@ -36,6 +36,7 @@ public static class CatalogModule
         services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<TmdbProvider>());
 
         // Open Library
+        services.Configure<OpenLibraryOptions>(configuration.GetSection(OpenLibraryOptions.Section));
         services.AddRefitClient<IOpenLibraryApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://openlibrary.org"));
         services.AddScoped<OpenLibraryProvider>();
