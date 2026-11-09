@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Pgvector.EntityFrameworkCore;
 using Refit;
 
@@ -29,7 +30,8 @@ public static class CatalogModule
         services.Configure<TmdbOptions>(configuration.GetSection(TmdbOptions.Section));
         services.AddTransient<TmdbAuthHandler>();
         services.AddRefitClient<ITmdbApi>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.themoviedb.org/3"))
+            .ConfigureHttpClient((sp, c) =>
+                c.BaseAddress = new Uri(sp.GetRequiredService<IOptions<TmdbOptions>>().Value.BaseUrl))
             .AddHttpMessageHandler<TmdbAuthHandler>();
         services.AddScoped<TmdbProvider>();
         services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<TmdbProvider>());
