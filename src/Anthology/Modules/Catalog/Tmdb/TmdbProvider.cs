@@ -1,11 +1,29 @@
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Options;
 
 namespace Anthology.Modules.Catalog;
 
-public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedableProvider
+public sealed class TmdbProvider : ICatalogProvider, ISeedableProvider
 {
     private static readonly IReadOnlySet<MediaType> Types =
         new HashSet<MediaType> { MediaType.Film, MediaType.TvShow }.AsReadOnly();
+
+    private readonly ITmdbApi tmdb;
+    private readonly string imageBaseUrl;
+
+    public TmdbProvider(ITmdbApi tmdb) : this(tmdb, (TmdbOptions?)null)
+    {
+    }
+
+    public TmdbProvider(ITmdbApi tmdb, IOptions<TmdbOptions> options) : this(tmdb, options?.Value)
+    {
+    }
+
+    public TmdbProvider(ITmdbApi tmdb, TmdbOptions? options)
+    {
+        this.tmdb = tmdb;
+        imageBaseUrl = TmdbOptions.ResolveImageBaseUrl(options?.ImageBaseUrl);
+    }
 
     public IReadOnlySet<MediaType> SupportedTypes => Types;
 
@@ -70,7 +88,7 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             _ => null
         };
 
-    private static async IAsyncEnumerable<CatalogSearchResult> FetchMoviePagesAsync(
+    private async IAsyncEnumerable<CatalogSearchResult> FetchMoviePagesAsync(
         Func<int, CancellationToken, Task<TmdbPagedResult<TmdbMovie>>> fetch,
         int remaining, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -84,14 +102,14 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             {
                 if (yielded >= remaining) break;
                 yielded++;
-                yield return MapMovieResult(movie);
+                yield return MapMovieResult(movie, imageBaseUrl);
             }
 
             if (page >= result.Total_Pages) break;
         }
     }
 
-    private static async IAsyncEnumerable<CatalogSearchResult> FetchTvPagesAsync(
+    private async IAsyncEnumerable<CatalogSearchResult> FetchTvPagesAsync(
         Func<int, CancellationToken, Task<TmdbPagedResult<TmdbTvShow>>> fetch,
         int remaining, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -105,7 +123,7 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             {
                 if (yielded >= remaining) break;
                 yielded++;
-                yield return MapTvResult(show);
+                yield return MapTvResult(show, imageBaseUrl);
             }
 
             if (page >= result.Total_Pages) break;
@@ -121,8 +139,8 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
         await Task.WhenAll(movieTask, tvTask);
 
         var results = new List<CatalogSearchResult>();
-        results.AddRange(movieTask.Result.Results.Select(MapMovieResult));
-        results.AddRange(tvTask.Result.Results.Select(MapTvResult));
+        results.AddRange(movieTask.Result.Results.Select(m => MapMovieResult(m, imageBaseUrl)));
+        results.AddRange(tvTask.Result.Results.Select(s => MapTvResult(s, imageBaseUrl)));
         return results;
     }
 
@@ -134,20 +152,26 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
         return await GetFilmDetails(externalId, ct);
     }
 
-    public static CatalogSearchResult MapMovieResult(TmdbMovie m) => new(
+    public static CatalogSearchResult MapMovieResult(TmdbMovie m) =>
+        MapMovieResult(m, TmdbOptions.DefaultImageBaseUrl);
+
+    public static CatalogSearchResult MapMovieResult(TmdbMovie m, string? imageBaseUrl) => new(
         $"tmdb-{m.Id}",
         MediaType.Film,
         m.Title,
         ParseYear(m.Release_Date),
-        PosterUrl(m.Poster_Path),
+        PosterUrl(m.Poster_Path, imageBaseUrl),
         m.Overview);
 
-    public static CatalogSearchResult MapTvResult(TmdbTvShow s) => new(
+    public static CatalogSearchResult MapTvResult(TmdbTvShow s) =>
+        MapTvResult(s, TmdbOptions.DefaultImageBaseUrl);
+
+    public static CatalogSearchResult MapTvResult(TmdbTvShow s, string? imageBaseUrl) => new(
         $"tmdb-tv-{s.Id}",
         MediaType.TvShow,
         s.Name,
         ParseYear(s.First_Air_Date),
-        PosterUrl(s.Poster_Path),
+        PosterUrl(s.Poster_Path, imageBaseUrl),
         s.Overview);
 
     private async Task<TitleWithCredits> GetFilmDetails(string externalId, CancellationToken ct)
@@ -162,8 +186,8 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             MediaType = MediaType.Film,
             Name = movie.Title,
             Year = ParseYear(movie.Release_Date),
-            PosterPath = PosterUrl(movie.Poster_Path),
-            BackdropPath = BackdropUrl(movie.Backdrop_Path),
+            PosterPath = PosterUrl(movie.Poster_Path, imageBaseUrl),
+            BackdropPath = BackdropUrl(movie.Backdrop_Path, imageBaseUrl),
             Overview = movie.Overview,
             Genres = movie.Genres.Select(g => g.Name).ToArray(),
             Keywords = movie.Keywords.Keywords.Select(k => k.Name).ToArray(),
@@ -187,8 +211,8 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
             MediaType = MediaType.TvShow,
             Name = show.Name,
             Year = ParseYear(show.First_Air_Date),
-            PosterPath = PosterUrl(show.Poster_Path),
-            BackdropPath = BackdropUrl(show.Backdrop_Path),
+            PosterPath = PosterUrl(show.Poster_Path, imageBaseUrl),
+            BackdropPath = BackdropUrl(show.Backdrop_Path, imageBaseUrl),
             Overview = show.Overview,
             Genres = show.Genres.Select(g => g.Name).ToArray(),
             Keywords = [],
@@ -248,9 +272,13 @@ public sealed class TmdbProvider(ITmdbApi tmdb) : ICatalogProvider, ISeedablePro
     internal static int? ParseYear(string? date) =>
         DateTime.TryParse(date, out var d) ? d.Year : null;
 
-    internal static string? PosterUrl(string? posterPath) =>
-        posterPath is not null ? $"https://image.tmdb.org/t/p/w342{posterPath}" : null;
+    internal static string? PosterUrl(string? posterPath, string? imageBaseUrl = null) =>
+        posterPath is not null
+            ? $"{TmdbOptions.ResolveImageBaseUrl(imageBaseUrl)}/w342{posterPath}"
+            : null;
 
-    internal static string? BackdropUrl(string? backdropPath) =>
-        backdropPath is not null ? $"https://image.tmdb.org/t/p/w1280{backdropPath}" : null;
+    internal static string? BackdropUrl(string? backdropPath, string? imageBaseUrl = null) =>
+        backdropPath is not null
+            ? $"{TmdbOptions.ResolveImageBaseUrl(imageBaseUrl)}/w1280{backdropPath}"
+            : null;
 }

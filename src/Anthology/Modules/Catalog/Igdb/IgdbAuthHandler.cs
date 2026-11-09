@@ -32,7 +32,7 @@ public sealed class IgdbAuthHandler(IOptions<IgdbOptions> options) : DelegatingH
 
             using var http = new HttpClient();
             var response = await http.PostAsync(
-                $"https://id.twitch.tv/oauth2/token?client_id={options.Value.ClientId}&client_secret={options.Value.ClientSecret}&grant_type=client_credentials",
+                $"{options.Value.TokenUrl}?client_id={options.Value.ClientId}&client_secret={options.Value.ClientSecret}&grant_type=client_credentials",
                 null, ct);
             response.EnsureSuccessStatusCode();
 

@@ -1,9 +1,14 @@
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Options;
 
 namespace Anthology.Modules.Catalog;
 
-public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider, ISeedableProvider
+public sealed class OpenLibraryProvider(IOpenLibraryApi api, IOptions<OpenLibraryOptions>? options = null)
+    : ICatalogProvider, ISeedableProvider
 {
+    private readonly string _coverBaseUrl = OpenLibraryOptions.ResolveCoverBaseUrl(
+        options?.Value.CoverBaseUrl ?? Environment.GetEnvironmentVariable("OpenLibrary__CoverBaseUrl"));
+
     private static readonly IReadOnlySet<MediaType> Types =
         new HashSet<MediaType> { MediaType.Book }.AsReadOnly();
 
@@ -64,7 +69,7 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider,
                 {
                     yielded++;
                     yield return new CatalogSearchResult(externalId, MediaType.Book,
-                        work.Title, work.First_Publish_Year, CoverUrl(work.Cover_I), null);
+                        work.Title, work.First_Publish_Year, CoverUrl(work.Cover_I, _coverBaseUrl), null);
                 }
             }
         }
@@ -99,7 +104,7 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider,
                         yielded++;
                         fetched++;
                         yield return new CatalogSearchResult(externalId, MediaType.Book,
-                            work.Title, work.First_Publish_Year, CoverUrl(work.Cover_Id), null);
+                            work.Title, work.First_Publish_Year, CoverUrl(work.Cover_Id, _coverBaseUrl), null);
                     }
                 }
 
@@ -113,7 +118,7 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider,
     public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct)
     {
         var response = await api.SearchAsync(term, 20, ct);
-        return response.Docs.Select(MapSearchResult).ToList();
+        return response.Docs.Select(doc => MapSearchResult(doc, _coverBaseUrl)).ToList();
     }
 
     public async Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct)
@@ -135,7 +140,7 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider,
             MediaType = MediaType.Book,
             Name = work.Title,
             Year = doc?.First_Publish_Year,
-            PosterPath = CoverUrl(work.Covers?.FirstOrDefault()),
+            PosterPath = CoverUrl(work.Covers?.FirstOrDefault(), _coverBaseUrl),
             Overview = work.GetDescriptionText(),
             Genres = genres,
             Keywords = keywords
@@ -163,14 +168,20 @@ public sealed class OpenLibraryProvider(IOpenLibraryApi api) : ICatalogProvider,
         }).ToList();
     }
 
-    public static CatalogSearchResult MapSearchResult(OpenLibraryDoc doc) => new(
+    public CatalogSearchResult MapSearchResult(OpenLibraryDoc doc) => MapSearchResult(doc, _coverBaseUrl);
+
+    public static CatalogSearchResult MapSearchResult(OpenLibraryDoc doc, string? coverBaseUrl = null) => new(
         $"ol-{doc.Key.Replace("/works/", "")}",
         MediaType.Book,
         doc.Title,
         doc.First_Publish_Year,
-        CoverUrl(doc.Cover_I),
+        CoverUrl(doc.Cover_I, coverBaseUrl),
         null);
 
-    private static string? CoverUrl(long? coverId) =>
-        coverId is not null ? $"https://covers.openlibrary.org/b/id/{coverId}-M.jpg" : null;
+    public string? CoverUrl(long? coverId) => CoverUrl(coverId, _coverBaseUrl);
+
+    public static string? CoverUrl(long? coverId, string? coverBaseUrl = null) =>
+        coverId is not null
+            ? $"{OpenLibraryOptions.ResolveCoverBaseUrl(coverBaseUrl)}/{coverId}-M.jpg"
+            : null;
 }
