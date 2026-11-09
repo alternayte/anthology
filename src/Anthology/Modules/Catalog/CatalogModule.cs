@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Pgvector.EntityFrameworkCore;
 using Refit;
 
@@ -29,13 +30,15 @@ public static class CatalogModule
         services.Configure<TmdbOptions>(configuration.GetSection(TmdbOptions.Section));
         services.AddTransient<TmdbAuthHandler>();
         services.AddRefitClient<ITmdbApi>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.themoviedb.org/3"))
+            .ConfigureHttpClient((sp, c) =>
+                c.BaseAddress = new Uri(sp.GetRequiredService<IOptions<TmdbOptions>>().Value.BaseUrl))
             .AddHttpMessageHandler<TmdbAuthHandler>();
         services.AddScoped<TmdbProvider>();
         services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<TmdbProvider>());
         services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<TmdbProvider>());
 
         // Open Library
+        services.Configure<OpenLibraryOptions>(configuration.GetSection(OpenLibraryOptions.Section));
         services.AddRefitClient<IOpenLibraryApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://openlibrary.org"));
         services.AddScoped<OpenLibraryProvider>();
@@ -45,16 +48,27 @@ public static class CatalogModule
         // IGDB
         services.Configure<IgdbOptions>(configuration.GetSection(IgdbOptions.Section));
         services.AddTransient<IgdbAuthHandler>();
-        services.AddHttpClient<IgdbClient>(c => c.BaseAddress = new Uri("https://api.igdb.com/v4/"))
+        services.AddHttpClient<IgdbClient>((sp, c) =>
+            {
+                var options = sp.GetRequiredService<IOptions<IgdbOptions>>().Value;
+                c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(options.BaseUrl)
+                    ? IgdbOptions.DefaultBaseUrl
+                    : options.BaseUrl);
+            })
             .AddHttpMessageHandler<IgdbAuthHandler>();
         services.AddScoped<IgdbProvider>();
         services.AddScoped<ICatalogProvider>(sp => sp.GetRequiredService<IgdbProvider>());
         services.AddScoped<ISeedableProvider>(sp => sp.GetRequiredService<IgdbProvider>());
 
         // MusicBrainz
+        services.Configure<MusicBrainzOptions>(configuration.GetSection(MusicBrainzOptions.Section));
         services.AddTransient<MusicBrainzUserAgentHandler>();
         services.AddRefitClient<IMusicBrainzApi>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://musicbrainz.org/ws/2"))
+            .ConfigureHttpClient((sp, c) =>
+            {
+                var options = sp.GetRequiredService<IOptions<MusicBrainzOptions>>().Value;
+                c.BaseAddress = MusicBrainzOptions.ResolveBaseUrl(options.BaseUrl);
+            })
             .AddHttpMessageHandler<MusicBrainzUserAgentHandler>();
         services.AddScoped<ICatalogProvider, MusicBrainzProvider>();
 

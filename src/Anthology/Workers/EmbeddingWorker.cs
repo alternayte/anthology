@@ -120,7 +120,7 @@ public sealed class EmbeddingWorker(
         return null;
     }
 
-    private async Task<float[]> CallEmbeddingApiAsync(string text, CancellationToken ct)
+    internal async Task<float[]> CallEmbeddingApiAsync(string text, CancellationToken ct)
     {
         var request = new
         {
@@ -131,7 +131,7 @@ public sealed class EmbeddingWorker(
 
         var json = JsonSerializer.Serialize(request);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var response = await httpClient.PostAsync("https://api.openai.com/v1/embeddings", content, ct);
+        using var response = await httpClient.PostAsync(GetEmbeddingsEndpoint(options.Value.BaseUrl), content, ct);
 
         response.EnsureSuccessStatusCode();
 
@@ -149,6 +149,15 @@ public sealed class EmbeddingWorker(
         }
 
         return floats;
+    }
+
+    internal static string GetEmbeddingsEndpoint(string? baseUrl)
+    {
+        var effectiveBaseUrl = string.IsNullOrWhiteSpace(baseUrl)
+            ? EmbeddingOptions.DefaultBaseUrl
+            : baseUrl.Trim();
+
+        return $"{effectiveBaseUrl.TrimEnd('/')}/embeddings";
     }
 
     internal static string BuildEmbeddingText(
