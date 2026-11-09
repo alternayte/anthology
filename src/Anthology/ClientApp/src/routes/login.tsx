@@ -37,7 +37,8 @@ function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       >
-        <h2 className="text-[1.25rem] font-semibold text-text-primary mb-5">Sign in</h2>
+        <h2 className="text-[1.25rem] font-semibold text-text-primary mb-1.5">Sign in</h2>
+        <p className="mb-5 text-[0.8125rem] text-text-muted">Track every film, show, book, game and album in one place.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-[0.8125rem] font-medium text-text-secondary">Email</label>
