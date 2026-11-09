@@ -1,11 +1,33 @@
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Options;
 
 namespace Anthology.Modules.Catalog;
 
-public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedableProvider
+public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
 {
     private static readonly IReadOnlySet<MediaType> Types =
         new HashSet<MediaType> { MediaType.Game }.AsReadOnly();
+
+    private readonly IgdbClient? client;
+    private readonly string imageBaseUrl;
+
+    public IgdbProvider(IgdbClient? client)
+        : this(client, (IOptions<IgdbOptions>?)null)
+    {
+    }
+
+    public IgdbProvider(IgdbClient? client, IOptions<IgdbOptions>? options)
+        : this(client, options?.Value)
+    {
+    }
+
+    public IgdbProvider(IgdbClient? client, IgdbOptions? options)
+    {
+        this.client = client;
+        imageBaseUrl = NormalizeImageBaseUrl(options?.ImageBaseUrl);
+    }
+
+    public string ImageBaseUrl => imageBaseUrl;
 
     public IReadOnlySet<MediaType> SupportedTypes => Types;
 
@@ -59,7 +81,7 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
     public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct)
     {
         var games = await client!.SearchGamesAsync(term, ct);
-        return games.Select(MapSearchResult).ToList();
+        return games.Select(game => MapSearchResult(game)).ToList();
     }
 
     public async Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct)
@@ -87,7 +109,7 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
             MediaType = MediaType.Game,
             Name = game.Name,
             Year = EpochToYear(game.First_Release_Date),
-            PosterPath = CoverUrl(game.Cover?.Image_Id),
+            PosterPath = CoverUrl(game.Cover?.Image_Id, imageBaseUrl),
             BackdropPath = BackdropUrl(game),
             Overview = game.Summary,
             Genres = genres,
@@ -135,26 +157,41 @@ public sealed class IgdbProvider(IgdbClient? client) : ICatalogProvider, ISeedab
         return result.DistinctBy(c => (c.ExternalPersonId, c.Role)).ToList();
     }
 
-    public static CatalogSearchResult MapSearchResult(IgdbGame game) => new(
+    public CatalogSearchResult MapSearchResult(IgdbGame game) => MapSearchResult(game, imageBaseUrl);
+
+    public static CatalogSearchResult MapSearchResult(IgdbGame game, string? imageBaseUrl = null) => new(
         $"igdb-{game.Id}",
         MediaType.Game,
         game.Name,
         EpochToYear(game.First_Release_Date),
-        CoverUrl(game.Cover?.Image_Id),
+        CoverUrl(game.Cover?.Image_Id, imageBaseUrl),
         game.Summary);
 
     internal static int? EpochToYear(long? epoch) =>
         epoch is not null ? DateTimeOffset.FromUnixTimeSeconds(epoch.Value).Year : null;
 
-    private static string? CoverUrl(string? imageId) =>
-        imageId is not null ? $"https://images.igdb.com/igdb/image/upload/t_cover_big/{imageId}.jpg" : null;
+    internal static string? CoverUrl(string? imageId, string? imageBaseUrl = null) =>
+        imageId is not null
+            ? $"{NormalizeImageBaseUrl(imageBaseUrl)}/t_cover_big/{imageId}.jpg"
+            : null;
 
-    internal static string? BackdropUrl(IgdbGame game)
+    public string? BackdropUrl(IgdbGame game) => BackdropUrl(game, imageBaseUrl);
+
+    internal static string? BackdropUrl(IgdbGame game, string? imageBaseUrl = null)
     {
         var imageId = game.Artworks?.FirstOrDefault()?.Image_Id
             ?? game.Screenshots?.FirstOrDefault()?.Image_Id;
         return imageId is not null
-            ? $"https://images.igdb.com/igdb/image/upload/t_1080p/{imageId}.jpg"
+            ? $"{NormalizeImageBaseUrl(imageBaseUrl)}/t_1080p/{imageId}.jpg"
             : null;
+    }
+
+    internal static string NormalizeImageBaseUrl(string? imageBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageBaseUrl))
+            return IgdbOptions.DefaultImageBaseUrl;
+
+        var trimmed = imageBaseUrl.Trim().TrimEnd('/');
+        return trimmed.Length > 0 ? trimmed : IgdbOptions.DefaultImageBaseUrl;
     }
 }
