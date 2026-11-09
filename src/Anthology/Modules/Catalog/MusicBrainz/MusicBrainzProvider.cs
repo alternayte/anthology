@@ -1,9 +1,13 @@
+using Microsoft.Extensions.Options;
+
 namespace Anthology.Modules.Catalog;
 
-public sealed class MusicBrainzProvider(IMusicBrainzApi? api) : ICatalogProvider
+public sealed class MusicBrainzProvider(IMusicBrainzApi? api, IOptions<MusicBrainzOptions> options) : ICatalogProvider
 {
     private static readonly IReadOnlySet<MediaType> Types =
         new HashSet<MediaType> { MediaType.Music }.AsReadOnly();
+
+    private readonly string _coverBaseUrl = NormalizeCoverBaseUrl(options.Value.CoverBaseUrl);
 
     public IReadOnlySet<MediaType> SupportedTypes => Types;
 
@@ -12,7 +16,7 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api) : ICatalogProvider
     public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct)
     {
         var response = await api!.SearchReleaseGroupsAsync(term, ct: ct);
-        return response.Release_Groups.Select(MapSearchResult).ToList();
+        return response.Release_Groups.Select(rg => MapSearchResult(rg, _coverBaseUrl)).ToList();
     }
 
     public async Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct)
@@ -34,7 +38,7 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api) : ICatalogProvider
             MediaType = MediaType.Music,
             Name = rg.Title,
             Year = ParseYear(rg.First_Release_Date),
-            PosterPath = CoverUrl(rg.Id),
+            PosterPath = CoverUrl(_coverBaseUrl, rg.Id),
             Overview = FormatOverview(artist, rg.Primary_Type),
             Genres = genres,
             Keywords = keywords
@@ -59,19 +63,28 @@ public sealed class MusicBrainzProvider(IMusicBrainzApi? api) : ICatalogProvider
         }).ToList();
     }
 
-    public static CatalogSearchResult MapSearchResult(MusicBrainzReleaseGroup rg) => new(
+    public static CatalogSearchResult MapSearchResult(MusicBrainzReleaseGroup rg, string? coverBaseUrl = null) => new(
         $"mb-{rg.Id}",
         MediaType.Music,
         rg.Title,
         ParseYear(rg.First_Release_Date),
-        CoverUrl(rg.Id),
+        CoverUrl(NormalizeCoverBaseUrl(coverBaseUrl), rg.Id),
         FormatOverview(rg.Artist_Credit?.FirstOrDefault()?.Name, rg.Primary_Type));
 
     private static int? ParseYear(string? date) =>
         date is { Length: >= 4 } && int.TryParse(date[..4], out var y) ? y : null;
 
-    private static string? CoverUrl(string mbid) =>
-        $"https://coverartarchive.org/release-group/{mbid}/front-250";
+    private static string? CoverUrl(string coverBaseUrl, string mbid) =>
+        $"{coverBaseUrl}/{mbid}/front-250";
+
+    private static string NormalizeCoverBaseUrl(string? coverBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(coverBaseUrl))
+            return MusicBrainzOptions.DefaultCoverBaseUrl;
+
+        var trimmed = coverBaseUrl.TrimEnd('/');
+        return trimmed.Length == 0 ? MusicBrainzOptions.DefaultCoverBaseUrl : trimmed;
+    }
 
     private static string? FormatOverview(string? artist, string? type) =>
         (artist, type) switch

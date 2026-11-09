@@ -150,22 +150,110 @@ public class CatalogProviderTests
     [Fact]
     public void MusicBrainzProvider_maps_release_group_to_CatalogSearchResult()
     {
-        var rg = new MusicBrainzReleaseGroup
-        {
-            Id = "67a63246-0de4-3c8b-9f44-7146b2890e94",
-            Title = "OK Computer",
-            Primary_Type = "Album",
-            First_Release_Date = "1997-05-21",
-            Artist_Credit = [new MusicBrainzArtistCredit { Name = "Radiohead" }]
-        };
-        var result = MusicBrainzProvider.MapSearchResult(rg);
+        var result = MusicBrainzProvider.MapSearchResult(ReleaseGroup());
 
-        result.ExternalId.Should().Be("mb-67a63246-0de4-3c8b-9f44-7146b2890e94");
+        result.ExternalId.Should().Be($"mb-{MusicBrainzId}");
         result.MediaType.Should().Be(MediaType.Music);
         result.Name.Should().Be("OK Computer");
         result.Year.Should().Be(1997);
-        result.PosterUrl.Should().Be("https://coverartarchive.org/release-group/67a63246-0de4-3c8b-9f44-7146b2890e94/front-250");
+        result.PosterUrl.Should().Be($"https://coverartarchive.org/release-group/{MusicBrainzId}/front-250");
         result.Overview.Should().Be("Radiohead — Album");
+    }
+
+    [Fact]
+    public async Task MusicBrainzProvider_reads_cover_base_url_from_configuration()
+    {
+        var api = new StubMusicBrainzApi
+        {
+            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] }
+        };
+        var provider = CreateMusicBrainzProvider(api, "http://fake-covers.test");
+
+        var results = await provider.SearchAsync("OK Computer", CancellationToken.None);
+
+        results.Should().ContainSingle()
+            .Which.PosterUrl.Should().Be($"http://fake-covers.test/{MusicBrainzId}/front-250");
+    }
+
+    [Fact]
+    public async Task MusicBrainzProvider_builds_configured_cover_urls_for_search_results_and_title_details()
+    {
+        var api = new StubMusicBrainzApi
+        {
+            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] },
+            ReleaseGroup = ReleaseGroup()
+        };
+        var provider = CreateMusicBrainzProvider(api, "http://fake-covers.test/release-group");
+
+        var searchResults = await provider.SearchAsync("OK Computer", CancellationToken.None);
+        var details = await provider.GetDetailsAsync($"mb-{MusicBrainzId}", CancellationToken.None);
+
+        var expected = $"http://fake-covers.test/release-group/{MusicBrainzId}/front-250";
+        searchResults.Should().ContainSingle().Which.PosterUrl.Should().Be(expected);
+        details!.Title.PosterPath.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task MusicBrainzProvider_uses_default_cover_base_url_when_configuration_is_absent()
+    {
+        var api = new StubMusicBrainzApi
+        {
+            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] },
+            ReleaseGroup = ReleaseGroup()
+        };
+        var provider = CreateMusicBrainzProvider(api);
+
+        var searchResults = await provider.SearchAsync("OK Computer", CancellationToken.None);
+        var details = await provider.GetDetailsAsync($"mb-{MusicBrainzId}", CancellationToken.None);
+
+        var expected = $"https://coverartarchive.org/release-group/{MusicBrainzId}/front-250";
+        searchResults.Should().ContainSingle().Which.PosterUrl.Should().Be(expected);
+        details!.Title.PosterPath.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("http://fake-covers.test/release-group")]
+    [InlineData("http://fake-covers.test/release-group/")]
+    [InlineData("http://fake-covers.test/release-group//")]
+    public async Task MusicBrainzProvider_trims_trailing_slashes_from_configured_cover_base_url(string coverBaseUrl)
+    {
+        var api = new StubMusicBrainzApi
+        {
+            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] }
+        };
+        var provider = CreateMusicBrainzProvider(api, coverBaseUrl);
+
+        var results = await provider.SearchAsync("OK Computer", CancellationToken.None);
+
+        results.Should().ContainSingle()
+            .Which.PosterUrl.Should().Be($"http://fake-covers.test/release-group/{MusicBrainzId}/front-250");
+    }
+
+    [Fact]
+    public void MusicBrainz__CoverBaseUrl_environment_variable_supplies_configuration()
+    {
+        const string variable = "MusicBrainz__CoverBaseUrl";
+        const string fakeBase = "http://fake-covers.test/release-group";
+        var original = Environment.GetEnvironmentVariable(variable);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(variable, fakeBase);
+
+            var configuration = new ConfigurationBuilder()
+                .AddEnvironmentVariables()
+                .Build();
+
+            configuration["MusicBrainz:CoverBaseUrl"].Should().Be(fakeBase);
+
+            var options = new MusicBrainzOptions();
+            configuration.GetSection(MusicBrainzOptions.Section).Bind(options);
+            options.CoverBaseUrl.Should().Be(fakeBase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, original);
+        }
     }
 
     [Theory]
@@ -173,7 +261,7 @@ public class CatalogProviderTests
     [InlineData("tmdb-550", false)]
     public void MusicBrainzProvider_OwnsExternalId(string externalId, bool expected)
     {
-        var provider = new MusicBrainzProvider(null);
+        var provider = CreateMusicBrainzProvider(null);
         provider.OwnsExternalId(externalId).Should().Be(expected);
     }
 
@@ -416,6 +504,48 @@ public class CatalogProviderTests
             ]));
 
         credits.Should().ContainSingle(c => c.Role == "writer");
+    }
+
+    private const string MusicBrainzId = "67a63246-0de4-3c8b-9f44-7146b2890e94";
+
+    private static MusicBrainzReleaseGroup ReleaseGroup() => new()
+    {
+        Id = MusicBrainzId,
+        Title = "OK Computer",
+        Primary_Type = "Album",
+        First_Release_Date = "1997-05-21",
+        Artist_Credit = [new MusicBrainzArtistCredit { Name = "Radiohead" }]
+    };
+
+    private static MusicBrainzProvider CreateMusicBrainzProvider(
+        IMusicBrainzApi? api, string? coverBaseUrl = null)
+    {
+        var settings = new Dictionary<string, string?>();
+        if (coverBaseUrl is not null)
+            settings[$"{MusicBrainzOptions.Section}:CoverBaseUrl"] = coverBaseUrl;
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(settings)
+            .Build();
+
+        var options = new MusicBrainzOptions();
+        configuration.GetSection(MusicBrainzOptions.Section).Bind(options);
+
+        return new MusicBrainzProvider(api, Options.Create(options));
+    }
+
+    private sealed class StubMusicBrainzApi : IMusicBrainzApi
+    {
+        public MusicBrainzSearchResponse SearchResponse { get; init; } = new();
+        public MusicBrainzReleaseGroup ReleaseGroup { get; init; } = new();
+
+        public Task<MusicBrainzSearchResponse> SearchReleaseGroupsAsync(
+            string query, string fmt = "json", int limit = 20, CancellationToken ct = default) =>
+            Task.FromResult(SearchResponse);
+
+        public Task<MusicBrainzReleaseGroup> GetReleaseGroupAsync(
+            string id, string inc = "artist-credits+tags", string fmt = "json", CancellationToken ct = default) =>
+            Task.FromResult(ReleaseGroup);
     }
 
     private static Uri IgdbBaseAddress(IConfiguration configuration)
