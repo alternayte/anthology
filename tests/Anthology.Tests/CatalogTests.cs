@@ -188,6 +188,28 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
     }
 
     [Fact]
+    public async Task AddTitle_uses_configured_image_base_url_for_tv_season_posters()
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        var tmdbId = Random.Shared.Next(1_000_000, 9_999_999);
+        var externalId = $"tmdb-tv-{tmdbId}";
+        var imageBaseUrl = "https://images.example.test/t/p";
+
+        var api = new StubTmdbApi(tmdbId);
+        var options = new TmdbOptions { ImageBaseUrl = imageBaseUrl };
+        var provider = new TmdbProvider(api, options);
+        var handler = new AddTitle.Handler(db, [provider], api, options);
+
+        var result = await handler.Handle(new AddTitle.Command(externalId), TestContext.Current.CancellationToken);
+
+        result.IsError.Should().BeFalse();
+        var season = await db.Titles.AsNoTracking()
+            .FirstAsync(t => t.ParentTitleId == result.Value.TitleId, TestContext.Current.CancellationToken);
+        season.PosterPath.Should().Be($"{imageBaseUrl}/w342/season.jpg");
+    }
+
+    [Fact]
     public async Task Title_persists_and_retrieves_MusicData()
     {
         using var scope = fixture.Factory.Services.CreateScope();
@@ -281,5 +303,33 @@ public sealed class CatalogTests(WebAppFixture fixture) : IClassFixture<WebAppFi
         credits[0].Role.Should().Be("director");
         credits[1].Name.Should().Be("Leonardo DiCaprio");
         credits[1].Role.Should().Be("actor");
+    }
+
+    private sealed class StubTmdbApi(int tmdbId) : ITmdbApi
+    {
+        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(int id, CancellationToken ct = default) =>
+            Task.FromResult(new TmdbTvShowDetail(
+                tmdbId, "Test Show", "Overview", "2020-01-01", "/show.jpg",
+                1, 1, 10.0, 8.0, [], "/show-backdrop.jpg"));
+
+        public Task<TmdbTvShow> GetTvShowAsync(int id, CancellationToken ct = default) =>
+            Task.FromResult(new TmdbTvShow(tmdbId, "Test Show", "Overview", "2020-01-01", "/show.jpg", 1, 1));
+
+        public Task<TmdbSeason> GetSeasonAsync(int id, int seasonNumber, CancellationToken ct = default) =>
+            Task.FromResult(new TmdbSeason(
+                tmdbId, seasonNumber,
+                [new TmdbEpisode(tmdbId * 100 + seasonNumber * 10 + 1, "Pilot", seasonNumber, 1, "2020-01-01", "/still.jpg", null)],
+                "2020-01-01", "/season.jpg"));
+
+        public Task<TmdbPagedResult<TmdbMovie>> SearchMoviesAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbMovie> GetMovieAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbMovieDetail> GetMovieDetailAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> SearchTvAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> GetTrendingMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> GetPopularTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTopRatedTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTrendingTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
     }
 }

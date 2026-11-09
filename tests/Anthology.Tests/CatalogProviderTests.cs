@@ -1,6 +1,7 @@
 using Anthology.Modules.Catalog;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -103,6 +104,47 @@ public class CatalogProviderTests
     {
         var provider = new IgdbProvider(null);
         provider.OwnsExternalId(externalId).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Igdb_HttpClient_uses_configured_base_url()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Igdb:BaseUrl"] = "https://igdb.fake.test/v4/"
+            })
+            .Build();
+
+        IgdbBaseAddress(configuration).Should().Be(new Uri("https://igdb.fake.test/v4/"));
+    }
+
+    [Fact]
+    public void Igdb_HttpClient_uses_environment_base_url()
+    {
+        const string variable = "Igdb__BaseUrl";
+        var previous = Environment.GetEnvironmentVariable(variable);
+        try
+        {
+            Environment.SetEnvironmentVariable(variable, "https://igdb.env.test/v4/");
+            var configuration = new ConfigurationBuilder()
+                .AddEnvironmentVariables()
+                .Build();
+
+            IgdbBaseAddress(configuration).Should().Be(new Uri("https://igdb.env.test/v4/"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, previous);
+        }
+    }
+
+    [Fact]
+    public void Igdb_HttpClient_defaults_base_url_when_not_configured()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+
+        IgdbBaseAddress(configuration).Should().Be(new Uri("https://api.igdb.com/v4/"));
     }
 
     [Fact]
@@ -307,6 +349,98 @@ public class CatalogProviderTests
         TmdbProvider.BackdropUrl(null).Should().BeNull();
 
     [Fact]
+    public async Task TmdbProvider_GetDetailsAsync_uses_configured_image_base_url()
+    {
+        var api = new StubTmdbApi
+        {
+            MovieDetail = new TmdbMovieDetail(
+                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
+                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
+                "/backdrop.jpg")
+        };
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p"
+            })
+            .Build();
+        var options = Options.Create(config.GetSection(TmdbOptions.Section).Get<TmdbOptions>()!);
+        var provider = new TmdbProvider(api, options);
+
+        var result = await provider.GetDetailsAsync("tmdb-550", CancellationToken.None);
+
+        result!.Title.PosterPath.Should().Be("https://images.example.test/t/p/w342/poster.jpg");
+        result.Title.BackdropPath.Should().Be("https://images.example.test/t/p/w1280/backdrop.jpg");
+    }
+
+    [Fact]
+    public void TmdbProvider_maps_search_results_with_configured_image_base_url()
+    {
+        var movie = new TmdbMovie(550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg");
+        var show = new TmdbTvShow(1396, "Breaking Bad", "A chemistry teacher...", "2008-01-20", "/bb.jpg", 5, 62);
+
+        var movieResult = TmdbProvider.MapMovieResult(movie, "https://images.example.test/t/p");
+        var tvResult = TmdbProvider.MapTvResult(show, "https://images.example.test/t/p");
+
+        movieResult.PosterUrl.Should().Be("https://images.example.test/t/p/w342/poster.jpg");
+        tvResult.PosterUrl.Should().Be("https://images.example.test/t/p/w342/bb.jpg");
+    }
+
+    [Fact]
+    public async Task TmdbProvider_reads_image_base_url_from_configuration_through_di()
+    {
+        var api = new StubTmdbApi
+        {
+            MovieDetail = new TmdbMovieDetail(
+                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
+                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
+                "/backdrop.jpg")
+        };
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.Configure<TmdbOptions>(config.GetSection(TmdbOptions.Section));
+        services.AddSingleton<ITmdbApi>(api);
+        services.AddScoped<TmdbProvider>();
+
+        using var scope = services.BuildServiceProvider().CreateScope();
+        var provider = scope.ServiceProvider.GetRequiredService<TmdbProvider>();
+
+        var result = await provider.GetDetailsAsync("tmdb-550", CancellationToken.None);
+
+        result!.Title.PosterPath.Should().Be("https://images.example.test/t/p/w342/poster.jpg");
+        result.Title.BackdropPath.Should().Be("https://images.example.test/t/p/w1280/backdrop.jpg");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task TmdbProvider_falls_back_to_default_image_base_url(string? configured)
+    {
+        var api = new StubTmdbApi
+        {
+            MovieDetail = new TmdbMovieDetail(
+                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
+                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
+                "/backdrop.jpg")
+        };
+
+        var provider = new TmdbProvider(api, new TmdbOptions { ImageBaseUrl = configured! });
+        var result = await provider.GetDetailsAsync("tmdb-550", CancellationToken.None);
+
+        result!.Title.PosterPath.Should().Be("https://image.tmdb.org/t/p/w342/poster.jpg");
+        result.Title.BackdropPath.Should().Be("https://image.tmdb.org/t/p/w1280/backdrop.jpg");
+    }
+
+    [Fact]
     public void IgdbProvider_BackdropUrl_prefers_artwork_over_screenshot()
     {
         var game = new IgdbGame
@@ -412,6 +546,16 @@ public class CatalogProviderTests
         public Task<MusicBrainzReleaseGroup> GetReleaseGroupAsync(
             string id, string inc = "artist-credits+tags", string fmt = "json", CancellationToken ct = default) =>
             Task.FromResult(ReleaseGroup);
+    }
+
+    private static Uri IgdbBaseAddress(IConfiguration configuration)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddCatalogModule(configuration);
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IgdbClient));
+        return client.BaseAddress!;
     }
 
     private sealed class StubTmdbApi : ITmdbApi

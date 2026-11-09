@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
-const TMDB_BASE = 'https://image.tmdb.org/t/p'
+const TMDB_BASE = import.meta.env.VITE_TMDB_IMAGE_BASE ?? 'https://image.tmdb.org/t/p'
 
 function resolveSrc(path: string, size: string): string {
   if (path.startsWith('http')) return path

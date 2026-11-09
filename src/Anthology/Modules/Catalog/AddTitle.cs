@@ -1,5 +1,6 @@
 using Anthology.Kernel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Anthology.Modules.Catalog;
 
@@ -9,8 +10,39 @@ public static class AddTitle
 
     public sealed record TitleDto(Guid TitleId, string Name, int? Year, string? PosterPath, MediaType MediaType);
 
-    public sealed class Handler(CatalogDbContext db, IEnumerable<ICatalogProvider> providers, ITmdbApi tmdb)
+    public sealed class Handler
     {
+        private readonly CatalogDbContext db;
+        private readonly IEnumerable<ICatalogProvider> providers;
+        private readonly ITmdbApi tmdb;
+        private readonly string imageBaseUrl;
+
+        public Handler(CatalogDbContext db, IEnumerable<ICatalogProvider> providers, ITmdbApi tmdb)
+            : this(db, providers, tmdb, (TmdbOptions?)null)
+        {
+        }
+
+        public Handler(
+            CatalogDbContext db,
+            IEnumerable<ICatalogProvider> providers,
+            ITmdbApi tmdb,
+            IOptions<TmdbOptions> options)
+            : this(db, providers, tmdb, options?.Value)
+        {
+        }
+
+        public Handler(
+            CatalogDbContext db,
+            IEnumerable<ICatalogProvider> providers,
+            ITmdbApi tmdb,
+            TmdbOptions? options)
+        {
+            this.db = db;
+            this.providers = providers;
+            this.tmdb = tmdb;
+            imageBaseUrl = TmdbOptions.ResolveImageBaseUrl(options?.ImageBaseUrl);
+        }
+
         public async Task<Result<TitleDto>> Handle(Command command, CancellationToken ct)
         {
             var existing = await db.Titles.AsNoTracking()
@@ -56,7 +88,7 @@ public static class AddTitle
                     MediaType = MediaType.Season,
                     Name = $"Season {s}",
                     Year = TmdbProvider.ParseYear(season.Air_Date),
-                    PosterPath = TmdbProvider.PosterUrl(season.Poster_Path),
+                    PosterPath = TmdbProvider.PosterUrl(season.Poster_Path, imageBaseUrl),
                     SortOrder = s
                 };
                 seasonTitle.SetMediaData(new SeasonData(season.Season_Number, season.Episodes.Count, season.Air_Date));
