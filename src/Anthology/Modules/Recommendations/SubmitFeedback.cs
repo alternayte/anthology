@@ -10,14 +10,16 @@ public static class SubmitFeedback
     {
         public async Task<FeedbackAck> Handle(Command command, CancellationToken ct)
         {
-            db.Feedback.Add(new RecommendationFeedback
-            {
-                Id = Guid.NewGuid(),
-                UserId = command.UserId,
-                TitleId = command.TitleId,
-                Signal = command.Signal,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+            db.Feedback.Add(
+                new RecommendationFeedback
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = command.UserId,
+                    TitleId = command.TitleId,
+                    Signal = command.Signal,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                }
+            );
             await db.SaveChangesAsync(ct);
             return new FeedbackAck(command.TitleId, command.Signal);
         }

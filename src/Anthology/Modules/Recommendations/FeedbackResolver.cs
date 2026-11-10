@@ -7,12 +7,10 @@ public static class FeedbackResolver
     /// Mixing rows from multiple users would collapse their signals into one map and produce incorrect results.
     /// </summary>
     public static IReadOnlyDictionary<Guid, FeedbackSignal> Resolve(
-        IEnumerable<(Guid TitleId, FeedbackSignal Signal, DateTimeOffset CreatedAt)> rows) =>
-        rows
-            .GroupBy(r => r.TitleId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderByDescending(r => r.CreatedAt).First().Signal);
+        IEnumerable<(Guid TitleId, FeedbackSignal Signal, DateTimeOffset CreatedAt)> rows
+    ) =>
+        rows.GroupBy(r => r.TitleId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.CreatedAt).First().Signal);
 
     public static IReadOnlySet<Guid> Excluded(IReadOnlyDictionary<Guid, FeedbackSignal> resolved) =>
         resolved

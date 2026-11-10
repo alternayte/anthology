@@ -5,24 +5,41 @@ namespace Anthology.Modules.Tracking;
 
 public static class GetDiary
 {
-    public sealed record DiaryEntryDto(Guid TitleId, TrackedStatus Status, int? Rating, DateTimeOffset OccurredAt);
+    public sealed record DiaryEntryDto(
+        Guid TitleId,
+        TrackedStatus Status,
+        int? Rating,
+        DateTimeOffset OccurredAt
+    );
 
     public sealed class Handler(TrackingDbContext db)
     {
-        public async Task<Page<DiaryEntryDto>> Handle(Guid userId, string? cursor, int size, CancellationToken ct)
+        public async Task<Page<DiaryEntryDto>> Handle(
+            Guid userId,
+            string? cursor,
+            int size,
+            CancellationToken ct
+        )
         {
             size = Math.Clamp(size, 1, 100);
 
-            var query = db.DiaryEntries.AsNoTracking()
+            var query = db
+                .DiaryEntries.AsNoTracking()
                 .Where(e => e.UserId == userId)
                 .OrderByDescending(e => e.OccurredAt)
                 .ThenByDescending(e => e.TitleId);
 
-            if (cursor is not null && TryDecodeCursor(cursor, out var cursorAt, out var cursorTitleId))
+            if (
+                cursor is not null
+                && TryDecodeCursor(cursor, out var cursorAt, out var cursorTitleId)
+            )
             {
-                query = (IOrderedQueryable<DiaryEntry>)query.Where(e =>
-                    e.OccurredAt < cursorAt ||
-                    (e.OccurredAt == cursorAt && e.TitleId.CompareTo(cursorTitleId) < 0));
+                query =
+                    (IOrderedQueryable<DiaryEntry>)
+                        query.Where(e =>
+                            e.OccurredAt < cursorAt
+                            || (e.OccurredAt == cursorAt && e.TitleId.CompareTo(cursorTitleId) < 0)
+                        );
             }
 
             var items = await query
@@ -56,7 +73,10 @@ public static class GetDiary
                     && DateTimeOffset.TryParse(parts[0], out at)
                     && Guid.TryParse(parts[1], out titleId);
             }
-            catch { return false; }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

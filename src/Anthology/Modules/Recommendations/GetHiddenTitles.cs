@@ -11,9 +11,15 @@ public static class GetHiddenTitles
     {
         public async Task<IReadOnlyList<HiddenTitleDto>> Handle(Guid userId, CancellationToken ct)
         {
-            var raw = await db.Feedback.AsNoTracking()
+            var raw = await db
+                .Feedback.AsNoTracking()
                 .Where(f => f.UserId == userId)
-                .Select(f => new { f.TitleId, f.Signal, f.CreatedAt })
+                .Select(f => new
+                {
+                    f.TitleId,
+                    f.Signal,
+                    f.CreatedAt,
+                })
                 .ToListAsync(ct);
 
             var rows = raw.Select(r => (r.TitleId, r.Signal, r.CreatedAt));
@@ -22,7 +28,8 @@ public static class GetHiddenTitles
                 return [];
 
             var ids = excluded.ToArray();
-            return await catalog.Titles.AsNoTracking()
+            return await catalog
+                .Titles.AsNoTracking()
                 .Where(t => ids.Contains(t.TitleId))
                 .Select(t => new HiddenTitleDto(t.TitleId, t.Name, t.Year, t.PosterPath))
                 .ToListAsync(ct);

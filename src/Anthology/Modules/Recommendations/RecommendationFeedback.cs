@@ -13,13 +13,19 @@ public sealed class RecommendationFeedback
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-internal sealed class RecommendationFeedbackConfiguration : IEntityTypeConfiguration<RecommendationFeedback>
+internal sealed class RecommendationFeedbackConfiguration
+    : IEntityTypeConfiguration<RecommendationFeedback>
 {
     public void Configure(EntityTypeBuilder<RecommendationFeedback> builder)
     {
         builder.ToTable("feedback", "recommendations");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Signal).HasConversion(new SnakeCaseEnumConverter<FeedbackSignal>());
-        builder.HasIndex(e => new { e.UserId, e.TitleId, e.CreatedAt });
+        builder.HasIndex(e => new
+        {
+            e.UserId,
+            e.TitleId,
+            e.CreatedAt,
+        });
     }
 }

@@ -2,7 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Anthology.Modules.Tracking;
 
-public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> options) : DbContext(options)
+public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> options)
+    : DbContext(options)
 {
     public DbSet<DiaryEntry> DiaryEntries => Set<DiaryEntry>();
     public DbSet<LibraryItem> LibraryItems => Set<LibraryItem>();

@@ -11,17 +11,52 @@ public static class RecommendationsEndpoints
     {
         var group = app.MapGroup("/api/recommendations").WithTags("Recommendations");
 
-        group.MapGet("/for-you", async (ClaimsPrincipal user, GetForYou.Handler handler, CancellationToken ct) =>
-            Results.Ok(await handler.Handle(user.UserId(), ct)))
-            .RequireAuthorization().WithName("getForYou").Produces<List<GetForYou.FeedRowDto>>();
+        group
+            .MapGet(
+                "/for-you",
+                async (ClaimsPrincipal user, GetForYou.Handler handler, CancellationToken ct) =>
+                    Results.Ok(await handler.Handle(user.UserId(), ct))
+            )
+            .RequireAuthorization()
+            .WithName("getForYou")
+            .Produces<List<GetForYou.FeedRowDto>>();
 
-        group.MapGet("/hidden", async (ClaimsPrincipal user, GetHiddenTitles.Handler handler, CancellationToken ct) =>
-            Results.Ok(await handler.Handle(user.UserId(), ct)))
-            .RequireAuthorization().WithName("getHiddenTitles").Produces<List<GetHiddenTitles.HiddenTitleDto>>();
+        group
+            .MapGet(
+                "/hidden",
+                async (
+                    ClaimsPrincipal user,
+                    GetHiddenTitles.Handler handler,
+                    CancellationToken ct
+                ) => Results.Ok(await handler.Handle(user.UserId(), ct))
+            )
+            .RequireAuthorization()
+            .WithName("getHiddenTitles")
+            .Produces<List<GetHiddenTitles.HiddenTitleDto>>();
 
-        group.MapPost("/feedback", async (FeedbackRequest request, ClaimsPrincipal user, SubmitFeedback.Handler handler, CancellationToken ct) =>
-            Results.Ok(await handler.Handle(new SubmitFeedback.Command(user.UserId(), request.TitleId, request.Signal), ct)))
-            .RequireAuthorization().WithName("submitFeedback").Produces<SubmitFeedback.FeedbackAck>();
+        group
+            .MapPost(
+                "/feedback",
+                async (
+                    FeedbackRequest request,
+                    ClaimsPrincipal user,
+                    SubmitFeedback.Handler handler,
+                    CancellationToken ct
+                ) =>
+                    Results.Ok(
+                        await handler.Handle(
+                            new SubmitFeedback.Command(
+                                user.UserId(),
+                                request.TitleId,
+                                request.Signal
+                            ),
+                            ct
+                        )
+                    )
+            )
+            .RequireAuthorization()
+            .WithName("submitFeedback")
+            .Produces<SubmitFeedback.FeedbackAck>();
 
         return app;
     }

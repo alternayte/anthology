@@ -12,7 +12,13 @@ public class CatalogProviderTests
     [Fact]
     public void TmdbProvider_maps_movie_to_CatalogSearchResult()
     {
-        var movie = new TmdbMovie(550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg");
+        var movie = new TmdbMovie(
+            550,
+            "Fight Club",
+            "A first-generation member...",
+            "1999-10-15",
+            "/poster.jpg"
+        );
         var result = TmdbProvider.MapMovieResult(movie);
 
         result.ExternalId.Should().Be("tmdb-550");
@@ -25,7 +31,15 @@ public class CatalogProviderTests
     [Fact]
     public void TmdbProvider_maps_tv_show_to_CatalogSearchResult()
     {
-        var show = new TmdbTvShow(1396, "Breaking Bad", "A chemistry teacher...", "2008-01-20", "/bb.jpg", 5, 62);
+        var show = new TmdbTvShow(
+            1396,
+            "Breaking Bad",
+            "A chemistry teacher...",
+            "2008-01-20",
+            "/bb.jpg",
+            5,
+            62
+        );
         var result = TmdbProvider.MapTvResult(show);
 
         result.ExternalId.Should().Be("tmdb-tv-1396");
@@ -55,7 +69,7 @@ public class CatalogProviderTests
             First_Publish_Year = 1996,
             Author_Name = ["Chuck Palahniuk"],
             Cover_I = 8739161,
-            Number_Of_Pages_Median = 218
+            Number_Of_Pages_Median = 218,
         };
         var result = OpenLibraryProvider.MapSearchResult(doc);
 
@@ -85,8 +99,19 @@ public class CatalogProviderTests
             First_Release_Date = 1431993600,
             Summary = "An RPG...",
             Cover = new IgdbCover { Image_Id = "co1234" },
-            Involved_Companies = [new IgdbInvolvedCompany { Developer = true, Company = new IgdbCompany { Name = "CD Projekt Red" } }],
-            Platforms = [new IgdbPlatform { Name = "PC" }, new IgdbPlatform { Name = "PlayStation 4" }]
+            Involved_Companies =
+            [
+                new IgdbInvolvedCompany
+                {
+                    Developer = true,
+                    Company = new IgdbCompany { Name = "CD Projekt Red" },
+                },
+            ],
+            Platforms =
+            [
+                new IgdbPlatform { Name = "PC" },
+                new IgdbPlatform { Name = "PlayStation 4" },
+            ],
         };
         var result = IgdbProvider.MapSearchResult(game);
 
@@ -94,7 +119,9 @@ public class CatalogProviderTests
         result.MediaType.Should().Be(MediaType.Game);
         result.Name.Should().Be("The Witcher 3");
         result.Year.Should().Be(2015);
-        result.PosterUrl.Should().Be("https://images.igdb.com/igdb/image/upload/t_cover_big/co1234.jpg");
+        result
+            .PosterUrl.Should()
+            .Be("https://images.igdb.com/igdb/image/upload/t_cover_big/co1234.jpg");
     }
 
     [Theory]
@@ -110,10 +137,9 @@ public class CatalogProviderTests
     public void Igdb_HttpClient_uses_configured_base_url()
     {
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Igdb:BaseUrl"] = "https://igdb.fake.test/v4/"
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["Igdb:BaseUrl"] = "https://igdb.fake.test/v4/" }
+            )
             .Build();
 
         IgdbBaseAddress(configuration).Should().Be(new Uri("https://igdb.fake.test/v4/"));
@@ -127,9 +153,7 @@ public class CatalogProviderTests
         try
         {
             Environment.SetEnvironmentVariable(variable, "https://igdb.env.test/v4/");
-            var configuration = new ConfigurationBuilder()
-                .AddEnvironmentVariables()
-                .Build();
+            var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
 
             IgdbBaseAddress(configuration).Should().Be(new Uri("https://igdb.env.test/v4/"));
         }
@@ -156,7 +180,9 @@ public class CatalogProviderTests
         result.MediaType.Should().Be(MediaType.Music);
         result.Name.Should().Be("OK Computer");
         result.Year.Should().Be(1997);
-        result.PosterUrl.Should().Be($"https://coverartarchive.org/release-group/{MusicBrainzId}/front-250");
+        result
+            .PosterUrl.Should()
+            .Be($"https://coverartarchive.org/release-group/{MusicBrainzId}/front-250");
         result.Overview.Should().Be("Radiohead — Album");
     }
 
@@ -165,14 +191,17 @@ public class CatalogProviderTests
     {
         var api = new StubMusicBrainzApi
         {
-            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] }
+            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] },
         };
         var provider = CreateMusicBrainzProvider(api, "http://fake-covers.test");
 
         var results = await provider.SearchAsync("OK Computer", CancellationToken.None);
 
-        results.Should().ContainSingle()
-            .Which.PosterUrl.Should().Be($"http://fake-covers.test/{MusicBrainzId}/front-250");
+        results
+            .Should()
+            .ContainSingle()
+            .Which.PosterUrl.Should()
+            .Be($"http://fake-covers.test/{MusicBrainzId}/front-250");
     }
 
     [Fact]
@@ -181,7 +210,7 @@ public class CatalogProviderTests
         var api = new StubMusicBrainzApi
         {
             SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] },
-            ReleaseGroup = ReleaseGroup()
+            ReleaseGroup = ReleaseGroup(),
         };
         var provider = CreateMusicBrainzProvider(api, "http://fake-covers.test/release-group");
 
@@ -199,7 +228,7 @@ public class CatalogProviderTests
         var api = new StubMusicBrainzApi
         {
             SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] },
-            ReleaseGroup = ReleaseGroup()
+            ReleaseGroup = ReleaseGroup(),
         };
         var provider = CreateMusicBrainzProvider(api);
 
@@ -215,18 +244,23 @@ public class CatalogProviderTests
     [InlineData("http://fake-covers.test/release-group")]
     [InlineData("http://fake-covers.test/release-group/")]
     [InlineData("http://fake-covers.test/release-group//")]
-    public async Task MusicBrainzProvider_trims_trailing_slashes_from_configured_cover_base_url(string coverBaseUrl)
+    public async Task MusicBrainzProvider_trims_trailing_slashes_from_configured_cover_base_url(
+        string coverBaseUrl
+    )
     {
         var api = new StubMusicBrainzApi
         {
-            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] }
+            SearchResponse = new MusicBrainzSearchResponse { Release_Groups = [ReleaseGroup()] },
         };
         var provider = CreateMusicBrainzProvider(api, coverBaseUrl);
 
         var results = await provider.SearchAsync("OK Computer", CancellationToken.None);
 
-        results.Should().ContainSingle()
-            .Which.PosterUrl.Should().Be($"http://fake-covers.test/release-group/{MusicBrainzId}/front-250");
+        results
+            .Should()
+            .ContainSingle()
+            .Which.PosterUrl.Should()
+            .Be($"http://fake-covers.test/release-group/{MusicBrainzId}/front-250");
     }
 
     [Fact]
@@ -240,9 +274,7 @@ public class CatalogProviderTests
         {
             Environment.SetEnvironmentVariable(variable, fakeBase);
 
-            var configuration = new ConfigurationBuilder()
-                .AddEnvironmentVariables()
-                .Build();
+            var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
 
             configuration["MusicBrainz:CoverBaseUrl"].Should().Be(fakeBase);
 
@@ -268,13 +300,22 @@ public class CatalogProviderTests
     [Fact]
     public async Task SearchTitles_fans_out_to_all_providers_when_no_filter()
     {
-        var providerA = new FakeCatalogProvider(MediaType.Film, "tmdb-",
-            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]);
-        var providerB = new FakeCatalogProvider(MediaType.Book, "ol-",
-            [new CatalogSearchResult("ol-1", MediaType.Book, "Book A", 2020, null, null)]);
+        var providerA = new FakeCatalogProvider(
+            MediaType.Film,
+            "tmdb-",
+            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]
+        );
+        var providerB = new FakeCatalogProvider(
+            MediaType.Book,
+            "ol-",
+            [new CatalogSearchResult("ol-1", MediaType.Book, "Book A", 2020, null, null)]
+        );
 
         var handler = new SearchTitles.Handler([providerA, providerB]);
-        var results = await handler.Handle(new SearchTitles.Query("test", null), CancellationToken.None);
+        var results = await handler.Handle(
+            new SearchTitles.Query("test", null),
+            CancellationToken.None
+        );
 
         results.Should().HaveCount(2);
         results.Should().Contain(r => r.ExternalId == "tmdb-1");
@@ -284,13 +325,22 @@ public class CatalogProviderTests
     [Fact]
     public async Task SearchTitles_filters_to_matching_provider()
     {
-        var providerA = new FakeCatalogProvider(MediaType.Film, "tmdb-",
-            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]);
-        var providerB = new FakeCatalogProvider(MediaType.Book, "ol-",
-            [new CatalogSearchResult("ol-1", MediaType.Book, "Book A", 2020, null, null)]);
+        var providerA = new FakeCatalogProvider(
+            MediaType.Film,
+            "tmdb-",
+            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]
+        );
+        var providerB = new FakeCatalogProvider(
+            MediaType.Book,
+            "ol-",
+            [new CatalogSearchResult("ol-1", MediaType.Book, "Book A", 2020, null, null)]
+        );
 
         var handler = new SearchTitles.Handler([providerA, providerB]);
-        var results = await handler.Handle(new SearchTitles.Query("test", MediaType.Book), CancellationToken.None);
+        var results = await handler.Handle(
+            new SearchTitles.Query("test", MediaType.Book),
+            CancellationToken.None
+        );
 
         results.Should().HaveCount(1);
         results.Should().Contain(r => r.ExternalId == "ol-1");
@@ -299,12 +349,18 @@ public class CatalogProviderTests
     [Fact]
     public async Task SearchTitles_returns_partial_results_when_provider_fails()
     {
-        var good = new FakeCatalogProvider(MediaType.Film, "tmdb-",
-            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]);
+        var good = new FakeCatalogProvider(
+            MediaType.Film,
+            "tmdb-",
+            [new CatalogSearchResult("tmdb-1", MediaType.Film, "Film A", 2020, null, null)]
+        );
         var bad = new FailingCatalogProvider(MediaType.Book);
 
         var handler = new SearchTitles.Handler([good, bad]);
-        var results = await handler.Handle(new SearchTitles.Query("test", null), CancellationToken.None);
+        var results = await handler.Handle(
+            new SearchTitles.Query("test", null),
+            CancellationToken.None
+        );
 
         results.Should().HaveCount(1);
         results.Should().Contain(r => r.ExternalId == "tmdb-1");
@@ -316,9 +372,18 @@ public class CatalogProviderTests
         var api = new StubTmdbApi
         {
             MovieDetail = new TmdbMovieDetail(
-                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
-                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
-                "/backdrop.jpg")
+                550,
+                "Fight Club",
+                "A first-generation member...",
+                "1999-10-15",
+                "/poster.jpg",
+                10.0,
+                8.4,
+                [],
+                new TmdbKeywordsResponse([]),
+                new TmdbCreditsResponse([], []),
+                "/backdrop.jpg"
+            ),
         };
 
         var provider = new TmdbProvider(api);
@@ -334,8 +399,18 @@ public class CatalogProviderTests
         var api = new StubTmdbApi
         {
             TvShowDetail = new TmdbTvShowDetail(
-                1396, "Breaking Bad", "A chemistry teacher...", "2008-01-20", "/poster.jpg",
-                5, 62, 10.0, 8.4, [], "/backdrop.jpg")
+                1396,
+                "Breaking Bad",
+                "A chemistry teacher...",
+                "2008-01-20",
+                "/poster.jpg",
+                5,
+                62,
+                10.0,
+                8.4,
+                [],
+                "/backdrop.jpg"
+            ),
         };
 
         var provider = new TmdbProvider(api);
@@ -354,16 +429,27 @@ public class CatalogProviderTests
         var api = new StubTmdbApi
         {
             MovieDetail = new TmdbMovieDetail(
-                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
-                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
-                "/backdrop.jpg")
+                550,
+                "Fight Club",
+                "A first-generation member...",
+                "1999-10-15",
+                "/poster.jpg",
+                10.0,
+                8.4,
+                [],
+                new TmdbKeywordsResponse([]),
+                new TmdbCreditsResponse([], []),
+                "/backdrop.jpg"
+            ),
         };
 
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p"
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p",
+                }
+            )
             .Build();
         var options = Options.Create(config.GetSection(TmdbOptions.Section).Get<TmdbOptions>()!);
         var provider = new TmdbProvider(api, options);
@@ -377,8 +463,22 @@ public class CatalogProviderTests
     [Fact]
     public void TmdbProvider_maps_search_results_with_configured_image_base_url()
     {
-        var movie = new TmdbMovie(550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg");
-        var show = new TmdbTvShow(1396, "Breaking Bad", "A chemistry teacher...", "2008-01-20", "/bb.jpg", 5, 62);
+        var movie = new TmdbMovie(
+            550,
+            "Fight Club",
+            "A first-generation member...",
+            "1999-10-15",
+            "/poster.jpg"
+        );
+        var show = new TmdbTvShow(
+            1396,
+            "Breaking Bad",
+            "A chemistry teacher...",
+            "2008-01-20",
+            "/bb.jpg",
+            5,
+            62
+        );
 
         var movieResult = TmdbProvider.MapMovieResult(movie, "https://images.example.test/t/p");
         var tvResult = TmdbProvider.MapTvResult(show, "https://images.example.test/t/p");
@@ -393,16 +493,27 @@ public class CatalogProviderTests
         var api = new StubTmdbApi
         {
             MovieDetail = new TmdbMovieDetail(
-                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
-                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
-                "/backdrop.jpg")
+                550,
+                "Fight Club",
+                "A first-generation member...",
+                "1999-10-15",
+                "/poster.jpg",
+                10.0,
+                8.4,
+                [],
+                new TmdbKeywordsResponse([]),
+                new TmdbCreditsResponse([], []),
+                "/backdrop.jpg"
+            ),
         };
 
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p"
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Tmdb:ImageBaseUrl"] = "https://images.example.test/t/p",
+                }
+            )
             .Build();
 
         var services = new ServiceCollection();
@@ -428,9 +539,18 @@ public class CatalogProviderTests
         var api = new StubTmdbApi
         {
             MovieDetail = new TmdbMovieDetail(
-                550, "Fight Club", "A first-generation member...", "1999-10-15", "/poster.jpg",
-                10.0, 8.4, [], new TmdbKeywordsResponse([]), new TmdbCreditsResponse([], []),
-                "/backdrop.jpg")
+                550,
+                "Fight Club",
+                "A first-generation member...",
+                "1999-10-15",
+                "/poster.jpg",
+                10.0,
+                8.4,
+                [],
+                new TmdbKeywordsResponse([]),
+                new TmdbCreditsResponse([], []),
+                "/backdrop.jpg"
+            ),
         };
 
         var provider = new TmdbProvider(api, new TmdbOptions { ImageBaseUrl = configured! });
@@ -448,10 +568,13 @@ public class CatalogProviderTests
             Id = 1942,
             Name = "The Witcher 3",
             Artworks = [new IgdbImage { Image_Id = "ar1234" }],
-            Screenshots = [new IgdbImage { Image_Id = "sc5678" }]
+            Screenshots = [new IgdbImage { Image_Id = "sc5678" }],
         };
 
-        IgdbProvider.BackdropUrl(game).Should().Be("https://images.igdb.com/igdb/image/upload/t_1080p/ar1234.jpg");
+        IgdbProvider
+            .BackdropUrl(game)
+            .Should()
+            .Be("https://images.igdb.com/igdb/image/upload/t_1080p/ar1234.jpg");
     }
 
     [Fact]
@@ -461,10 +584,13 @@ public class CatalogProviderTests
         {
             Id = 1942,
             Name = "The Witcher 3",
-            Screenshots = [new IgdbImage { Image_Id = "sc5678" }]
+            Screenshots = [new IgdbImage { Image_Id = "sc5678" }],
         };
 
-        IgdbProvider.BackdropUrl(game).Should().Be("https://images.igdb.com/igdb/image/upload/t_1080p/sc5678.jpg");
+        IgdbProvider
+            .BackdropUrl(game)
+            .Should()
+            .Be("https://images.igdb.com/igdb/image/upload/t_1080p/sc5678.jpg");
     }
 
     [Fact]
@@ -481,9 +607,21 @@ public class CatalogProviderTests
         var titleId = Guid.NewGuid();
         List<IgdbInvolvedCompany> companies =
         [
-            new() { Developer = true, Company = new IgdbCompany { Name = "Japan Studio" } },
-            new() { Publisher = true, Company = new IgdbCompany { Name = "Sony Computer Entertainment" } },
-            new() { Publisher = true, Company = new IgdbCompany { Name = "Sony Computer Entertainment" } },
+            new()
+            {
+                Developer = true,
+                Company = new IgdbCompany { Name = "Japan Studio" },
+            },
+            new()
+            {
+                Publisher = true,
+                Company = new IgdbCompany { Name = "Sony Computer Entertainment" },
+            },
+            new()
+            {
+                Publisher = true,
+                Company = new IgdbCompany { Name = "Sony Computer Entertainment" },
+            },
         ];
 
         var credits = IgdbProvider.BuildCompanyCredits(titleId, companies);
@@ -496,37 +634,42 @@ public class CatalogProviderTests
     public void TmdbProvider_BuildCredits_deduplicates_person_with_multiple_writing_jobs()
     {
         var titleId = Guid.NewGuid();
-        var credits = TmdbProvider.BuildCredits(titleId, new TmdbCreditsResponse(
-            [],
-            [
-                new TmdbCrewMember(7, "Jane Doe", "Screenplay", "Writing"),
-                new TmdbCrewMember(7, "Jane Doe", "Story", "Writing"),
-            ]));
+        var credits = TmdbProvider.BuildCredits(
+            titleId,
+            new TmdbCreditsResponse(
+                [],
+                [
+                    new TmdbCrewMember(7, "Jane Doe", "Screenplay", "Writing"),
+                    new TmdbCrewMember(7, "Jane Doe", "Story", "Writing"),
+                ]
+            )
+        );
 
         credits.Should().ContainSingle(c => c.Role == "writer");
     }
 
     private const string MusicBrainzId = "67a63246-0de4-3c8b-9f44-7146b2890e94";
 
-    private static MusicBrainzReleaseGroup ReleaseGroup() => new()
-    {
-        Id = MusicBrainzId,
-        Title = "OK Computer",
-        Primary_Type = "Album",
-        First_Release_Date = "1997-05-21",
-        Artist_Credit = [new MusicBrainzArtistCredit { Name = "Radiohead" }]
-    };
+    private static MusicBrainzReleaseGroup ReleaseGroup() =>
+        new()
+        {
+            Id = MusicBrainzId,
+            Title = "OK Computer",
+            Primary_Type = "Album",
+            First_Release_Date = "1997-05-21",
+            Artist_Credit = [new MusicBrainzArtistCredit { Name = "Radiohead" }],
+        };
 
     private static MusicBrainzProvider CreateMusicBrainzProvider(
-        IMusicBrainzApi? api, string? coverBaseUrl = null)
+        IMusicBrainzApi? api,
+        string? coverBaseUrl = null
+    )
     {
         var settings = new Dictionary<string, string?>();
         if (coverBaseUrl is not null)
             settings[$"{MusicBrainzOptions.Section}:CoverBaseUrl"] = coverBaseUrl;
 
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(settings)
-            .Build();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
 
         var options = new MusicBrainzOptions();
         configuration.GetSection(MusicBrainzOptions.Section).Bind(options);
@@ -540,12 +683,18 @@ public class CatalogProviderTests
         public MusicBrainzReleaseGroup ReleaseGroup { get; init; } = new();
 
         public Task<MusicBrainzSearchResponse> SearchReleaseGroupsAsync(
-            string query, string fmt = "json", int limit = 20, CancellationToken ct = default) =>
-            Task.FromResult(SearchResponse);
+            string query,
+            string fmt = "json",
+            int limit = 20,
+            CancellationToken ct = default
+        ) => Task.FromResult(SearchResponse);
 
         public Task<MusicBrainzReleaseGroup> GetReleaseGroupAsync(
-            string id, string inc = "artist-credits+tags", string fmt = "json", CancellationToken ct = default) =>
-            Task.FromResult(ReleaseGroup);
+            string id,
+            string inc = "artist-credits+tags",
+            string fmt = "json",
+            CancellationToken ct = default
+        ) => Task.FromResult(ReleaseGroup);
     }
 
     private static Uri IgdbBaseAddress(IConfiguration configuration)
@@ -554,7 +703,9 @@ public class CatalogProviderTests
         services.AddLogging();
         services.AddCatalogModule(configuration);
         using var provider = services.BuildServiceProvider();
-        var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IgdbClient));
+        var client = provider
+            .GetRequiredService<IHttpClientFactory>()
+            .CreateClient(nameof(IgdbClient));
         return client.BaseAddress!;
     }
 
@@ -566,38 +717,96 @@ public class CatalogProviderTests
         public Task<TmdbMovieDetail> GetMovieDetailAsync(int id, CancellationToken ct = default) =>
             Task.FromResult(MovieDetail);
 
-        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(int id, CancellationToken ct = default) =>
-            Task.FromResult(TvShowDetail);
+        public Task<TmdbTvShowDetail> GetTvShowDetailAsync(
+            int id,
+            CancellationToken ct = default
+        ) => Task.FromResult(TvShowDetail);
 
-        public Task<TmdbPagedResult<TmdbMovie>> SearchMoviesAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbMovie> GetMovieAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> SearchTvAsync(string query, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbTvShow> GetTvShowAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbSeason> GetSeasonAsync(int id, int seasonNumber, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbMovie>> GetTrendingMoviesAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> GetPopularTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> GetTopRatedTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<TmdbPagedResult<TmdbTvShow>> GetTrendingTvAsync(int page, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<TmdbPagedResult<TmdbMovie>> SearchMoviesAsync(
+            string query,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbMovie> GetMovieAsync(int id, CancellationToken ct = default) =>
+            throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> SearchTvAsync(
+            string query,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbTvShow> GetTvShowAsync(int id, CancellationToken ct = default) =>
+            throw new NotImplementedException();
+
+        public Task<TmdbSeason> GetSeasonAsync(
+            int id,
+            int seasonNumber,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbMovie>> GetPopularMoviesAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbMovie>> GetTopRatedMoviesAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbMovie>> GetTrendingMoviesAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> GetPopularTvAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTopRatedTvAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
+
+        public Task<TmdbPagedResult<TmdbTvShow>> GetTrendingTvAsync(
+            int page,
+            CancellationToken ct = default
+        ) => throw new NotImplementedException();
     }
 
-    private sealed class FakeCatalogProvider(MediaType type, string prefix, IReadOnlyList<CatalogSearchResult> results) : ICatalogProvider
+    private sealed class FakeCatalogProvider(
+        MediaType type,
+        string prefix,
+        IReadOnlyList<CatalogSearchResult> results
+    ) : ICatalogProvider
     {
-        public IReadOnlySet<MediaType> SupportedTypes { get; } = new HashSet<MediaType> { type }.AsReadOnly();
+        public IReadOnlySet<MediaType> SupportedTypes { get; } =
+            new HashSet<MediaType> { type }.AsReadOnly();
+
         public bool OwnsExternalId(string externalId) => externalId.StartsWith(prefix);
-        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct) =>
-            Task.FromResult(results);
+
+        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(
+            string term,
+            CancellationToken ct
+        ) => Task.FromResult(results);
+
         public Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct) =>
             Task.FromResult<TitleWithCredits?>(null);
     }
 
     private sealed class FailingCatalogProvider(MediaType type) : ICatalogProvider
     {
-        public IReadOnlySet<MediaType> SupportedTypes { get; } = new HashSet<MediaType> { type }.AsReadOnly();
+        public IReadOnlySet<MediaType> SupportedTypes { get; } =
+            new HashSet<MediaType> { type }.AsReadOnly();
+
         public bool OwnsExternalId(string externalId) => false;
-        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct) =>
-            throw new HttpRequestException("Simulated failure");
+
+        public Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(
+            string term,
+            CancellationToken ct
+        ) => throw new HttpRequestException("Simulated failure");
+
         public Task<TitleWithCredits?> GetDetailsAsync(string externalId, CancellationToken ct) =>
             throw new HttpRequestException("Simulated failure");
     }

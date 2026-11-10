@@ -6,9 +6,14 @@ namespace Anthology.Modules.Tracking;
 
 public static class CreateList
 {
-    public sealed record Command(string Name, string? Description, ListVisibility Visibility,
-        Guid UserId, Guid ListId, DateTimeOffset At)
-        : ICommand<Result<CuratedListDto>>, ICuratedListCommand;
+    public sealed record Command(
+        string Name,
+        string? Description,
+        ListVisibility Visibility,
+        Guid UserId,
+        Guid ListId,
+        DateTimeOffset At
+    ) : ICommand<Result<CuratedListDto>>, ICuratedListCommand;
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -19,7 +24,8 @@ public static class CreateList
         }
     }
 
-    public sealed class Handler(IEventStore store) : ICommandHandler<Command, Result<CuratedListDto>>
+    public sealed class Handler(IEventStore store)
+        : ICommandHandler<Command, Result<CuratedListDto>>
     {
         public Task<Result<CuratedListDto>> Handle(Command command, CancellationToken ct) =>
             CuratedList.Execute(store, command, ct);

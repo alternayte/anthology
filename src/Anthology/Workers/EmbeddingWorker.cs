@@ -12,14 +12,15 @@ public sealed class EmbeddingWorker(
     IServiceScopeFactory scopeFactory,
     HttpClient httpClient,
     IOptions<EmbeddingOptions> options,
-    ILogger<EmbeddingWorker> log) : BackgroundService
+    ILogger<EmbeddingWorker> log
+) : BackgroundService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan[] RetryDelays =
     [
         TimeSpan.FromMinutes(1),
         TimeSpan.FromMinutes(5),
-        TimeSpan.FromMinutes(30)
+        TimeSpan.FromMinutes(30),
     ];
 
     private const int BatchSize = 50;
@@ -57,16 +58,19 @@ public sealed class EmbeddingWorker(
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
 
-        var titles = await db.Titles
-            .AsNoTracking()
-            .Where(t => t.Embedding == null
-                        && t.MediaType != MediaType.Season
-                        && t.MediaType != MediaType.Episode)
+        var titles = await db
+            .Titles.AsNoTracking()
+            .Where(t =>
+                t.Embedding == null
+                && t.MediaType != MediaType.Season
+                && t.MediaType != MediaType.Episode
+            )
             .OrderBy(t => t.TitleId)
             .Take(BatchSize)
             .ToListAsync(ct);
 
-        if (titles.Count == 0) return 0;
+        if (titles.Count == 0)
+            return 0;
 
         foreach (var title in titles)
         {
@@ -75,15 +79,21 @@ public sealed class EmbeddingWorker(
 
             if (embedding is null)
             {
-                log.LogWarning("Failed to get embedding for title {TitleId} after retries, skipping", title.TitleId);
+                log.LogWarning(
+                    "Failed to get embedding for title {TitleId} after retries, skipping",
+                    title.TitleId
+                );
                 continue;
             }
 
-            await db.Titles
-                .Where(t => t.TitleId == title.TitleId)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(t => t.Embedding, new Vector(embedding))
-                    .SetProperty(t => t.EmbeddingModel, options.Value.Model), ct);
+            await db
+                .Titles.Where(t => t.TitleId == title.TitleId)
+                .ExecuteUpdateAsync(
+                    s =>
+                        s.SetProperty(t => t.Embedding, new Vector(embedding))
+                            .SetProperty(t => t.EmbeddingModel, options.Value.Model),
+                    ct
+                );
 
             log.LogDebug("Embedded title {TitleId} ({Name})", title.TitleId, title.Name);
         }
@@ -107,7 +117,11 @@ public sealed class EmbeddingWorker(
             {
                 if (attempt >= RetryDelays.Length)
                 {
-                    log.LogError(ex, "Embedding API call failed after {Attempts} retries", RetryDelays.Length);
+                    log.LogError(
+                        ex,
+                        "Embedding API call failed after {Attempts} retries",
+                        RetryDelays.Length
+                    );
                     return null;
                 }
 
@@ -126,20 +140,22 @@ public sealed class EmbeddingWorker(
         {
             input = text,
             model = options.Value.Model,
-            dimensions = options.Value.Dimensions
+            dimensions = options.Value.Dimensions,
         };
 
         var json = JsonSerializer.Serialize(request);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var response = await httpClient.PostAsync(GetEmbeddingsEndpoint(options.Value.BaseUrl), content, ct);
+        using var response = await httpClient.PostAsync(
+            GetEmbeddingsEndpoint(options.Value.BaseUrl),
+            content,
+            ct
+        );
 
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(ct);
         using var doc = JsonDocument.Parse(responseJson);
-        var embeddingArray = doc.RootElement
-            .GetProperty("data")[0]
-            .GetProperty("embedding");
+        var embeddingArray = doc.RootElement.GetProperty("data")[0].GetProperty("embedding");
 
         var floats = new float[embeddingArray.GetArrayLength()];
         var i = 0;
@@ -164,7 +180,8 @@ public sealed class EmbeddingWorker(
         string name,
         string[]? genres,
         string[]? keywords,
-        string? overview)
+        string? overview
+    )
     {
         var sb = new StringBuilder(name);
 

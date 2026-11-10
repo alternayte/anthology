@@ -17,8 +17,10 @@ public class CuratedListTests
     private static CuratedListState Given(params IDomainEvent[] events) =>
         events.Aggregate(CuratedListState.Initial, CuratedList.Evolve);
 
-    private static Result<IReadOnlyList<IDomainEvent>> When(CuratedListState state, ICuratedListCommand command) =>
-        CuratedList.Decide(state, command);
+    private static Result<IReadOnlyList<IDomainEvent>> When(
+        CuratedListState state,
+        ICuratedListCommand command
+    ) => CuratedList.Decide(state, command);
 
     // --- Create ---
 
@@ -26,9 +28,24 @@ public class CuratedListTests
     public void Create_on_new_stream_emits_ListCreated()
     {
         var state = Given();
-        var result = When(state, new CreateList.Command("Favourites", "My top picks", ListVisibility.Private, UserId, ListId, Now));
+        var result = When(
+            state,
+            new CreateList.Command(
+                "Favourites",
+                "My top picks",
+                ListVisibility.Private,
+                UserId,
+                ListId,
+                Now
+            )
+        );
         result.IsError.Should().BeFalse();
-        var created = result.Value.Should().ContainSingle().Which.Should().BeOfType<ListCreated>().Subject;
+        var created = result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ListCreated>()
+            .Subject;
         created.UserId.Should().Be(UserId);
         created.Name.Should().Be("Favourites");
         created.Description.Should().Be("My top picks");
@@ -39,7 +56,10 @@ public class CuratedListTests
     public void Create_on_existing_stream_returns_conflict()
     {
         var state = Given(new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now));
-        var result = When(state, new CreateList.Command("Another", null, ListVisibility.Private, UserId, ListId, Now));
+        var result = When(
+            state,
+            new CreateList.Command("Another", null, ListVisibility.Private, UserId, ListId, Now)
+        );
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
     }
@@ -50,17 +70,30 @@ public class CuratedListTests
     public void Update_name_emits_ListRenamed()
     {
         var state = Given(new ListCreated(UserId, "Old Name", null, ListVisibility.Private, Now));
-        var result = When(state, new UpdateList.Command("New Name", null, false, null, UserId, ListId, Now));
+        var result = When(
+            state,
+            new UpdateList.Command("New Name", null, false, null, UserId, ListId, Now)
+        );
         result.IsError.Should().BeFalse();
-        result.Value.Should().ContainSingle().Which.Should().BeOfType<ListRenamed>()
-            .Which.Name.Should().Be("New Name");
+        result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ListRenamed>()
+            .Which.Name.Should()
+            .Be("New Name");
     }
 
     [Fact]
     public void Update_with_no_changes_emits_no_events()
     {
-        var state = Given(new ListCreated(UserId, "Favourites", "Desc", ListVisibility.Private, Now));
-        var result = When(state, new UpdateList.Command(null, null, false, null, UserId, ListId, Now));
+        var state = Given(
+            new ListCreated(UserId, "Favourites", "Desc", ListVisibility.Private, Now)
+        );
+        var result = When(
+            state,
+            new UpdateList.Command(null, null, false, null, UserId, ListId, Now)
+        );
         result.IsError.Should().BeFalse();
         result.Value.Should().BeEmpty();
     }
@@ -69,7 +102,18 @@ public class CuratedListTests
     public void Update_multiple_fields_emits_multiple_events()
     {
         var state = Given(new ListCreated(UserId, "Old", "Old desc", ListVisibility.Private, Now));
-        var result = When(state, new UpdateList.Command("New", "New desc", true, ListVisibility.PublicByLink, UserId, ListId, Now));
+        var result = When(
+            state,
+            new UpdateList.Command(
+                "New",
+                "New desc",
+                true,
+                ListVisibility.PublicByLink,
+                UserId,
+                ListId,
+                Now
+            )
+        );
         result.IsError.Should().BeFalse();
         result.Value.Should().HaveCount(3);
         result.Value.Should().ContainSingle(e => e is ListRenamed);
@@ -82,8 +126,12 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ListDeleted(Now));
-        var result = When(state, new UpdateList.Command("New", null, false, null, UserId, ListId, Now));
+            new ListDeleted(Now)
+        );
+        var result = When(
+            state,
+            new UpdateList.Command("New", null, false, null, UserId, ListId, Now)
+        );
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
     }
@@ -92,7 +140,10 @@ public class CuratedListTests
     public void Update_on_nonexistent_list_returns_not_found()
     {
         var state = Given();
-        var result = When(state, new UpdateList.Command("Name", null, false, null, UserId, ListId, Now));
+        var result = When(
+            state,
+            new UpdateList.Command("Name", null, false, null, UserId, ListId, Now)
+        );
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.NotFound);
     }
@@ -113,7 +164,8 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ListDeleted(Now));
+            new ListDeleted(Now)
+        );
         var result = When(state, new DeleteList.Command(UserId, ListId, Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -136,7 +188,12 @@ public class CuratedListTests
         var state = Given(new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now));
         var result = When(state, new AddItemToList.Command(TitleA, UserId, ListId, Now));
         result.IsError.Should().BeFalse();
-        var added = result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemAddedToList>().Subject;
+        var added = result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ItemAddedToList>()
+            .Subject;
         added.TitleId.Should().Be(TitleA);
         added.Position.Should().Be(1.0);
     }
@@ -146,10 +203,16 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ItemAddedToList(TitleA, 1.0, Now));
+            new ItemAddedToList(TitleA, 1.0, Now)
+        );
         var result = When(state, new AddItemToList.Command(TitleB, UserId, ListId, Now));
         result.IsError.Should().BeFalse();
-        var added = result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemAddedToList>().Subject;
+        var added = result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ItemAddedToList>()
+            .Subject;
         added.Position.Should().Be(2.0);
     }
 
@@ -158,7 +221,8 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ItemAddedToList(TitleA, 1.0, Now));
+            new ItemAddedToList(TitleA, 1.0, Now)
+        );
         var result = When(state, new AddItemToList.Command(TitleA, UserId, ListId, Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -169,7 +233,8 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ListDeleted(Now));
+            new ListDeleted(Now)
+        );
         var result = When(state, new AddItemToList.Command(TitleA, UserId, ListId, Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -191,11 +256,17 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ItemAddedToList(TitleA, 1.0, Now));
+            new ItemAddedToList(TitleA, 1.0, Now)
+        );
         var result = When(state, new RemoveItemFromList.Command(TitleA, UserId, ListId, Now));
         result.IsError.Should().BeFalse();
-        result.Value.Should().ContainSingle().Which.Should().BeOfType<ItemRemovedFromList>()
-            .Which.TitleId.Should().Be(TitleA);
+        result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ItemRemovedFromList>()
+            .Which.TitleId.Should()
+            .Be(TitleA);
     }
 
     [Fact]
@@ -213,7 +284,8 @@ public class CuratedListTests
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
             new ItemAddedToList(TitleA, 1.0, Now),
-            new ListDeleted(Now));
+            new ListDeleted(Now)
+        );
         var result = When(state, new RemoveItemFromList.Command(TitleA, UserId, ListId, Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -227,10 +299,16 @@ public class CuratedListTests
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
             new ItemAddedToList(TitleA, 1.0, Now),
-            new ItemAddedToList(TitleB, 2.0, Now));
+            new ItemAddedToList(TitleB, 2.0, Now)
+        );
         var result = When(state, new ReorderItem.Command(TitleB, null, UserId, ListId, Now));
         result.IsError.Should().BeFalse();
-        var reordered = result.Value.Should().ContainSingle().Which.Should().BeOfType<ListItemReordered>().Subject;
+        var reordered = result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ListItemReordered>()
+            .Subject;
         reordered.TitleId.Should().Be(TitleB);
         reordered.NewPosition.Should().BeLessThan(1.0);
     }
@@ -242,10 +320,16 @@ public class CuratedListTests
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
             new ItemAddedToList(TitleA, 1.0, Now),
             new ItemAddedToList(TitleB, 2.0, Now),
-            new ItemAddedToList(TitleC, 3.0, Now));
+            new ItemAddedToList(TitleC, 3.0, Now)
+        );
         var result = When(state, new ReorderItem.Command(TitleC, TitleA, UserId, ListId, Now));
         result.IsError.Should().BeFalse();
-        var reordered = result.Value.Should().ContainSingle().Which.Should().BeOfType<ListItemReordered>().Subject;
+        var reordered = result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ListItemReordered>()
+            .Subject;
         reordered.NewPosition.Should().BeGreaterThan(1.0).And.BeLessThan(2.0);
     }
 
@@ -255,10 +339,16 @@ public class CuratedListTests
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
             new ItemAddedToList(TitleA, 1.0, Now),
-            new ItemAddedToList(TitleB, 2.0, Now));
+            new ItemAddedToList(TitleB, 2.0, Now)
+        );
         var result = When(state, new ReorderItem.Command(TitleA, TitleB, UserId, ListId, Now));
         result.IsError.Should().BeFalse();
-        var reordered = result.Value.Should().ContainSingle().Which.Should().BeOfType<ListItemReordered>().Subject;
+        var reordered = result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ListItemReordered>()
+            .Subject;
         reordered.NewPosition.Should().BeGreaterThan(2.0);
     }
 
@@ -267,7 +357,8 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ItemAddedToList(TitleA, 1.0, Now));
+            new ItemAddedToList(TitleA, 1.0, Now)
+        );
         var result = When(state, new ReorderItem.Command(TitleB, null, UserId, ListId, Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.NotFound);
@@ -278,7 +369,8 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ItemAddedToList(TitleA, 1.0, Now));
+            new ItemAddedToList(TitleA, 1.0, Now)
+        );
         var result = When(state, new ReorderItem.Command(TitleA, TitleB, UserId, ListId, Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.NotFound);
@@ -290,7 +382,8 @@ public class CuratedListTests
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
             new ItemAddedToList(TitleA, 1.0, Now),
-            new ListDeleted(Now));
+            new ListDeleted(Now)
+        );
         var result = When(state, new ReorderItem.Command(TitleA, null, UserId, ListId, Now));
         result.IsError.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Conflict);
@@ -303,7 +396,8 @@ public class CuratedListTests
     {
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
-            new ItemAddedToList(TitleA, 1.0, Now));
+            new ItemAddedToList(TitleA, 1.0, Now)
+        );
         state.Version.Should().Be(2);
         state.Name.Should().Be("Favourites");
         state.Items.Should().ContainKey(TitleA);
@@ -315,7 +409,8 @@ public class CuratedListTests
         var state = Given(
             new ListCreated(UserId, "Favourites", null, ListVisibility.Private, Now),
             new ItemAddedToList(TitleA, 1.0, Now),
-            new ItemRemovedFromList(TitleA));
+            new ItemRemovedFromList(TitleA)
+        );
         state.Items.Should().BeEmpty();
         state.Version.Should().Be(3);
     }

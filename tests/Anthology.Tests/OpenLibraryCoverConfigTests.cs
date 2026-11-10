@@ -6,9 +6,7 @@ using Xunit;
 namespace Anthology.Tests;
 
 [CollectionDefinition(nameof(OpenLibraryCoverConfigTests), DisableParallelization = true)]
-public class OpenLibraryCoverConfigCollection
-{
-}
+public class OpenLibraryCoverConfigCollection { }
 
 [Collection(nameof(OpenLibraryCoverConfigTests))]
 public class OpenLibraryCoverConfigTests
@@ -17,7 +15,8 @@ public class OpenLibraryCoverConfigTests
     public async Task Configured_cover_base_url_is_used_for_search_results()
     {
         var provider = CreateProvider(
-            new OpenLibraryOptions { CoverBaseUrl = "https://covers.example.test/b/id" });
+            new OpenLibraryOptions { CoverBaseUrl = "https://covers.example.test/b/id" }
+        );
 
         var results = await provider.SearchAsync("fight club", CancellationToken.None);
 
@@ -65,7 +64,8 @@ public class OpenLibraryCoverConfigTests
     public async Task Configured_cover_base_url_is_used_for_details()
     {
         var provider = CreateProvider(
-            new OpenLibraryOptions { CoverBaseUrl = "https://covers.example.test/b/id" });
+            new OpenLibraryOptions { CoverBaseUrl = "https://covers.example.test/b/id" }
+        );
 
         var result = await provider.GetDetailsAsync("ol-OL45883W", CancellationToken.None);
 
@@ -75,14 +75,24 @@ public class OpenLibraryCoverConfigTests
     private static OpenLibraryProvider CreateProvider(OpenLibraryOptions options) =>
         new(CreateApi(), Options.Create(options));
 
-    private static FakeOpenLibraryApi CreateApi() => new()
-    {
-        Work = new OpenLibraryWork { Key = "/works/OL45883W", Title = "Fight Club", Covers = [8739161] },
-        SearchResponse = new OpenLibrarySearchResponse(
-        [
-            new OpenLibraryDoc { Key = "/works/OL45883W", Title = "Fight Club", Cover_I = 8739161 }
-        ])
-    };
+    private static FakeOpenLibraryApi CreateApi() =>
+        new()
+        {
+            Work = new OpenLibraryWork
+            {
+                Key = "/works/OL45883W",
+                Title = "Fight Club",
+                Covers = [8739161],
+            },
+            SearchResponse = new OpenLibrarySearchResponse([
+                new OpenLibraryDoc
+                {
+                    Key = "/works/OL45883W",
+                    Title = "Fight Club",
+                    Cover_I = 8739161,
+                },
+            ]),
+        };
 
     private sealed class FakeOpenLibraryApi : IOpenLibraryApi
     {
@@ -91,16 +101,27 @@ public class OpenLibraryCoverConfigTests
         public OpenLibraryTrendingResponse TrendingResponse { get; init; } = new();
         public OpenLibrarySubjectResponse SubjectResponse { get; init; } = new();
 
-        public Task<OpenLibrarySearchResponse> SearchAsync(string query, int limit = 20, CancellationToken ct = default) =>
-            Task.FromResult(SearchResponse);
+        public Task<OpenLibrarySearchResponse> SearchAsync(
+            string query,
+            int limit = 20,
+            CancellationToken ct = default
+        ) => Task.FromResult(SearchResponse);
 
         public Task<OpenLibraryWork> GetWorkAsync(string workId, CancellationToken ct = default) =>
             Task.FromResult(Work);
 
-        public Task<OpenLibraryTrendingResponse> GetTrendingAsync(string period, int limit = 20, int page = 1, CancellationToken ct = default) =>
-            Task.FromResult(TrendingResponse);
+        public Task<OpenLibraryTrendingResponse> GetTrendingAsync(
+            string period,
+            int limit = 20,
+            int page = 1,
+            CancellationToken ct = default
+        ) => Task.FromResult(TrendingResponse);
 
-        public Task<OpenLibrarySubjectResponse> GetSubjectAsync(string subject, int limit = 20, int offset = 0, CancellationToken ct = default) =>
-            Task.FromResult(SubjectResponse);
+        public Task<OpenLibrarySubjectResponse> GetSubjectAsync(
+            string subject,
+            int limit = 20,
+            int offset = 0,
+            CancellationToken ct = default
+        ) => Task.FromResult(SubjectResponse);
     }
 }

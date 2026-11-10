@@ -5,21 +5,19 @@ namespace Anthology.Modules.Catalog;
 
 public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
 {
-    private static readonly IReadOnlySet<MediaType> Types =
-        new HashSet<MediaType> { MediaType.Game }.AsReadOnly();
+    private static readonly IReadOnlySet<MediaType> Types = new HashSet<MediaType>
+    {
+        MediaType.Game,
+    }.AsReadOnly();
 
     private readonly IgdbClient? client;
     private readonly string imageBaseUrl;
 
     public IgdbProvider(IgdbClient? client)
-        : this(client, (IOptions<IgdbOptions>?)null)
-    {
-    }
+        : this(client, (IOptions<IgdbOptions>?)null) { }
 
     public IgdbProvider(IgdbClient? client, IOptions<IgdbOptions>? options)
-        : this(client, options?.Value)
-    {
-    }
+        : this(client, options?.Value) { }
 
     public IgdbProvider(IgdbClient? client, IgdbOptions? options)
     {
@@ -37,34 +35,40 @@ public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
         "name,first_release_date,summary,cover.image_id,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,platforms.name,genres.name,themes.name,keywords.name,total_rating,total_rating_count";
 
     public async IAsyncEnumerable<CatalogSearchResult> DiscoverAsync(
-        SeedOptions options, [EnumeratorCancellation] CancellationToken ct)
+        SeedOptions options,
+        [EnumeratorCancellation] CancellationToken ct
+    )
     {
         var seen = new HashSet<string>();
         var yielded = 0;
 
         foreach (var list in options.Lists)
         {
-            if (yielded >= options.Count) break;
+            if (yielded >= options.Count)
+                break;
 
             var (sort, where) = list switch
             {
                 "popular" => ("total_rating_count desc", "where total_rating_count > 0;"),
                 "top_rated" => ("total_rating desc", "where total_rating_count > 50;"),
                 "trending" => ("first_release_date desc", "where total_rating_count > 10;"),
-                _ => (null, null)
+                _ => (null, null),
             };
 
-            if (sort is null) continue;
+            if (sort is null)
+                continue;
 
             for (var offset = 0; yielded < options.Count; offset += 50)
             {
                 var body = $"fields {Fields}; sort {sort}; {where} offset {offset}; limit 50;";
                 var games = await client!.DiscoverGamesAsync(body, ct);
-                if (games.Count == 0) break;
+                if (games.Count == 0)
+                    break;
 
                 foreach (var game in games)
                 {
-                    if (yielded >= options.Count) break;
+                    if (yielded >= options.Count)
+                        break;
                     var result = MapSearchResult(game);
                     if (seen.Add(result.ExternalId))
                     {
@@ -78,7 +82,10 @@ public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
 
     public bool OwnsExternalId(string externalId) => externalId.StartsWith("igdb-");
 
-    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(string term, CancellationToken ct)
+    public async Task<IReadOnlyList<CatalogSearchResult>> SearchAsync(
+        string term,
+        CancellationToken ct
+    )
     {
         var games = await client!.SearchGamesAsync(term, ct);
         return games.Select(game => MapSearchResult(game)).ToList();
@@ -88,12 +95,11 @@ public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
     {
         var igdbId = int.Parse(externalId.Replace("igdb-", ""));
         var game = await client!.GetGameAsync(igdbId, ct);
-        if (game is null) return null;
+        if (game is null)
+            return null;
 
-        var developer = game.Involved_Companies?
-            .FirstOrDefault(c => c.Developer)?.Company.Name;
-        var publisher = game.Involved_Companies?
-            .FirstOrDefault(c => c.Publisher)?.Company.Name;
+        var developer = game.Involved_Companies?.FirstOrDefault(c => c.Developer)?.Company.Name;
+        var publisher = game.Involved_Companies?.FirstOrDefault(c => c.Publisher)?.Company.Name;
         var platforms = game.Platforms?.Select(p => p.Name).ToArray();
 
         var genres = (game.Genres?.Select(g => g.Name) ?? [])
@@ -114,7 +120,7 @@ public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
             Overview = game.Summary,
             Genres = genres,
             Keywords = keywords,
-            VoteAverage = game.Total_Rating is not null ? game.Total_Rating.Value / 10.0 : null
+            VoteAverage = game.Total_Rating is not null ? game.Total_Rating.Value / 10.0 : null,
         };
         title.SetMediaData(new GameData(developer, publisher, platforms));
 
@@ -122,50 +128,63 @@ public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
         return new TitleWithCredits(title, credits);
     }
 
-    internal static List<TitleCredit> BuildCompanyCredits(Guid titleId, List<IgdbInvolvedCompany>? companies)
+    internal static List<TitleCredit> BuildCompanyCredits(
+        Guid titleId,
+        List<IgdbInvolvedCompany>? companies
+    )
     {
-        if (companies is null or []) return [];
+        if (companies is null or [])
+            return [];
 
         var result = new List<TitleCredit>();
         var order = 0;
 
         foreach (var company in companies.Where(c => c.Developer))
         {
-            result.Add(new TitleCredit
-            {
-                TitleId = titleId,
-                ExternalPersonId = $"igdb-company-{company.Company.Name.ToLowerInvariant().Replace(' ', '-')}",
-                Name = company.Company.Name,
-                Role = "developer",
-                DisplayOrder = order++
-            });
+            result.Add(
+                new TitleCredit
+                {
+                    TitleId = titleId,
+                    ExternalPersonId =
+                        $"igdb-company-{company.Company.Name.ToLowerInvariant().Replace(' ', '-')}",
+                    Name = company.Company.Name,
+                    Role = "developer",
+                    DisplayOrder = order++,
+                }
+            );
         }
 
         foreach (var company in companies.Where(c => c.Publisher))
         {
-            result.Add(new TitleCredit
-            {
-                TitleId = titleId,
-                ExternalPersonId = $"igdb-company-{company.Company.Name.ToLowerInvariant().Replace(' ', '-')}",
-                Name = company.Company.Name,
-                Role = "publisher",
-                DisplayOrder = order++
-            });
+            result.Add(
+                new TitleCredit
+                {
+                    TitleId = titleId,
+                    ExternalPersonId =
+                        $"igdb-company-{company.Company.Name.ToLowerInvariant().Replace(' ', '-')}",
+                    Name = company.Company.Name,
+                    Role = "publisher",
+                    DisplayOrder = order++,
+                }
+            );
         }
 
         // IGDB lists the same company on multiple involved_company rows; key is (TitleId, ExternalPersonId, Role)
         return result.DistinctBy(c => (c.ExternalPersonId, c.Role)).ToList();
     }
 
-    public CatalogSearchResult MapSearchResult(IgdbGame game) => MapSearchResult(game, imageBaseUrl);
+    public CatalogSearchResult MapSearchResult(IgdbGame game) =>
+        MapSearchResult(game, imageBaseUrl);
 
-    public static CatalogSearchResult MapSearchResult(IgdbGame game, string? imageBaseUrl = null) => new(
-        $"igdb-{game.Id}",
-        MediaType.Game,
-        game.Name,
-        EpochToYear(game.First_Release_Date),
-        CoverUrl(game.Cover?.Image_Id, imageBaseUrl),
-        game.Summary);
+    public static CatalogSearchResult MapSearchResult(IgdbGame game, string? imageBaseUrl = null) =>
+        new(
+            $"igdb-{game.Id}",
+            MediaType.Game,
+            game.Name,
+            EpochToYear(game.First_Release_Date),
+            CoverUrl(game.Cover?.Image_Id, imageBaseUrl),
+            game.Summary
+        );
 
     internal static int? EpochToYear(long? epoch) =>
         epoch is not null ? DateTimeOffset.FromUnixTimeSeconds(epoch.Value).Year : null;
@@ -179,7 +198,8 @@ public sealed class IgdbProvider : ICatalogProvider, ISeedableProvider
 
     internal static string? BackdropUrl(IgdbGame game, string? imageBaseUrl = null)
     {
-        var imageId = game.Artworks?.FirstOrDefault()?.Image_Id
+        var imageId =
+            game.Artworks?.FirstOrDefault()?.Image_Id
             ?? game.Screenshots?.FirstOrDefault()?.Image_Id;
         return imageId is not null
             ? $"{NormalizeImageBaseUrl(imageBaseUrl)}/t_1080p/{imageId}.jpg"
