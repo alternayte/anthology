@@ -55,6 +55,7 @@ function LoginPage() {
             {loading && <span className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" />}
             Sign in
           </button>
+          <p className="mt-2 text-[0.8125rem] text-text-muted">Use the account your admin gave you.</p>
         </form>
         <p className="mt-4 text-[0.8125rem] text-text-muted">No account? <Link to="/register" className="text-teal hover:text-teal-glow transition-colors">Create one</Link></p>
       </motion.div>
